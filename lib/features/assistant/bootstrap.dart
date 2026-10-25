@@ -19,16 +19,27 @@ StreamSubscription<ShareIntent>? _shareSub;
 /// * Retention purge, then drains the native queue (not awaited).
 /// * Subscribes to live captured notifications and share-sheet intents.
 /// * On resume: drain + refresh device status. Every minute while alive:
-///   scheduled briefings (only while the Dart side is running).
+///   scheduled briefings (only while the Dart side is running). Every hour:
+///   retention purge (an always-on phone may never restart the app).
 Future<void> assistantBootstrap(ProviderContainer container) async {
   try {
     final controller = container.read(assistantControllerProvider);
     final ingestion = container.read(ingestionServiceProvider);
-    await controller.syncNativeConfig().timeout(const Duration(seconds: 1));
+    try {
+      await controller.syncNativeConfig().timeout(const Duration(seconds: 1));
+    } catch (e) {
+      // A slow/failed platform channel must not leave the assistant without
+      // live ingestion, drain, purge and lifecycle hooks for the session.
+      safeLog('native_config_failed', {'error': errorCode(e)});
+    }
     ingestion.start();
     unawaited(
       ingestion
           .purge()
+          .then(
+            (_) =>
+                container.read(replyServiceProvider).recoverInterruptedSends(),
+          )
           .then((_) => ingestion.drainAndIngest())
           .then(
             (_) {},
@@ -45,24 +56,71 @@ Future<void> assistantBootstrap(ProviderContainer container) async {
     _assistantLifecycle?.dispose();
     _assistantLifecycle = AppLifecycleListener(
       onResume: () {
-        unawaited(ingestion.drainAndIngest().then((_) {}, onError: (_) {}));
+        unawaited(
+          ingestion.drainAndIngest().then(
+            (_) {},
+            onError: (Object e) {
+              safeLog('resume_drain_failed', {'error': errorCode(e)});
+            },
+          ),
+        );
         container.invalidate(assistantDeviceStatusProvider);
       },
     );
 
     _assistantTicker?.cancel();
+    var lastPurge = DateTime.now();
     _assistantTicker = Timer.periodic(const Duration(minutes: 1), (_) {
       unawaited(
         container
             .read(briefingServiceProvider)
             .maybePostScheduled()
-            .then((_) {}, onError: (_) {}),
+            .then(
+              (_) {},
+              onError: (Object e) {
+                safeLog('briefing_failed', {'error': errorCode(e)});
+              },
+            ),
       );
+      final now = DateTime.now();
+      if (now.difference(lastPurge) >= const Duration(hours: 1)) {
+        lastPurge = now;
+        unawaited(
+          ingestion.purge().then(
+            (_) {},
+            onError: (Object e) {
+              safeLog('retention_purge_failed', {'error': errorCode(e)});
+            },
+          ),
+        );
+      }
     });
   } catch (e) {
     safeLog('bootstrap_degraded', {'error': errorCode(e)});
   }
 }
+
+/// Cancels the timers, lifecycle listener and share subscription started by
+/// [assistantBootstrap] (tests, hot restart).
+Future<void> assistantShutdown() async {
+  _assistantTicker?.cancel();
+  _assistantTicker = null;
+  _assistantLifecycle?.dispose();
+  _assistantLifecycle = null;
+  await _shareSub?.cancel();
+  _shareSub = null;
+}
+
+/// In-app routes a share/notification intent may open. Exact matches only:
+/// the launcher activity is exported, so any app can send this extra.
+const _openableRoutes = {
+  AppPaths.assistant,
+  AppPaths.assistantSettings,
+  AppPaths.assistantAudit,
+};
+
+@visibleForTesting
+bool isOpenableAssistantRoute(String route) => _openableRoutes.contains(route);
 
 Future<void> _restoreService(ProviderContainer container) async {
   try {
@@ -85,7 +143,7 @@ Future<void> _startShareIntake(
       if (s.text != null) {
         container.read(pendingShareProvider.notifier).set(s.text);
         router.push(AppPaths.assistant);
-      } else if (s.route != null && s.route!.startsWith(AppPaths.assistant)) {
+      } else if (s.route != null && isOpenableAssistantRoute(s.route!)) {
         router.push(s.route!);
       }
     } catch (e) {
@@ -101,6 +159,9 @@ Future<void> _startShareIntake(
     );
     if (initial != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => handle(initial));
+      // Start-up hooks are time-boxed, so this may resolve after the first
+      // frame; make sure another frame (and the callback) actually runs.
+      WidgetsBinding.instance.ensureVisualUpdate();
     }
   } catch (e) {
     safeLog('share_intake_failed', {'error': errorCode(e)});

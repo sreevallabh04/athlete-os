@@ -234,6 +234,13 @@ export function hasImage(req: ChatRequest): boolean {
   return req.messages.some((m) => m.content.some((b) => b.type === "image"));
 }
 
+/** Total base64 characters of all image blocks (ASCII, so also their UTF-8 byte count). */
+export function imagePayloadChars(req: ChatRequest): number {
+  let n = 0;
+  for (const m of req.messages) for (const b of m.content) if (b.type === "image") n += b.data.length;
+  return n;
+}
+
 /** Validates an already size-checked, JSON-parsed body. */
 export function validateChatRequest(body: unknown): ValidationResult {
   try {

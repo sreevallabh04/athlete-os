@@ -309,13 +309,27 @@ class KillSwitchCard extends ConsumerWidget {
     final hud = HudTheme.of(context);
     final t = Theme.of(context).textTheme;
     final c = killed ? AppColors.danger : AppColors.success;
-    void flip() {
+    Future<void> flip() async {
       if (killed) {
         Haptics.success();
       } else {
         Haptics.heavy();
       }
-      ref.read(assistantControllerProvider).setKillSwitch(!killed);
+      try {
+        await ref.read(assistantControllerProvider).setKillSwitch(!killed);
+      } catch (_) {
+        // The setting itself is saved; a native step failed. Say so instead
+        // of failing silently on an emergency control.
+        if (!context.mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Emergency stop saved, but the system listener could not be '
+              'fully updated. Check notification access in Capabilities.',
+            ),
+          ),
+        );
+      }
     }
 
     return AppCard(

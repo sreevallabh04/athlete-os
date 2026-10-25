@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/time/clock.dart';
@@ -38,6 +39,9 @@ enum DeleteCategory {
   final String label;
 }
 
+String _encodeExport(Map<String, Object?> payload) =>
+    const JsonEncoder.withIndent('  ').convert(payload);
+
 class DataExportService {
   DataExportService(this._db, this._photos, this._clock);
   final AppDatabase _db;
@@ -61,7 +65,7 @@ class DataExportService {
           if (r is DataClass) _clean(name, r.toJson(serializer: _serializer)),
       ];
     }
-    return const JsonEncoder.withIndent('  ').convert({
+    final payload = <String, Object?>{
       'app': 'Athlete OS',
       'exportedAt': _clock.now().toUtc().toIso8601String(),
       'format': 'athlete_os.export.v1',
@@ -71,7 +75,10 @@ class DataExportService {
             "to those services' terms.",
       ],
       'tables': tables,
-    });
+    };
+    // A full export (health samples especially) can be tens of MB of JSON;
+    // encode off the UI isolate so the screen doesn't freeze.
+    return compute(_encodeExport, payload, debugLabel: 'export-json');
   }
 
   Map<String, dynamic> _clean(String table, Map<String, dynamic> row) {

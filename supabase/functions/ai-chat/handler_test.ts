@@ -334,3 +334,130 @@ Deno.test("ai-chat: invalid key rotates to the secondary credential", async () =
   assertEquals(keys, [ANTHROPIC_KEY, "sk-ant-api03-SECONDARYSECONDARY"]);
   assertEquals((await deps.health.get("anthropic", "primary"))?.status, "invalid");
 });
+
+// ---- hardening regressions -------------------------------------------------
+
+Deno.test("ai-chat: re-sending an old request_id after cache expiry never erases paid usage", async () => {
+  // Budget 0.004: the first call (0.003) fits, a second paid call does not.
+  const { handler, deps, clock, calls } = setup({ env: { AI_MONTHLY_BUDGET_USD: "0.004" } });
+  const first = await handler(post(body({ preferences: { monthly_budget_usd: null } })));
+  assertEquals(first.status, 200);
+  const usage = deps.usage as InMemoryUsageStore;
+  const monthStart = new Date(Date.UTC(2026, 9, 1));
+  assertEquals(await usage.monthSpend("user-1", monthStart), 0.003);
+
+  // Cache TTL (24 h) passes; the same request_id is replayed and re-executed.
+  clock.t += 25 * 3_600_000;
+  const second = await handler(post(body({ preferences: { monthly_budget_usd: null } })));
+  assertEquals(second.status, 200);
+  assertEquals(calls.length, 2);
+  // Both paid calls are counted (previously the second overwrote the first).
+  assertEquals(Math.round((await usage.monthSpend("user-1", monthStart)) * 1e6) / 1e6, 0.006);
+
+  // Over budget now: the refused row must not overwrite either paid row.
+  clock.t += 25 * 3_600_000;
+  const refused = await handler(post(body({ preferences: { monthly_budget_usd: null } })));
+  assertEquals(refused.status, 402);
+  assertEquals(Math.round((await usage.monthSpend("user-1", monthStart)) * 1e6) / 1e6, 0.006);
+  assertEquals(calls.length, 2);
+});
+
+Deno.test("ai-chat: usage row of another user is never re-attributed; error rows are replaced on retry", async () => {
+  const { deps } = setup();
+  const usage = deps.usage as InMemoryUsageStore;
+  const row = {
+    request_id: "req_shared_1",
+    provider: "anthropic" as const,
+    model: "m",
+    credential_alias: "primary",
+    input_tokens: 1,
+    output_tokens: 1,
+    latency_ms: 1,
+  };
+  await usage.record({ ...row, user_id: "user-a", cost_usd: 0, status: "error" });
+  await usage.record({ ...row, user_id: "user-b", cost_usd: 0.5, status: "ok" });
+  assertEquals(usage.rows.get("req_shared_1")?.user_id, "user-a");
+  assertEquals(usage.rows.size, 2);
+  // Same user retrying an errored id: replaced in place (idempotent retry).
+  await usage.record({ ...row, request_id: "req_retry_1", user_id: "user-a", cost_usd: 0, status: "error" });
+  await usage.record({ ...row, request_id: "req_retry_1", user_id: "user-a", cost_usd: 0.25, status: "ok" });
+  assertEquals(usage.rows.get("req_retry_1")?.status, "ok");
+  assertEquals(usage.rows.size, 3);
+});
+
+Deno.test("ai-chat: provider 400 error text (raw body / provider message) is not echoed to the client", async () => {
+  const bad = () =>
+    new Response(
+      JSON.stringify({
+        type: "error",
+        error: { type: "invalid_request_error", message: "messages.0: secret-ish account detail org-12345" },
+      }),
+      { status: 400 },
+    );
+  const { handler } = setup({ anthropic: [bad] });
+  const r = await handler(post(body()));
+  assertEquals(r.status, 400);
+  const j = await r.json();
+  assertEquals(j.error.code, "invalid_request");
+  assertFalse(j.error.message.includes("org-12345"));
+  assert(j.error.message.includes("anthropic HTTP 400"));
+  assert(j.error.message.includes("invalid_request_error"));
+
+  const html = () => new Response("<html><body>proxy says no: internal-host-17</body></html>", { status: 400 });
+  const { handler: h2 } = setup({ anthropic: [html] });
+  const r2 = await h2(post(body({ request_id: "req_html_400" })));
+  assertEquals(r2.status, 400);
+  const t2 = await r2.text();
+  assertFalse(t2.includes("internal-host-17"));
+  assertFalse(t2.includes("<html>"));
+});
+
+Deno.test("ai-chat: routed tool subsets — empty and variable-size tool lists are accepted", async () => {
+  const { handler, calls } = setup();
+  const none = await handler(post(body({ request_id: "req_no_tools_1", tools: [] })));
+  assertEquals(none.status, 200);
+  assertEquals(calls[0].body.tools, undefined);
+  const eight = Array.from({ length: 8 }, (_, i) => ({ ...WEATHER_TOOL, name: `tool_${i}` }));
+  const routed = await handler(post(body({ request_id: "req_eight_tools", tools: eight })));
+  assertEquals(routed.status, 200);
+  assertEquals((calls[1].body.tools as unknown[]).length, 8);
+  const omitted = await handler(post(body({ request_id: "req_omitted_tools", tools: undefined })));
+  assertEquals(omitted.status, 200);
+});
+
+Deno.test("ai-chat: image request with only a text-only provider configured -> 503, no provider call", async () => {
+  const { handler, calls } = setup({
+    env: { ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", GROQ_API_KEY: "gsk_ONLYGROQKEYxxxxxxxxxxxx" },
+  });
+  const r = await handler(post(body({
+    request_id: "req_img_groq_only",
+    messages: [{
+      role: "user",
+      content: [{ type: "text", text: "what is this meal" }, {
+        type: "image",
+        media_type: "image/jpeg",
+        data: "/9j/AAAA",
+      }],
+    }],
+  })));
+  assertEquals(r.status, 503);
+  const j = await r.json();
+  assertEquals(j.error.code, "no_provider_configured");
+  assert(j.error.message.includes("images"));
+  assertEquals(calls.length, 0);
+});
+
+Deno.test("ai-chat: a tiny image does not lift the text body limit", async () => {
+  const { handler, calls } = setup();
+  const manyTexts = Array.from({ length: 20 }, () => ({ type: "text", text: "x".repeat(15_000) }));
+  const r = await handler(post(body({
+    request_id: "req_smuggle_1",
+    messages: [{
+      role: "user",
+      content: [...manyTexts, { type: "image", media_type: "image/jpeg", data: "/9j/AAAA" }],
+    }],
+  })));
+  assertEquals(r.status, 400);
+  assertEquals((await r.json()).error.code, "invalid_request");
+  assertEquals(calls.length, 0);
+});

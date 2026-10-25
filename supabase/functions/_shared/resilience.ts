@@ -538,13 +538,14 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
         alias: cred.alias,
         kind: outcome.kind,
         status: err.status,
+        code: err.code && SAFE_CODE_RE.test(err.code) ? err.code : undefined,
       });
 
       if (outcome.kind === "bad_request") {
         return {
           ...failure,
           code: "invalid_request",
-          message: `The AI provider rejected the request: ${err.message}`,
+          message: `The AI provider rejected the request (${providerErrorSummary(err)}).`,
         };
       }
       if (outcome.kind === "request_too_large") {
@@ -552,7 +553,7 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
         lastFailure = {
           ...failure,
           code: "upstream_error",
-          message: `The request is too large for ${plan.provider}: ${err.message}`,
+          message: `The request is too large for ${plan.provider} (${providerErrorSummary(err)}).`,
         };
         break; // next provider
       }
@@ -614,6 +615,19 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
     retryAfterS,
     attempts,
   };
+}
+
+const SAFE_CODE_RE = /^[A-Za-z0-9_.\-]{1,64}$/;
+
+/**
+ * Client-facing description of a provider error: provider, HTTP status and the
+ * provider's short error code only. The provider's free-text message (which may
+ * be a raw non-JSON body, echo request content, or carry account details) is
+ * never returned to the caller; the provider_failure log carries status + code.
+ */
+export function providerErrorSummary(err: ProviderErrorInfo): string {
+  const code = err.code && SAFE_CODE_RE.test(err.code) ? `, ${err.code}` : "";
+  return `${err.provider} HTTP ${err.status}${code}`;
 }
 
 async function safe(fn: () => Promise<void>): Promise<void> {

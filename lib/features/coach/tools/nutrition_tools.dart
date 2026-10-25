@@ -458,7 +458,7 @@ final updateFoodEntryTool = ToolSpec(
       'fat_g',
     ].any(args.containsKey);
     var companion = FoodLogEntriesCompanion(
-      updatedAt: Value(DateTime.now().toUtc()),
+      updatedAt: Value(ctx.now.toUtc()),
       mealType: args['meal_type'] == null
           ? const Value.absent()
           : Value(args['meal_type'] as String),
@@ -483,8 +483,14 @@ final updateFoodEntryTool = ToolSpec(
         fiberG: Value(v['fiber']),
       );
     } else {
-      final scale = entry.grams != null && grams != null && !explicit
+      // A new amount without explicit nutrients rescales the snapshot: by
+      // grams when both are known, otherwise by servings.
+      final scale = explicit
+          ? null
+          : entry.grams != null && grams != null
           ? grams / entry.grams!
+          : grams == null && servings != null && entry.servings > 0
+          ? servings / entry.servings
           : null;
       companion = companion.copyWith(
         grams: grams == null ? const Value.absent() : Value(grams),

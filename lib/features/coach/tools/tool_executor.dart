@@ -95,6 +95,25 @@ class ToolExecutor {
 
   static const _finalStatuses = {'ok', 'error', 'confirmed', 'rejected'};
 
+  /// Tail of the operation chain per idempotency key. Calls for the same key
+  /// run one after another, so a double-tapped approval, a retry racing an
+  /// approval, or a cancel racing an approval sees the first call's final
+  /// audit row and replays it instead of running the handler a second time.
+  final Map<String, Future<void>> _chains = {};
+
+  Future<T> _serialized<T>(String key, Future<T> Function() op) {
+    final prev = _chains[key] ?? Future<void>.value();
+    final result = prev.then((_) => op());
+    final tail = result.then<void>((_) {}, onError: (Object _) {});
+    _chains[key] = tail;
+    unawaited(
+      tail.whenComplete(() {
+        if (identical(_chains[key], tail)) _chains.remove(key);
+      }),
+    );
+    return result;
+  }
+
   static String keyFor(String conversationId, String toolCallId) =>
       '$conversationId:$toolCallId';
 
@@ -126,8 +145,31 @@ class ToolExecutor {
     required Map<String, Object?> args,
     bool confirmed = false,
     Map<String, Object?>? editedArgs,
-  }) async {
+  }) {
     final key = keyFor(conversationId, toolCallId);
+    return _serialized(
+      key,
+      () => _execute(
+        key: key,
+        conversationId: conversationId,
+        toolCallId: toolCallId,
+        name: name,
+        args: args,
+        confirmed: confirmed,
+        editedArgs: editedArgs,
+      ),
+    );
+  }
+
+  Future<ToolOutcome> _execute({
+    required String key,
+    required String conversationId,
+    required String toolCallId,
+    required String name,
+    required Map<String, Object?> args,
+    required bool confirmed,
+    required Map<String, Object?>? editedArgs,
+  }) async {
     final existing = await _audit(key);
     if (existing != null && _finalStatuses.contains(existing.status)) {
       return ToolOutcome._(
@@ -252,8 +294,29 @@ class ToolExecutor {
     required String name,
     required Map<String, Object?> args,
     String reason = 'rejected_by_user',
-  }) async {
+  }) {
     final key = keyFor(conversationId, toolCallId);
+    return _serialized(
+      key,
+      () => _reject(
+        key: key,
+        conversationId: conversationId,
+        toolCallId: toolCallId,
+        name: name,
+        args: args,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<ToolOutcome> _reject({
+    required String key,
+    required String conversationId,
+    required String toolCallId,
+    required String name,
+    required Map<String, Object?> args,
+    required String reason,
+  }) async {
     final existing = await _audit(key);
     if (existing != null && _finalStatuses.contains(existing.status)) {
       return ToolOutcome._(

@@ -187,3 +187,21 @@ Deno.test("ai-status: invalid action / provider -> 400", async () => {
   );
   assertEquals(b.status, 400);
 });
+
+Deno.test("ai-status: oversized POST body is rejected without buffering it all", async () => {
+  const { handler, calls } = setup();
+  let pulled = 0;
+  const endless = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled++;
+      controller.enqueue(new Uint8Array(1024).fill(0x20));
+    },
+  });
+  const r = await handler(
+    new Request("http://x", { method: "POST", headers: auth, body: endless, duplex: "half" } as RequestInit),
+  );
+  assertEquals(r.status, 400);
+  assertEquals((await r.json()).error.code, "invalid_request");
+  assert(pulled < 16, `read ${pulled} chunks`);
+  assertEquals(calls.length, 0);
+});

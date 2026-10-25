@@ -39,18 +39,45 @@ class AssistantController {
 
   /// Emergency stop: no capture, no drafts, no sends, native listener told
   /// to ignore everything (and clear its queue), Assistant mode stopped.
+  ///
+  /// The setting is persisted first (Dart ingestion, drafting and sending
+  /// honour it immediately). Every native step is then attempted even if an
+  /// earlier one fails, and the first failure is rethrown afterwards so the
+  /// UI can tell the user the stop was only partially applied.
   Future<void> setKillSwitch(bool on) async {
     await repo.setSetting(AssistantKeys.killSwitch, on);
-    await syncNativeConfig();
-    final s = await repo.settings();
-    if (on) {
-      await platform.stopAssistantService();
-      await platform.clearQueue();
-    } else if (s.serviceEnabled) {
-      await platform.startAssistantService();
+    Object? firstError;
+    StackTrace? firstStack;
+    Future<void> step(String name, Future<void> Function() f) async {
+      try {
+        await f();
+      } catch (e, st) {
+        firstError ??= e;
+        firstStack ??= st;
+        safeLog('kill_switch_step_failed', {
+          'action': name,
+          'error': errorCode(e),
+        });
+      }
     }
-    await repo.audit(AuditAction.killSwitch, detail: on ? 'on' : 'off');
+
+    await step('sync_config', syncNativeConfig);
+    if (on) {
+      await step('stop_service', platform.stopAssistantService);
+      await step('clear_queue', platform.clearQueue);
+    } else {
+      final s = await repo.settings();
+      if (s.serviceEnabled) {
+        await step('start_service', platform.startAssistantService);
+      }
+    }
+    await repo.audit(
+      AuditAction.killSwitch,
+      detail: '${on ? 'on' : 'off'}${firstError == null ? '' : ';partial'}',
+    );
     safeLog('kill_switch', {'enabled': on});
+    final err = firstError;
+    if (err != null) Error.throwWithStackTrace(err, firstStack!);
   }
 
   Future<void> setMode(AssistantMode mode) async {

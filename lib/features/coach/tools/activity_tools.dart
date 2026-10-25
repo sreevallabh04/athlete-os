@@ -16,6 +16,18 @@ const aiAllowedCardioSources = ['health_connect', 'manual'];
 Expression<bool> notFromStrava(HealthSamples s) =>
     s.sourceApp.isNull() | s.sourceApp.lower().like('%strava%').not();
 
+/// Cardio rows the AI may see: soft-deleted rows, Strava rows and Strava-
+/// derived rows are excluded. The Strava Android app also writes its
+/// activities to Health Connect, and the HC sync imports those sessions as
+/// `source = 'health_connect'` (the writing app is kept in `rawJson.source_app`
+/// and in the generated name, e.g. "Run · Strava"), so the source column alone
+/// is not enough.
+Expression<bool> aiVisibleCardio(CardioActivities c) =>
+    c.deletedAt.isNull() &
+    c.source.isIn(aiAllowedCardioSources) &
+    (c.rawJson.isNull() | c.rawJson.lower().like('%strava%').not()) &
+    (c.name.isNull() | c.name.lower().like('%strava%').not());
+
 /// Steps per day: Health Connect aggregate preferred, manual otherwise.
 Future<Map<String, DailyHealthSummary>> stepsByDay(
   AppDatabase db,
@@ -305,8 +317,7 @@ final getRunningActivitiesTool = ToolSpec(
         await (ctx.db.select(ctx.db.cardioActivities)
               ..where(
                 (c) =>
-                    c.deletedAt.isNull() &
-                    c.source.isIn(aiAllowedCardioSources) &
+                    aiVisibleCardio(c) &
                     c.localDate.isBetweenValues(range.start, range.end) &
                     (sport == 'any'
                         ? const Constant(true)

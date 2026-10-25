@@ -41,7 +41,7 @@ class WaterRepository {
 
   Future<void> remove(String id) =>
       (_db.update(_db.waterLogs)..where((w) => w.id.equals(id))).write(
-        WaterLogsCompanion(deletedAt: Value(DateTime.now().toUtc())),
+        WaterLogsCompanion(deletedAt: Value(_clock.now().toUtc())),
       );
 
   Stream<List<WaterLog>> watchDay(String localDate) =>

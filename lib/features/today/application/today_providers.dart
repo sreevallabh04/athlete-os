@@ -19,5 +19,6 @@ final todaySnapshotProvider = StreamProvider<TodaySnapshot>((ref) {
   final db = ref.watch(databaseProvider);
   final repo = ref.watch(todayRepositoryProvider);
   final clock = ref.watch(clockProvider);
+  ref.watch(localDayProvider); // recompute at local midnight
   return watchTables(db, repo.watchedTables, () => repo.load(clock.now()));
 });

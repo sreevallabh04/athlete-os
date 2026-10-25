@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:sqlite3/common.dart' show CommonDatabase;
 
 import 'tables.dart';
 
@@ -53,7 +54,25 @@ part 'database.g.dart';
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
-    : super(executor ?? driftDatabase(name: 'athlete_os'));
+    : super(
+        executor ??
+            driftDatabase(
+              name: 'athlete_os',
+              native: const DriftNativeOptions(setup: configureConnection),
+            ),
+      );
+
+  /// Per-connection SQLite setup. The main isolate and the notification
+  /// action isolate (separate Flutter engine) each open their own
+  /// connection to the same file, so:
+  /// * WAL lets a background writer and the UI's readers proceed together;
+  /// * busy_timeout makes a writer wait for the other connection's lock
+  ///   instead of failing at once with SQLITE_BUSY ("database is locked").
+  /// Must be a static/top-level function: it is sent to the drift isolate.
+  static void configureConnection(CommonDatabase db) {
+    db.execute('PRAGMA busy_timeout = 5000');
+    db.execute('PRAGMA journal_mode = WAL');
+  }
 
   /// In-memory or custom executor, used by tests.
   AppDatabase.forTesting(super.executor);

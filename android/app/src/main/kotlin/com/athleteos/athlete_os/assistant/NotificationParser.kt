@@ -97,6 +97,10 @@ object NotificationParser {
             text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
                 ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()
             if (sender == null && !isGroup) sender = plainTitle
+            // sbn.postTime changes every time the app re-posts/updates the
+            // notification, which would defeat the dedupe hash. The app-set
+            // `when` (event time) is stable across re-posts.
+            if (n.`when` > 0) time = n.`when`
         }
         if (text.isNullOrBlank()) return null
         val body = if (text.length > MAX_TEXT) text.substring(0, MAX_TEXT) else text

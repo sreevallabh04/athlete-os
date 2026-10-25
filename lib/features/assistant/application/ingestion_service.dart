@@ -58,8 +58,7 @@ class IngestionService {
 
   Future<IngestSummary> ingest(Iterable<CapturedEvent> events) {
     final list = events.toList();
-    final completer = Completer<IngestSummary>();
-    _chain = _chain.then((_) async {
+    final run = _chain.then((_) async {
       final summary = IngestSummary();
       for (final e in list) {
         try {
@@ -79,9 +78,12 @@ class IngestionService {
           'ignored': summary.ignored + summary.killed,
         });
       }
-      completer.complete(summary);
+      return summary;
     });
-    return completer.future;
+    // A failed batch must never break the chain: every later `then` callback
+    // would be skipped and ingestion would silently stop for the session.
+    _chain = run.then((_) {}, onError: (Object _) {});
+    return run;
   }
 
   Future<IngestSummary> drainAndIngest() async {
@@ -115,10 +117,13 @@ class IngestionService {
     }
     final app = await repo.app(e.packageName);
     final contact = await repo.contact(e.packageName, e.conversationKey);
+    // Once a conversation is known to be a group it stays one: a later
+    // notification that omits the group flag must not turn it into a 1:1.
+    final isGroup = e.isGroup || (contact?.isGroup ?? false);
     final sensitivity = classifier.classify(
       text: e.text,
-      sender: e.sender ?? (e.isGroup ? null : e.title),
-      isGroup: e.isGroup,
+      sender: e.sender ?? (isGroup ? null : e.title),
+      isGroup: isGroup,
       identityConfidence: e.identityConfidence,
       contactKnown: contact?.rule == 'approved',
     );
@@ -142,7 +147,7 @@ class IngestionService {
               identityConfidence: contact.identityConfidence,
               maxAutoRepliesPerDay: contact.maxAutoRepliesPerDay,
             ),
-      isGroup: e.isGroup,
+      isGroup: isGroup,
       identityConfidence: e.identityConfidence,
       flags: sensitivity.flags,
       limits: settings.limits,
@@ -191,7 +196,7 @@ class IngestionService {
         conversationKey: Value(e.conversationKey),
         conversationTitle: Value(e.title),
         sender: Value(e.sender),
-        isGroup: Value(e.isGroup),
+        isGroup: Value(isGroup),
         body: e.text,
         postedAt: e.postedAt.toUtc(),
         hasReplyAction: Value(e.hasReplyAction),
@@ -206,7 +211,7 @@ class IngestionService {
       packageName: e.packageName,
       conversationKey: e.conversationKey,
       displayName: e.title ?? e.sender ?? app.appLabel,
-      isGroup: e.isGroup,
+      isGroup: isGroup,
       identityConfidence: e.identityConfidence,
     );
     await repo.audit(

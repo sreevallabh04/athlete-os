@@ -171,6 +171,39 @@ String composeBriefing(BriefingMode mode, CoachBriefingInputs i) {
   return b.toString().trim();
 }
 
+/// Briefing lines that never leave the device: the "possibly unanswered"
+/// names come from other apps' notifications, which the messaging
+/// assistant's own AI consent covers — not the health consent that gates the
+/// briefing polish.
+bool isDeviceOnlyLine(BriefingLine l) => l.kind == BriefingKind.unanswered;
+
+/// [composeBriefing] without device-only lines ([forAi], the only text sent
+/// for the AI polish) plus those lines as "- " bullets ([deviceOnly]) to
+/// append to the polished text on the device.
+({String forAi, String deviceOnly}) splitBriefingForAi(
+  BriefingMode mode,
+  CoachBriefingInputs i,
+) {
+  final shared = CoachBriefingInputs(
+    now: i.now,
+    name: i.name,
+    lines: [
+      for (final l in i.lines)
+        if (!isDeviceOnlyLine(l)) l,
+    ],
+    session: i.session,
+    tomorrow: i.tomorrow,
+    routine: i.routine,
+  );
+  return (
+    forAi: composeBriefing(mode, shared),
+    deviceOnly: [
+      for (final l in i.lines)
+        if (isDeviceOnlyLine(l)) '- ${_line(l)}',
+    ].join('\n'),
+  );
+}
+
 /// System prompt for the optional AI polish. The model may only rephrase:
 /// numbers and facts must stay exactly as given.
 String briefingPolishPrompt(String persona) =>
@@ -186,7 +219,9 @@ String briefingPolishPrompt(String persona) =>
 Future<CoachBriefingInputs> gatherBriefingInputs(Ref ref) async {
   final now = ref.read(clockProvider).now();
   final today = LocalDates.key(now);
-  final tomorrowKey = LocalDates.key(now.add(const Duration(days: 1)));
+  // Calendar arithmetic: `now + 24 h` lands two days ahead late on a
+  // 23-hour (DST) day.
+  final tomorrowKey = LocalDates.addDays(today, 1);
   Future<T?> safe<T>(Future<T?> Function() f) async {
     try {
       return await f().timeout(const Duration(seconds: 6));

@@ -192,7 +192,7 @@ final plannedSessionProvider = StreamProvider.family<PlannedSession?, String>((
 final todaysPlannedSessionProvider = Provider<AsyncValue<PlannedSession?>>((
   ref,
 ) {
-  final today = LocalDates.key(ref.watch(clockProvider).now());
+  final today = ref.watch(localDayProvider);
   return ref.watch(plannedSessionProvider(today));
 });
 
@@ -235,7 +235,7 @@ List<RoutineBlock> routineFor({
 
 /// Today's timeline (null until calibration has run).
 final todaysRoutineProvider = Provider<AsyncValue<List<RoutineBlock>?>>((ref) {
-  final today = LocalDates.key(ref.watch(clockProvider).now());
+  final today = ref.watch(localDayProvider);
   final cal = ref.watch(calibrationProvider);
   final session = ref.watch(plannedSessionProvider(today));
   final profile = ref.watch(profileProvider);

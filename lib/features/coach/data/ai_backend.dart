@@ -251,7 +251,10 @@ class SupabaseAiBackend implements AiBackendClient {
         'The AI took too long to respond. You can retry.',
       );
     } catch (e) {
-      debugPrint('AI backend error: ${redactSecrets(e.toString())}');
+      // Type only: a parse error's text can embed the response body (the
+      // user's health data / the model's answer); secret redaction does not
+      // cover that.
+      debugPrint('AI backend error: ${e.runtimeType}');
       throw const AiBackendException(
         'network',
         "Couldn't reach the AI backend. Check your connection and retry.",

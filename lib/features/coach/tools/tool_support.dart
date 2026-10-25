@@ -39,13 +39,24 @@ DateRange resolveRange(
     if (s.compareTo(e) > 0) {
       throw ArgumentError('start_date must be on or before end_date.');
     }
-    final r = DateRange(s, e);
-    if (r.length > maxDays) {
+    // Checked arithmetically: a model-supplied range can span millennia and
+    // must not be expanded day by day just to be rejected.
+    if (_daysBetween(s, e) + 1 > maxDays) {
       throw ArgumentError('Date range is limited to $maxDays days.');
     }
-    return r;
+    return DateRange(s, e);
   }
   return DateRange(LocalDates.addDays(today, -(defaultDays - 1)), today);
+}
+
+/// Calendar days from [start] to [end] (UTC dates, so DST cannot skew it).
+int _daysBetween(String start, String end) {
+  DateTime utc(String k) {
+    final d = LocalDates.parse(k);
+    return DateTime.utc(d.year, d.month, d.day);
+  }
+
+  return utc(end).difference(utc(start)).inDays;
 }
 
 /// Standard provenance block attached to every tool result so the model can

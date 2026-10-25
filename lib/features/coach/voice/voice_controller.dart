@@ -260,28 +260,33 @@ class VoiceController extends Notifier<VoiceState> {
     final summary = speakableSummary(text);
     if (summary.isEmpty || !settings.enabled) return;
     final gen = ++_speakGen;
-    if (state.listening) await cancelListening();
-    final voices = settings.voiceName == null ? await _tts.voices() : null;
-    final voice = settings.voiceName != null
-        ? TtsVoice(settings.voiceName!, settings.voiceLocale ?? 'en-GB')
-        : pickDefaultVoice(voices ?? const []);
-    await _tts.configure(
-      voice: voice,
-      rate: settings.rate,
-      pitch: settings.pitch,
-    );
-    if (gen != _speakGen || !ref.mounted) return;
-    state = state.copyWith(phase: VoicePhase.speaking, speakProgress: 0);
-    await _tts.speak(
-      summary,
-      onProgress: (start, end) {
-        if (gen != _speakGen || !ref.mounted) return;
-        state = state.copyWith(
-          speakProgress: (end / summary.length).clamp(0.0, 1.0),
-          wordTick: state.wordTick + 1,
-        );
-      },
-    );
+    try {
+      if (state.listening) await cancelListening();
+      final voices = settings.voiceName == null ? await _tts.voices() : null;
+      final voice = settings.voiceName != null
+          ? TtsVoice(settings.voiceName!, settings.voiceLocale ?? 'en-GB')
+          : pickDefaultVoice(voices ?? const []);
+      await _tts.configure(
+        voice: voice,
+        rate: settings.rate,
+        pitch: settings.pitch,
+      );
+      if (gen != _speakGen || !ref.mounted) return;
+      state = state.copyWith(phase: VoicePhase.speaking, speakProgress: 0);
+      await _tts.speak(
+        summary,
+        onProgress: (start, end) {
+          if (gen != _speakGen || !ref.mounted) return;
+          state = state.copyWith(
+            speakProgress: (end / summary.length).clamp(0.0, 1.0),
+            wordTick: state.wordTick + 1,
+          );
+        },
+      );
+    } catch (_) {
+      // A TTS engine failure must never crash the coach (callers fire and
+      // forget); the answer stays on screen.
+    }
     if (gen != _speakGen || !ref.mounted) return;
     state = state.copyWith(phase: VoicePhase.idle, speakProgress: 1);
   }

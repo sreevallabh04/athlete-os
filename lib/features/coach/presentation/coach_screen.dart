@@ -204,7 +204,12 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     } else if (action == QuickAction.review) {
       await c.brief(BriefingMode.evening, viaVoice: viaVoice);
     } else {
-      await c.send(value, viaVoice: viaVoice);
+      final accepted = await c.send(value, viaVoice: viaVoice);
+      // Not accepted (a turn or card in progress, backend unavailable): keep
+      // the words instead of silently dropping a typed or spoken message.
+      if (!accepted && mounted && _input.text.trim().isEmpty) {
+        _input.text = value;
+      }
     }
   }
 
@@ -233,6 +238,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     if (ref.read(aiBackendStateProvider) != AiBackendState.ready) return;
     final voice = ref.read(voiceControllerProvider.notifier);
     if (!await voice.hasPermission()) return; // never prompt unasked
+    if (!mounted) return;
     await _listen();
   }
 
@@ -248,7 +254,7 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
       title: 'Talk to JARVIS',
       builder: (context) => const _MicExplainer(),
     );
-    if (ok != true) return false;
+    if (ok != true || !mounted) return false;
     await ref
         .read(voiceSettingsRepositoryProvider)
         .update((s) => s.copyWith(micExplained: true));

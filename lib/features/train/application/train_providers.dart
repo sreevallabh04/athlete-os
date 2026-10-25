@@ -34,9 +34,7 @@ final integrationStatusProvider =
           ref.watch(integrationStatusRepositoryProvider).watch(provider),
     );
 
-final todayKeyProvider = Provider<String>(
-  (ref) => LocalDates.key(ref.watch(clockProvider).now()),
-);
+final todayKeyProvider = Provider<String>((ref) => ref.watch(localDayProvider));
 
 /// Which integrations are currently syncing.
 class SyncState {

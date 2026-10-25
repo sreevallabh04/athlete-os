@@ -28,7 +28,12 @@ export interface UsageStore {
   monthSpend(userId: string, monthStart: Date): Promise<number>;
   globalMonthSpend(monthStart: Date): Promise<number>;
   monthUsage(userId: string, monthStart: Date): Promise<MonthUsage>;
-  /** Upserts by request_id. */
+  /**
+   * Records one call keyed by request_id. A previous 'error'/'refused' row of
+   * the same user is replaced (client retry); a previous 'ok' row or another
+   * user's row is never overwritten — the call is stored under a new key so
+   * paid usage can't be erased by re-sending an old request_id.
+   */
   record(row: UsageRow): Promise<void>;
 }
 
@@ -85,8 +90,13 @@ export class InMemoryUsageStore implements UsageStore {
       cost_usd: rows.reduce((s, r) => s + r.cost_usd, 0),
     });
   }
+  /** Mirrors record_ai_usage() in SQL. */
   record(row: UsageRow): Promise<void> {
-    this.rows.set(row.request_id, { ...row, created_at: this.now() });
+    const prev = this.rows.get(row.request_id);
+    const key = !prev || (prev.user_id === row.user_id && prev.status !== "ok")
+      ? row.request_id
+      : `${row.request_id}:${crypto.randomUUID().replaceAll("-", "")}`;
+    this.rows.set(key, { ...row, request_id: key, created_at: this.now() });
     return Promise.resolve();
   }
 }

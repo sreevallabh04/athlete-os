@@ -45,4 +45,13 @@ GoRouter buildRouter({String initialLocation = AppPaths.today}) => GoRouter(
   ],
 );
 
-final routerProvider = Provider<GoRouter>((ref) => buildRouter());
+final routerProvider = Provider<GoRouter>((ref) {
+  final router = buildRouter();
+  // The onboarding gate may finish loading after the first frame (start-up
+  // hooks are time-boxed). Re-run the redirect when it changes so a first
+  // launch still lands on /onboarding.
+  ref.listen<bool?>(onboardingGateProvider, (prev, next) {
+    if (prev != next) router.refresh();
+  });
+  return router;
+});

@@ -1,7 +1,15 @@
 /// Removes anything that looks like a credential from text before it is
 /// logged, stored as an error message, or shown to the user.
+///
+/// Also drops the bound values of a failed SQL statement (sqlite3 appends
+/// `, parameters: ...` to its exception text), which can contain journal
+/// text, captured messages or health values.
 String redactSecrets(String input) {
   var out = input;
+  final params = out.indexOf(', parameters: ');
+  if (params >= 0) {
+    out = '${out.substring(0, params)}, parameters: [REDACTED]';
+  }
   final patterns = <RegExp>[
     RegExp(r'sk-ant-[A-Za-z0-9_\-]{10,}'),
     RegExp(r'sk-[A-Za-z0-9_\-]{16,}'),

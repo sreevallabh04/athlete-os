@@ -214,6 +214,7 @@ final habitBoardProvider = StreamProvider<HabitBoard>((ref) {
   final db = ref.watch(databaseProvider);
   final loader = ref.watch(habitBoardLoaderProvider);
   final clock = ref.watch(clockProvider);
+  ref.watch(localDayProvider); // recompute at local midnight
   return watchTables(
     db,
     loader.watchedTables,
@@ -229,6 +230,7 @@ final habitDetailProvider = StreamProvider.family<HabitView?, String>((
   final db = ref.watch(databaseProvider);
   final loader = ref.watch(habitBoardLoaderProvider);
   final clock = ref.watch(clockProvider);
+  ref.watch(localDayProvider); // recompute at local midnight
   return watchTables(db, loader.watchedTables, () async {
     final board = await loader.load(
       LocalDates.key(clock.now()),

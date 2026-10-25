@@ -402,11 +402,12 @@ final getJournalSummaryTool = ToolSpec(
 // Competition, profile, memory
 // ---------------------------------------------------------------------------
 
-bool _tzReady = false;
+/// Loads the IANA database only if nobody has yet. `initializeTimeZones()`
+/// also resets `tz.local` to UTC, so calling it again after the life
+/// bootstrap set the device zone would shift every zoned reminder scheduled
+/// afterwards by the UTC offset.
 void _ensureTimeZones() {
-  if (_tzReady) return;
-  tzdata.initializeTimeZones();
-  _tzReady = true;
+  if (!tz.timeZoneDatabase.isInitialized) tzdata.initializeTimeZones();
 }
 
 /// Calendar days from "today in [tzName]" to [eventDate] (YYYY-MM-DD in the
@@ -689,14 +690,9 @@ final getTodayDashboardTool = ToolSpec(
     final workouts = await (ctx.db.select(
       ctx.db.workouts,
     )..where((w) => w.deletedAt.isNull() & w.localDate.equals(today))).get();
-    final runs =
-        await (ctx.db.select(ctx.db.cardioActivities)..where(
-              (c) =>
-                  c.deletedAt.isNull() &
-                  c.source.isIn(aiAllowedCardioSources) &
-                  c.localDate.equals(today),
-            ))
-            .get();
+    final runs = await (ctx.db.select(
+      ctx.db.cardioActivities,
+    )..where((c) => aiVisibleCardio(c) & c.localDate.equals(today))).get();
     final mood =
         await (ctx.db.select(ctx.db.moodEntries)
               ..where((m) => m.deletedAt.isNull() & m.localDate.equals(today))
@@ -839,9 +835,7 @@ final getWeeklyReportTool = ToolSpec(
     final runs =
         await (ctx.db.select(ctx.db.cardioActivities)..where(
               (c) =>
-                  c.deletedAt.isNull() &
-                  c.source.isIn(aiAllowedCardioSources) &
-                  c.localDate.isBetweenValues(start, end),
+                  aiVisibleCardio(c) & c.localDate.isBetweenValues(start, end),
             ))
             .get();
     final moods =
