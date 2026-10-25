@@ -95,11 +95,14 @@
         <activity
             android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
             android:exported="true">
+            <!-- OAuth redirects only (athleteos://localhost/...). Scoped to the
+                 localhost host so app deep links (athleteos://open/...) never
+                 resolve here. -->
             <intent-filter android:label="flutter_web_auth_2">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="athleteos" />
+                <data android:scheme="athleteos" android:host="localhost" />
             </intent-filter>
         </activity>
 
