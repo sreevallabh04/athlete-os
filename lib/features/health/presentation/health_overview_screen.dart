@@ -244,10 +244,12 @@ class _SleepCard extends ConsumerWidget {
                       label: latest.localDate == today
                           ? 'Last night'
                           : 'Latest night',
+                      // "6 h 30 min", like the average (a clock-style "6:30 h"
+                      // read as a time of day).
                       value:
-                          '${latest.value ~/ 60}:'
+                          '${latest.value.round() ~/ 60} h '
                           '${(latest.value.round() % 60).toString().padLeft(2, '0')}',
-                      unit: 'h',
+                      unit: 'min',
                       caption:
                           'ending ${Fmt.weekdayDayMonth(LocalDates.parse(latest.localDate))}',
                       size: 34,

@@ -46,7 +46,7 @@ class PlanSummaryView extends StatelessWidget {
                 'Maintenance ≈ ${_thousands(p.maintenanceLow)}–'
                 '${_thousands(p.maintenanceHigh)} kcal · '
                 '${p.dailyDeficit >= 0 ? '−' : '+'}'
-                '${p.dailyDeficit.abs()} kcal/day '
+                '${p.dailyDeficit.abs()} kcal/day '
                 '(${p.deficitPct.abs().toStringAsFixed(0)} %)',
                 textAlign: TextAlign.center,
                 style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),

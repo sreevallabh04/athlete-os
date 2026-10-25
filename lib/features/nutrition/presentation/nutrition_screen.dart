@@ -440,6 +440,27 @@ class _ReactorCard extends StatelessWidget {
           ),
           child: Column(
             children: [
+              // Flagged at the top of the card, next to the totals it
+              // qualifies and clear of the quick-add button at the bottom.
+              if (estimateCount > 0) ...[
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Semantics(
+                    container: true,
+                    label:
+                        'Includes $estimateCount estimated '
+                        'item${estimateCount == 1 ? '' : 's'}. '
+                        'Totals are approximate.',
+                    excludeSemantics: true,
+                    child: EstimateBadge(
+                      label:
+                          'INCLUDES $estimateCount ESTIMATE'
+                          '${estimateCount == 1 ? '' : 'S'}',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               LayoutBuilder(
                 builder: (context, box) {
                   final size = box.maxWidth.clamp(200.0, 270.0);
@@ -493,24 +514,6 @@ class _ReactorCard extends StatelessWidget {
                   target: targets.fiber!,
                   color: AppColors.fiber,
                   unit: ' g',
-                ),
-              ],
-              if (estimateCount > 0) ...[
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    const EstimateBadge(),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'Includes $estimateCount estimated '
-                        'item${estimateCount == 1 ? '' : 's'}. '
-                        'Totals are approximate.',
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: hud.textMuted),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ],

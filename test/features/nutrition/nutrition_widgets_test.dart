@@ -83,9 +83,15 @@ void main() {
     expect(find.text('Paneer'), findsOneWidget);
     expect(find.text('Samosa'), findsOneWidget);
     expect(find.text('Deleted cake'), findsNothing);
-    // On the estimated entry and on the totals it makes approximate.
-    expect(find.text('ESTIMATE'), findsNWidgets(2));
-    expect(find.textContaining('Includes 1 estimated item'), findsOneWidget);
+    expect(find.text('ESTIMATE'), findsOneWidget);
+    // The totals it makes approximate are flagged too.
+    expect(find.text('INCLUDES 1 ESTIMATE'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Includes 1 estimated item. Totals are approximate.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Protein'), findsOneWidget);
     expect(find.text('Lunch'), findsOneWidget);
     expect(find.text('Water'), findsOneWidget);

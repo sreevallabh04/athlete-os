@@ -63,7 +63,7 @@ class _StrengthEmpty extends StatelessWidget {
                 (
                   Icons.show_chart,
                   'Estimated 1RM per lift',
-                  'Interactive trend for every exercise (Epley, 1–12 reps).',
+                  'Interactive trend for every exercise (Epley, sets of 1 to 12 reps).',
                 ),
                 (
                   Icons.emoji_events_outlined,

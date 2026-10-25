@@ -252,9 +252,13 @@ class _SessionTile extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  briefing
-                      ? Icons.wb_twilight_rounded
-                      : Icons.chat_bubble_outline_rounded,
+                  // Same icons as the quick commands: sunrise for the
+                  // morning briefing, moon for the evening review.
+                  !briefing
+                      ? Icons.chat_bubble_outline_rounded
+                      : title.toLowerCase().contains('evening')
+                      ? Icons.nights_stay_outlined
+                      : Icons.wb_twilight_rounded,
                   size: 18,
                   color: selected ? hud.accent : hud.textMuted,
                 ),

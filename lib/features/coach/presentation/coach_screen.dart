@@ -1107,7 +1107,7 @@ class _Readouts extends StatelessWidget {
   final CoachTelemetry telemetry;
 
   static String _k(int v) =>
-      v >= 1000 && v % 1000 == 0 ? '${v ~/ 1000}K' : Fmt.integer(v);
+      v >= 1000 && v % 1000 == 0 ? '${v ~/ 1000}k' : Fmt.integer(v);
 
   @override
   Widget build(BuildContext context) {
@@ -1129,14 +1129,12 @@ class _Readouts extends StatelessWidget {
       if (telemetry.waterLeftMl != null)
         (
           'WATER LEFT',
-          telemetry.waterLeftMl! <= 0
-              ? 'DONE'
-              : '${(telemetry.waterLeftMl! / 1000).toStringAsFixed(1)} L',
+          telemetry.waterLeftMl! <= 0 ? 'DONE' : Fmt.ml(telemetry.waterLeftMl!),
           AppColors.water,
         ),
       if (telemetry.daysToCompetition != null &&
           telemetry.daysToCompetition! >= 0)
-        ('MEET IN', '${telemetry.daysToCompetition} d', AppColors.competition),
+        ('MEET IN', '${telemetry.daysToCompetition} d', AppColors.gold),
       if (telemetry.pendingDrafts > 0)
         ('REPLIES', '${telemetry.pendingDrafts} waiting', AppColors.gold),
     ].take(3).toList();

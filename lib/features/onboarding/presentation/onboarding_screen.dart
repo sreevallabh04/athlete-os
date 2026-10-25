@@ -247,7 +247,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           content: Text('Calibration complete. At your service, $_addr.'),
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       Haptics.warning();
       setState(() {
@@ -255,7 +255,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _online = false;
       });
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('Calibration could not be saved: $e')),
+        const SnackBar(
+          content: Text(
+            'Calibration could not be saved. Nothing was changed; '
+            'try Engage again.',
+          ),
+        ),
       );
     }
   }

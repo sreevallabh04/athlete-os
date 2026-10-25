@@ -173,8 +173,9 @@ class _AmountSheetState extends State<AmountSheet> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '1 SERVING = ${widget.basis.servingLabel.toUpperCase()} · '
-            '${Fmt.kcal(widget.basis.perServing.calories).toUpperCase()}',
+            // Units keep their case ("100 g", not "100 G").
+            '1 serving = ${widget.basis.servingLabel} · '
+            '${Fmt.kcal(widget.basis.perServing.calories)}',
             style: hud.mono(size: 10.5),
           ),
           if (widget.showOffAttribution) ...[
@@ -198,7 +199,13 @@ class _AmountSheetState extends State<AmountSheet> {
           ],
           AmountStepper(
             controller: _ctrl,
-            unitLabel: grams ? unit : (_value == 1 ? 'serving' : 'servings'),
+            unitLabel: grams
+                ? switch (unit) {
+                    'g' => 'grams',
+                    'ml' => 'millilitres',
+                    _ => unit,
+                  }
+                : (_value == 1 ? 'serving' : 'servings'),
             step: grams ? 5 : 0.25,
             max: grams ? 3000 : 30,
             valid: amount != null,

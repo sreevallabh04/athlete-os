@@ -58,14 +58,30 @@ class HudTheme extends ThemeExtension<HudTheme> {
   /// 0..1 multiplier applied to every bloom.
   final double glowStrength;
 
-  TextStyle label({double size = 12, Color? color}) =>
-      AppTypography.hudLabel(color ?? textMuted, size: size);
+  TextStyle label({double size = 12, Color? color}) => AppTypography.hudLabel(
+    color == null ? textMuted : ink(color),
+    size: size,
+  );
 
   TextStyle number({double size = 40, Color? color}) =>
-      AppTypography.hudNumber(color ?? text, size: size);
+      AppTypography.hudNumber(color == null ? text : ink(color), size: size);
 
   TextStyle mono({double size = 11, Color? color}) =>
-      AppTypography.mono(color ?? textMuted, size: size);
+      AppTypography.mono(color == null ? textMuted : ink(color), size: size);
+
+  /// [c] as a text colour. Luminous metric hues (pink, gold, orange…) are
+  /// stroke colours: on the porcelain light theme they fall below AA as
+  /// text, so bright ones are darkened. Dark theme, neutrals (white on a
+  /// filled pill) and colours already dark enough (`accentInk`, `text`) pass
+  /// through unchanged.
+  Color ink(Color c) {
+    if (isDark ||
+        c.computeLuminance() < 0.22 ||
+        HSLColor.fromColor(c).saturation < 0.3) {
+      return c;
+    }
+    return Color.lerp(c, Colors.black, 0.48)!;
+  }
 
   static const dark = HudTheme(
     isDark: true,

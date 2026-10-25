@@ -282,6 +282,7 @@ class SystemStatusRow extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppSpacing.touchTarget),
           child: Align(
+            alignment: AlignmentDirectional.centerStart,
             widthFactor: 1,
             heightFactor: 1,
             child: Padding(

@@ -328,6 +328,8 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
                     for (final u in servingUnits)
                       HudChip(
                         label: u,
+                        // Units are case-sensitive ("g", "ml"): never shout them.
+                        uppercase: false,
                         selected: u == _unit,
                         onTap: () => setState(() => _unit = u),
                       ),

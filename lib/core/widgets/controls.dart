@@ -90,7 +90,7 @@ class HudChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final c = color ?? hud.accent;
-    final fg = selected ? c : (color ?? hud.textMuted);
+    final fg = hud.ink(selected ? c : (color ?? hud.textMuted));
     final scaler = MediaQuery.textScalerOf(context);
     final chip = AnimatedContainer(
       duration: AppMotion.short,
