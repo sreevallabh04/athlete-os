@@ -2,12 +2,162 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/util/format.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../data/db/database.dart';
 import '../../data/mappers.dart';
 import '../../domain/food_models.dart';
 import 'common.dart';
+import 'nutrition_hud.dart';
 
-/// List tile for a local food.
+/// Glass result card shared by local foods and database candidates.
+class _FoodCard extends StatelessWidget {
+  const _FoodCard({
+    required this.name,
+    required this.meta,
+    required this.kcal,
+    required this.kcalUnit,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    required this.onTap,
+    this.onLongPress,
+    this.badges = const [],
+    this.trailing,
+    this.warning,
+    this.semanticLabel,
+  });
+
+  final String name;
+  final String meta;
+  final double? kcal;
+  final String kcalUnit;
+  final double? protein;
+  final double? carbs;
+  final double? fat;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+  final List<Widget> badges;
+  final Widget? trailing;
+  final String? warning;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppCard(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        semanticLabel: semanticLabel,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.calories.withValues(alpha: 0.22),
+                    AppColors.calories.withValues(alpha: 0.04),
+                  ],
+                ),
+                border: Border.all(
+                  color: AppColors.calories.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                initial,
+                style: hud.number(size: 18, color: hud.text),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: t.titleSmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    meta,
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (badges.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: badges,
+                    ),
+                  ],
+                  if (warning != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      warning!,
+                      style: t.labelSmall?.copyWith(color: AppColors.warning),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  FractionallySizedBox(
+                    widthFactor: 0.7,
+                    child: MacroSplitBar(
+                      protein: protein ?? 0,
+                      carbs: carbs ?? 0,
+                      fat: fat ?? 0,
+                      height: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  kcal == null ? '—' : Fmt.integer(kcal!),
+                  style: hud.number(size: 22),
+                ),
+                Text(kcalUnit, style: hud.label(size: 9.5)),
+                if (protein != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'P ${Fmt.grams(protein!)}',
+                    style: t.labelSmall?.copyWith(
+                      color: hud.isDark ? AppColors.protein : hud.text,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Result card for a local food.
 class FoodListTile extends StatelessWidget {
   const FoodListTile({
     super.key,
@@ -24,52 +174,53 @@ class FoodListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final b = food.basis;
-    final sub = [
-      if (food.brand != null) food.brand!,
-      '${b.servingLabel} · ${Fmt.kcal(food.calories)}',
-      'P ${Fmt.grams(food.proteinG)}',
-    ].join(' · ');
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      minTileHeight: 64,
+    final estimate = Verifications.isEstimate(food.verification);
+    return _FoodCard(
+      name: food.name,
+      meta: [?food.brand, b.servingLabel].join(' · '),
+      kcal: food.calories,
+      kcalUnit: 'KCAL / SERVING',
+      protein: food.proteinG,
+      carbs: food.carbsG,
+      fat: food.fatG,
       onTap: onTap,
       onLongPress: onLongPress,
-      title: Row(
-        children: [
-          Flexible(child: Text(food.name, overflow: TextOverflow.ellipsis)),
-          if (Verifications.isEstimate(food.verification)) ...[
-            const SizedBox(width: AppSpacing.xs),
-            const EstimateBadge(),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        '$sub\n${FoodSources.label(food.source)} · '
-        '${Verifications.label(food.verification)}',
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: scheme.onSurfaceVariant),
-      ),
-      isThreeLine: true,
+      semanticLabel:
+          '${food.name}, ${Fmt.kcal(food.calories)} per ${b.servingLabel}, '
+          'protein ${Fmt.grams(food.proteinG)}',
+      badges: [
+        if (estimate)
+          const EstimateBadge()
+        else
+          VerificationLabel(food.verification),
+      ],
       trailing: onToggleFavorite == null
-          ? const Icon(Icons.add_circle_outline)
+          ? null
           : IconButton(
               tooltip: food.isFavorite
                   ? 'Remove from favorites'
                   : 'Add to favorites',
               icon: Icon(
                 food.isFavorite ? Icons.star_rounded : Icons.star_outline,
-                color: food.isFavorite ? AppColors.fat : null,
+                color: food.isFavorite ? AppColors.gold : null,
+                shadows: food.isFavorite
+                    ? AppGlows.text(
+                        AppColors.gold,
+                        strength: context.hud.glowStrength,
+                      )
+                    : null,
               ),
-              onPressed: onToggleFavorite,
+              onPressed: () {
+                Haptics.selection();
+                onToggleFavorite!();
+              },
             ),
     );
   }
 }
 
-/// List tile for a remote database result (not yet saved locally).
+/// Result card for a remote database result (not yet saved locally).
 class CandidateTile extends StatelessWidget {
   const CandidateTile({
     super.key,
@@ -81,46 +232,37 @@ class CandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final c = candidate;
-    final energy = c.kcal100g != null
-        ? '${Fmt.kcal(c.kcal100g!)} / 100 ${c.servingUnit}'
-        : c.kcalServing != null
-        ? '${Fmt.kcal(c.kcalServing!)} / serving'
-        : 'calories unknown';
-    final protein = c.protein100g != null
-        ? 'P ${Fmt.grams(c.protein100g!)}'
-        : c.proteinServing != null
-        ? 'P ${Fmt.grams(c.proteinServing!)}'
-        : null;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      minTileHeight: 64,
+    final per100 = c.kcal100g != null;
+    return _FoodCard(
+      name: c.name,
+      meta: [
+        ?c.brand,
+        per100 ? 'per 100 ${c.servingUnit}' : 'per serving',
+      ].join(' · '),
+      kcal: per100 ? c.kcal100g : c.kcalServing,
+      kcalUnit: per100 ? 'KCAL / 100 ${c.servingUnit.toUpperCase()}' : 'KCAL',
+      protein: per100 ? c.protein100g : c.proteinServing,
+      carbs: per100 ? c.carbs100g : c.carbsServing,
+      fat: per100 ? c.fat100g : c.fatServing,
       onTap: onTap,
-      title: Text(c.name, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            [?c.brand, energy, ?protein].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: scheme.onSurfaceVariant),
-          ),
-          if (!c.isComplete)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                'Incomplete: missing ${c.missingNutrients.join(', ')}',
-                style: Theme.of(context).textTheme.labelSmall
-                    ?.copyWith(color: AppColors.warning),
-              ),
-            ),
-        ],
-      ),
-      trailing: Icon(
-        c.isComplete ? Icons.add_circle_outline : Icons.edit_note,
-        semanticLabel: c.isComplete ? 'Add' : 'Complete manually',
+      semanticLabel: '${c.name}${c.brand != null ? ', ${c.brand}' : ''}',
+      warning: c.isComplete
+          ? null
+          : 'Incomplete: missing ${c.missingNutrients.join(', ')}',
+      badges: [
+        Text(
+          FoodSources.label(c.source).toUpperCase(),
+          style: context.hud.mono(size: 9.5),
+        ),
+      ],
+      trailing: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        child: Icon(
+          c.isComplete ? Icons.add_circle_outline : Icons.edit_note,
+          color: context.hud.accentInk,
+          semanticLabel: c.isComplete ? 'Add' : 'Complete manually',
+        ),
       ),
     );
   }

@@ -83,6 +83,7 @@ class _HabitEditorScreenState extends ConsumerState<HabitEditorScreen> {
   Future<void> _save() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
+      Haptics.warning();
       setState(() => _error = 'Give the habit a name.');
       return;
     }
@@ -109,8 +110,10 @@ class _HabitEditorScreenState extends ConsumerState<HabitEditorScreen> {
       } else {
         id = await repo.create(input);
       }
+      Haptics.success();
       if (mounted) Navigator.of(context).pop(id);
     } catch (e) {
+      Haptics.warning();
       setState(() {
         _saving = false;
         _error = 'Couldn\'t save the habit. Please try again.';
@@ -119,36 +122,33 @@ class _HabitEditorScreenState extends ConsumerState<HabitEditorScreen> {
   }
 
   Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete habit?'),
-        content: const Text(
+    final ok = await confirmHud(
+      context,
+      title: 'Delete habit?',
+      message:
           'Its history will no longer be shown. Archive it instead if you '
           'might come back to it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await ref.read(habitRepositoryProvider).delete(widget.habit!.id);
     if (mounted) Navigator.of(context).pop();
   }
 
+  static IconData _categoryIcon(HabitCategory c) => switch (c) {
+    HabitCategory.health => Icons.favorite_outline,
+    HabitCategory.fitness => Icons.fitness_center,
+    HabitCategory.nutrition => Icons.restaurant_outlined,
+    HabitCategory.mind => Icons.self_improvement,
+    HabitCategory.productivity => Icons.bolt_outlined,
+    HabitCategory.other => Icons.category_outlined,
+  };
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final others = (ref.watch(allHabitsProvider).value ?? const <Habit>[])
         .where(
           (h) =>
@@ -161,187 +161,199 @@ class _HabitEditorScreenState extends ConsumerState<HabitEditorScreen> {
       _dependsOn = null;
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Edit habit' : 'New habit'),
-        actions: [
-          if (_isEdit)
-            IconButton(
-              tooltip: 'Delete habit',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _delete,
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.gutter,
-            AppSpacing.sm,
-            AppSpacing.gutter,
-            AppSpacing.xxxl,
+    return AppPage(
+      title: _isEdit ? 'Edit habit' : 'New habit',
+      eyebrow: _isEdit ? 'HABIT · CONFIG' : 'HABIT · NEW',
+      actions: [
+        if (_isEdit)
+          IconButton(
+            tooltip: 'Delete habit',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _delete,
           ),
+      ],
+      children: [
+        TextField(
+          controller: _name,
+          autofocus: !_isEdit && _name.text.isEmpty,
+          maxLength: 60,
+          style: t.titleLarge,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) {
+            if (_error != null) setState(() => _error = null);
+          },
+          decoration: InputDecoration(
+            labelText: 'Name',
+            hintText: 'e.g. 10-minute walk after lunch',
+            errorText: _error,
+          ),
+        ),
+        const SectionHeader('Category'),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
-            TextField(
-              controller: _name,
-              autofocus: !_isEdit && _name.text.isEmpty,
-              maxLength: 60,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(labelText: 'Name', errorText: _error),
-            ),
-            const SectionHeader('Category'),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final c in HabitCategory.values)
-                  ChoiceChip(
-                    label: Text(c.label),
-                    selected: _category == c,
-                    onSelected: (_) => setState(() => _category = c),
-                  ),
-              ],
-            ),
-            const SectionHeader('Schedule'),
-            SegmentedButton<HabitScheduleType>(
-              segments: const [
-                ButtonSegment(
-                  value: HabitScheduleType.daily,
-                  label: Text('Daily'),
-                ),
-                ButtonSegment(
-                  value: HabitScheduleType.weekly,
-                  label: Text('Per week'),
-                ),
-                ButtonSegment(
-                  value: HabitScheduleType.custom,
-                  label: Text('Days'),
-                ),
-              ],
-              selected: {_type},
-              onSelectionChanged: (s) => setState(() => _type = s.first),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (_type == HabitScheduleType.weekly)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '$_target ${_target == 1 ? 'time' : 'times'} per week',
-                      style: t.titleMedium,
-                    ),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'Fewer',
-                    onPressed: _target > 1
-                        ? () => setState(() => _target--)
-                        : null,
-                    icon: const Icon(Icons.remove),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  IconButton.filledTonal(
-                    tooltip: 'More',
-                    onPressed: _target < 7
-                        ? () => setState(() => _target++)
-                        : null,
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
+            for (final c in HabitCategory.values)
+              LifePill(
+                label: c.label,
+                icon: _categoryIcon(c),
+                selected: _category == c,
+                onTap: () => setState(() => _category = c),
               ),
-            if (_type == HabitScheduleType.custom)
-              WeekdayPicker(
-                mask: _daysMask,
-                onChanged: (m) => setState(() => _daysMask = m),
-              ),
-            Text(switch (_type) {
-              HabitScheduleType.daily =>
-                'Streaks count consecutive days. Skipped days never break '
-                    'them.',
-              HabitScheduleType.weekly =>
-                'Any days of the week count. Measured Monday to Sunday.',
-              HabitScheduleType.custom =>
-                'Only the selected days are expected.',
-            }, style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-            const SectionHeader(
-              'Reminders',
-              subtitle:
-                  'Enable "Habits" in notification settings to receive '
-                  'them.',
-            ),
-            TimesEditor(
-              times: _times,
-              onChanged: (v) => setState(() => _times = v),
-              addLabel: 'Add reminder',
-            ),
-            const SectionHeader(
-              'Complete automatically',
-              subtitle: 'Optional. Your own done/skip always takes priority.',
-            ),
-            DropdownButtonFormField<AutoRule?>(
-              initialValue: _autoRule,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Rule'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('None')),
-                for (final r in AutoRule.values)
-                  DropdownMenuItem(value: r, child: Text(r.label)),
-              ],
-              onChanged: (v) => setState(() => _autoRule = v),
-            ),
-            if (_autoRule != null)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
-                child: Text(
-                  _autoRule!.description,
-                  style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ),
-            const SectionHeader(
-              'After another habit',
-              subtitle: 'Suggested as "Up next" once that habit is done.',
-            ),
-            DropdownButtonFormField<String?>(
-              initialValue: _dependsOn,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Do this after'),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('No dependency'),
-                ),
-                for (final h in others)
-                  DropdownMenuItem(value: h.id, child: Text(h.name)),
-              ],
-              onChanged: (v) => setState(() => _dependsOn = v),
-            ),
-            const SectionHeader('Notes'),
-            TextField(
-              controller: _notes,
-              minLines: 2,
-              maxLines: 5,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Why this habit matters, or how to make it easy',
-              ),
-            ),
-            if (_isEdit) ...[
-              const SizedBox(height: AppSpacing.lg),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Archived'),
-                subtitle: const Text('Hidden from today; history is kept.'),
-                value: _archived,
-                onChanged: (v) => setState(() => _archived = v),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_isEdit ? 'Save changes' : 'Create habit'),
-            ),
           ],
         ),
-      ),
+        const SectionHeader('Schedule'),
+        SegmentedHud<HabitScheduleType>(
+          segments: const [
+            HudSegment(value: HabitScheduleType.daily, label: 'Daily'),
+            HudSegment(value: HabitScheduleType.weekly, label: 'Per week'),
+            HudSegment(value: HabitScheduleType.custom, label: 'Days'),
+          ],
+          value: _type,
+          onChanged: (v) => setState(() => _type = v),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AnimatedSize(
+          duration: AppMotion.medium,
+          curve: AppMotion.standard,
+          alignment: Alignment.topCenter,
+          child: switch (_type) {
+            HabitScheduleType.weekly => GlassPanel(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: HudStepper(
+                label: 'Times per week',
+                value: _target,
+                min: 1,
+                max: 7,
+                unit: _target == 1 ? 'TIME PER WEEK' : 'TIMES PER WEEK',
+                color: AppColors.habit,
+                onChanged: (v) => setState(() => _target = v),
+              ),
+            ),
+            HabitScheduleType.custom => WeekdayPicker(
+              mask: _daysMask,
+              color: AppColors.habit,
+              onChanged: (m) => setState(() => _daysMask = m),
+            ),
+            HabitScheduleType.daily => const SizedBox(width: double.infinity),
+          },
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(switch (_type) {
+          HabitScheduleType.daily =>
+            'Streaks count consecutive days. Skipped days never break them.',
+          HabitScheduleType.weekly =>
+            'Any days of the week count. Measured Monday to Sunday.',
+          HabitScheduleType.custom => 'Only the selected days are expected.',
+        }, style: t.bodySmall?.copyWith(color: hud.textMuted)),
+        const LifeSection(
+          'Reminders',
+          hint: 'Enable "Habits" in notification settings to receive them.',
+        ),
+        TimesEditor(
+          times: _times,
+          onChanged: (v) => setState(() => _times = v),
+          addLabel: 'Add reminder',
+        ),
+        const LifeSection(
+          'Complete automatically',
+          hint: 'Optional. Your own done/skip always takes priority.',
+        ),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            LifePill(
+              label: 'None',
+              selected: _autoRule == null,
+              onTap: () => setState(() => _autoRule = null),
+            ),
+            for (final r in AutoRule.values)
+              LifePill(
+                label: r.label,
+                icon: Icons.bolt,
+
+                selected: _autoRule == r,
+                onTap: () => setState(() => _autoRule = r),
+              ),
+          ],
+        ),
+        AnimatedSize(
+          duration: AppMotion.medium,
+          curve: AppMotion.standard,
+          child: _autoRule == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    _autoRule!.description,
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
+                  ),
+                ),
+        ),
+        if (others.isNotEmpty) ...[
+          const LifeSection(
+            'After another habit',
+            hint: 'Suggested as "Up next" once that habit is done.',
+          ),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              LifePill(
+                label: 'No dependency',
+                selected: _dependsOn == null,
+                onTap: () => setState(() => _dependsOn = null),
+              ),
+              for (final h in others)
+                LifePill(
+                  label: h.name,
+                  icon: Icons.east,
+
+                  selected: _dependsOn == h.id,
+                  onTap: () => setState(() => _dependsOn = h.id),
+                ),
+            ],
+          ),
+        ],
+        const SectionHeader('Notes'),
+        TextField(
+          controller: _notes,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Why this habit matters, or how to make it easy',
+          ),
+        ),
+        if (_isEdit) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            child: HudRow(
+              leading: GlowIcon(
+                Icons.archive_outlined,
+                color: hud.textMuted,
+                glow: 0,
+              ),
+              title: 'Archived',
+              subtitle: 'Hidden from today; history is kept.',
+              trailing: HudToggle(
+                value: _archived,
+                semanticLabel: 'Archived',
+                onChanged: (v) => setState(() => _archived = v),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        HudButton(
+          label: _isEdit ? 'Save changes' : 'Create habit',
+          icon: Icons.check_rounded,
+          expand: true,
+          loading: _saving,
+          onPressed: _saving ? null : _save,
+        ),
+      ],
     );
   }
 }

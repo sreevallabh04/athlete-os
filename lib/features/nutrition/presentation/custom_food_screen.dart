@@ -12,6 +12,7 @@ import '../application/providers.dart';
 import '../domain/food_models.dart';
 import '../domain/nutrients.dart';
 import 'widgets/common.dart';
+import 'widgets/nutrition_hud.dart';
 
 /// Create (or edit) a food by hand. Can be prefilled from an incomplete Open
 /// Food Facts product or with a scanned barcode. Pops with the saved [Food].
@@ -141,7 +142,10 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
       _submitted = true;
       _errors = _validate();
     });
-    if (_errors.isNotEmpty) return;
+    if (_errors.isNotEmpty) {
+      Haptics.warning();
+      return;
+    }
     final weightUnit = _unit == 'g' || _unit == 'ml';
     final size = _d(_size)!;
     final basis = ServingBasis(
@@ -183,6 +187,7 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
       } else {
         food = await repo.create(draft);
       }
+      Haptics.success();
       if (mounted) Navigator.of(context).pop(food);
     } catch (e) {
       if (mounted) {
@@ -209,11 +214,23 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
         suffixText: suffix,
         helperText: helper,
         errorText: _errors[key],
-        border: const OutlineInputBorder(),
       ),
       onChanged: (_) {
-        if (_submitted) setState(() => _errors = _validate());
+        if (_submitted) _errors = _validate();
+        setState(() {});
       },
+    );
+  }
+
+  Nutrients? get _preview {
+    final k = _d(_kcal);
+    if (k == null) return null;
+    return Nutrients(
+      calories: k,
+      protein: _d(_protein) ?? 0,
+      carbs: _d(_carbs) ?? 0,
+      fat: _d(_fat) ?? 0,
+      fiber: _d(_fiber),
     );
   }
 
@@ -221,12 +238,20 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
   Widget build(BuildContext context) {
     final weightUnit = _unit == 'g' || _unit == 'ml';
     final p = widget.prefill;
+    final hud = context.hud;
+    final preview = _preview;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.edit != null ? 'Edit food' : 'Create food'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.gutter),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.gutter,
+          AppSpacing.sm,
+          AppSpacing.gutter,
+          MediaQuery.paddingOf(context).bottom + AppSpacing.xxxl,
+        ),
         children: [
           if (p != null) ...[
             NoticeBanner(
@@ -243,108 +268,177 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
             ],
             const SizedBox(height: AppSpacing.lg),
           ],
-          ...spaced([
-            TextField(
-              key: const Key('food-name'),
-              controller: _name,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: 'Name *',
-                errorText: _errors['name'],
-                border: const OutlineInputBorder(),
-              ),
-              onChanged: (_) {
-                if (_submitted) setState(() => _errors = _validate());
-              },
-            ),
-            TextField(
-              controller: _brand,
-              decoration: const InputDecoration(
-                labelText: 'Brand (optional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            TextField(
-              controller: _barcode,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Barcode (optional)',
-                errorText: _errors['barcode'],
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SectionHeader(
-              'Serving',
-              subtitle: 'Nutrition values below are for one serving.',
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: _num('servingSize', _size, 'Serving size *')),
-                const SizedBox(width: AppSpacing.md),
-                SizedBox(
-                  width: 130,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _unit,
-                    decoration: const InputDecoration(
-                      labelText: 'Unit',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      for (final u in servingUnits)
-                        DropdownMenuItem(value: u, child: Text(u)),
-                    ],
-                    onChanged: (u) => setState(() => _unit = u ?? 'g'),
+                const HudCaption('Food'),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  key: const Key('food-name'),
+                  controller: _name,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Name *',
+                    errorText: _errors['name'],
+                  ),
+                  onChanged: (_) {
+                    if (_submitted) setState(() => _errors = _validate());
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _brand,
+                  decoration: const InputDecoration(
+                    labelText: 'Brand (optional)',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: _barcode,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Barcode (optional)',
+                    prefixIcon: const Icon(Icons.qr_code_2_rounded),
+                    errorText: _errors['barcode'],
                   ),
                 ),
               ],
             ),
-            if (!weightUnit)
-              _num(
-                'gramsPerServing',
-                _grams,
-                'Grams per serving (optional)',
-                suffix: 'g',
-                helper: 'Lets you log this food by weight too',
-              ),
-            const SectionHeader('Nutrition per serving'),
-            _num('calories', _kcal, 'Calories *', suffix: 'kcal'),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: _num('protein', _protein, 'Protein *', suffix: 'g'),
+                const HudCaption('Serving'),
+                const SizedBox(height: 2),
+                Text(
+                  'Nutrition values below are for one serving.',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: hud.textMuted),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(child: _num('carbs', _carbs, 'Carbs *', suffix: 'g')),
+                const SizedBox(height: AppSpacing.md),
+                _num('servingSize', _size, 'Serving size *', suffix: _unit),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final u in servingUnits)
+                      HudChip(
+                        label: u,
+                        selected: u == _unit,
+                        onTap: () => setState(() => _unit = u),
+                      ),
+                  ],
+                ),
+                if (!weightUnit) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _num(
+                    'gramsPerServing',
+                    _grams,
+                    'Grams per serving (optional)',
+                    suffix: 'g',
+                    helper: 'Lets you log this food by weight too',
+                  ),
+                ],
               ],
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            accent: AppColors.calories,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: _num('fat', _fat, 'Fat *', suffix: 'g')),
+                const HudCaption(
+                  'Nutrition per serving',
+                  color: AppColors.calories,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _num('calories', _kcal, 'Calories *', suffix: 'kcal'),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _num(
+                        'protein',
+                        _protein,
+                        'Protein *',
+                        suffix: 'g',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _num('carbs', _carbs, 'Carbs *', suffix: 'g'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _num('fat', _fat, 'Fat *', suffix: 'g')),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _num(
+                        'fiber',
+                        _fiber,
+                        'Fiber (optional)',
+                        suffix: 'g',
+                      ),
+                    ),
+                  ],
+                ),
+                if (preview != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  NutrientPreview(nutrients: preview),
+                  const SizedBox(height: AppSpacing.md),
+                  MacroSplitBar(
+                    protein: preview.protein,
+                    carbs: preview.carbs,
+                    fat: preview.fat,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            child: Row(
+              children: [
+                Icon(
+                  _favorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: _favorite ? AppColors.gold : hud.textMuted,
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: _num('fiber', _fiber, 'Fiber (optional)', suffix: 'g'),
+                  child: Text(
+                    'Add to favorites',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                HudToggle(
+                  value: _favorite,
+                  semanticLabel: 'Add to favorites',
+                  onChanged: (v) => setState(() => _favorite = v),
                 ),
               ],
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Add to favorites'),
-              value: _favorite,
-              onChanged: (v) => setState(() => _favorite = v),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          KeyedSubtree(
+            key: const Key('food-save'),
+            child: HudButton(
+              label: widget.edit != null ? 'Save changes' : 'Save food',
+              icon: Icons.check_rounded,
+              expand: true,
+              loading: _saving,
+              onPressed: _saving ? null : _save,
             ),
-            SizedBox(
-              height: 52,
-              child: FilledButton.icon(
-                key: const Key('food-save'),
-                onPressed: _saving ? null : _save,
-                icon: const Icon(Icons.check),
-                label: Text(widget.edit != null ? 'Save changes' : 'Save food'),
-              ),
-            ),
-          ]),
+          ),
         ],
       ),
     );

@@ -17,6 +17,7 @@ import 'custom_food_screen.dart';
 import 'widgets/amount_sheet.dart';
 import 'widgets/common.dart';
 import 'widgets/food_tiles.dart';
+import 'widgets/nutrition_hud.dart';
 
 /// Build a recipe from local foods; per-serving nutrition is computed
 /// deterministically from ingredient snapshots.
@@ -92,18 +93,21 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
     );
   }
 
+  void _setYield(double v) => setState(() => _servings.text = plainNum(v));
+
   Future<void> _save() async {
     final y = _yield;
+    String? error;
     if (_name.text.trim().isEmpty) {
-      setState(() => _error = 'Give the recipe a name');
-      return;
+      error = 'Give the recipe a name';
+    } else if (y == null) {
+      error = 'Servings must be a number above 0';
+    } else if (_ingredients.isEmpty) {
+      error = 'Add at least one ingredient';
     }
-    if (y == null) {
-      setState(() => _error = 'Servings must be a number above 0');
-      return;
-    }
-    if (_ingredients.isEmpty) {
-      setState(() => _error = 'Add at least one ingredient');
+    if (error != null) {
+      Haptics.warning();
+      setState(() => _error = error);
       return;
     }
     setState(() {
@@ -116,16 +120,17 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
         await repo.update(
           widget.existing!.recipe.id,
           name: _name.text,
-          servings: y,
+          servings: y!,
           ingredients: _ingredients,
         );
       } else {
         await repo.create(
           name: _name.text,
-          servings: y,
+          servings: y!,
           ingredients: _ingredients,
         );
       }
+      Haptics.success();
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -144,64 +149,156 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
     final perServing = y == null || _ingredients.isEmpty
         ? null
         : recipePerServing(_ingredients.map((i) => i.nutrients), y);
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.existing == null ? 'New recipe' : 'Edit recipe'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.gutter),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.gutter,
+          AppSpacing.sm,
+          AppSpacing.gutter,
+          MediaQuery.paddingOf(context).bottom + AppSpacing.xxxl,
+        ),
         children: [
-          TextField(
-            controller: _name,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Recipe name',
-              hintText: 'e.g. Paneer bhurji',
-              border: OutlineInputBorder(),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _name,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: t.titleMedium,
+                  decoration: const InputDecoration(
+                    labelText: 'Recipe name',
+                    hintText: 'e.g. Paneer bhurji',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text('MAKES HOW MANY SERVINGS?', style: hud.label(size: 11)),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    for (final n in const [1.0, 2.0, 3.0, 4.0, 6.0]) ...[
+                      HudChip(
+                        label: Fmt.oneDp(n),
+                        selected: y == n,
+                        onTap: () => _setYield(n),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    Expanded(
+                      child: TextField(
+                        controller: _servings,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        decoration: const InputDecoration(isDense: true),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _servings,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-            ],
-            decoration: const InputDecoration(
-              labelText: 'Makes how many servings?',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (_) => setState(() {}),
+          SectionHeader(
+            'Ingredients',
+            subtitle: _ingredients.isEmpty
+                ? null
+                : '${_ingredients.length} · ${Fmt.kcal(total.calories)} total',
+            action: 'Add',
+            onAction: _addIngredient,
           ),
-          SectionHeader('Ingredients', action: 'Add', onAction: _addIngredient),
           if (_ingredients.isEmpty)
-            EmptyState(
-              compact: true,
-              icon: Icons.kitchen_outlined,
-              title: 'No ingredients yet',
-              message: 'Add foods from your list with the amount used.',
-              actionLabel: 'Add ingredient',
-              onAction: _addIngredient,
-            ),
-          for (var i = 0; i < _ingredients.length; i++)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_ingredients[i].name),
-              subtitle: Text(
-                '${amountLabel(_ingredients[i].servings, _ingredients[i].grams)}'
-                ' · ${macroSummary(_ingredients[i].nutrients)}',
-                style: TextStyle(color: scheme.onSurfaceVariant),
+            AppCard(
+              child: EmptyState(
+                compact: true,
+                icon: Icons.kitchen_outlined,
+                title: 'No ingredients yet',
+                message: 'Add foods from your list with the amount used.',
+                actionLabel: 'Add ingredient',
+                onAction: _addIngredient,
               ),
-              trailing: IconButton(
-                tooltip: 'Remove ingredient',
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () => setState(() => _ingredients.removeAt(i)),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xs,
+                AppSpacing.xs,
+                AppSpacing.xs,
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < _ingredients.length; i++) ...[
+                    if (i > 0) const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _ingredients[i].name,
+                                        style: t.titleSmall,
+                                      ),
+                                    ),
+                                    if (Verifications.isEstimate(
+                                      _ingredients[i].verification,
+                                    )) ...[
+                                      const SizedBox(width: AppSpacing.xs),
+                                      const EstimateBadge(),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${amountLabel(_ingredients[i].servings, _ingredients[i].grams)}'
+                                  ' · ${macroSummary(_ingredients[i].nutrients)}',
+                                  style: t.bodySmall?.copyWith(
+                                    color: hud.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove ingredient',
+                            icon: Icon(
+                              Icons.remove_circle_outline,
+                              color: hud.textMuted,
+                            ),
+                            onPressed: () {
+                              Haptics.medium();
+                              setState(() => _ingredients.removeAt(i));
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           if (perServing != null) ...[
             const SectionHeader('Per serving'),
             AppCard(
+              accent: AppColors.calories,
               child: Column(
                 children: [
                   NutrientPreview(
@@ -210,11 +307,17 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
                       (i) => Verifications.isEstimate(i.verification),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.md),
+                  MacroSplitBar(
+                    protein: perServing.protein,
+                    carbs: perServing.carbs,
+                    fat: perServing.fat,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
-                    'Whole recipe: ${Fmt.kcal(total.calories)} · '
-                    '${Fmt.grams(total.protein)} protein',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    'WHOLE RECIPE · ${Fmt.kcal(total.calories).toUpperCase()}'
+                    ' · ${Fmt.grams(total.protein).toUpperCase()} PROTEIN',
+                    style: hud.mono(size: 10.5),
                   ),
                 ],
               ),
@@ -222,15 +325,15 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
           ],
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(_error!, style: TextStyle(color: scheme.error)),
+            Text(_error!, style: t.bodyMedium?.copyWith(color: AppColors.red)),
           ],
           const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            height: 52,
-            child: FilledButton(
-              onPressed: _saving ? null : _save,
-              child: const Text('Save recipe'),
-            ),
+          HudButton(
+            label: 'Save recipe',
+            icon: Icons.check_rounded,
+            expand: true,
+            loading: _saving,
+            onPressed: _saving ? null : _save,
           ),
         ],
       ),
@@ -271,19 +374,29 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.sm,
+              AppSpacing.gutter,
+              AppSpacing.md,
+            ),
             child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: context.hud.accentInk,
+                ),
                 hintText: 'Filter your foods',
-                border: OutlineInputBorder(),
               ),
               onChanged: (v) => setState(() => _q = v.trim().toLowerCase()),
             ),
           ),
           Expanded(
             child: foods.when(
-              loading: () => const LoadingState(),
+              loading: () => const Padding(
+                padding: EdgeInsets.all(AppSpacing.gutter),
+                child: ScanlineLoader(lines: 4),
+              ),
               error: (e, _) => ErrorState(message: redactSecrets('$e')),
               data: (list) {
                 final filtered = _q.isEmpty
@@ -301,8 +414,11 @@ class _FoodPickerScreenState extends ConsumerState<FoodPickerScreen> {
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    0,
+                    AppSpacing.gutter,
+                    MediaQuery.paddingOf(context).bottom + AppSpacing.xxl,
                   ),
                   itemCount: filtered.length,
                   itemBuilder: (_, i) => FoodListTile(
