@@ -2,6 +2,7 @@ import 'package:athlete_os/app/app.dart';
 import 'package:athlete_os/app/paths.dart';
 import 'package:athlete_os/core/theme/app_theme.dart';
 import 'package:athlete_os/core/time/clock.dart';
+import 'package:athlete_os/core/widgets/dock.dart';
 import 'package:athlete_os/data/db/database.dart';
 import 'package:athlete_os/data/repositories/profile_repository.dart';
 import 'package:athlete_os/data/repositories/settings_repository.dart';
@@ -338,14 +339,14 @@ void main() {
     testWidgets('first launch opens JARVIS calibration', (tester) async {
       await boot(tester, false);
       expect(find.byType(OnboardingScreen), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(HudDock), findsNothing);
       await settle(tester);
     });
 
     testWidgets('after onboarding the app opens on Today', (tester) async {
       await boot(tester, true);
       expect(find.byType(OnboardingScreen), findsNothing);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(HudDock), findsOneWidget);
       await settle(tester);
     });
 
