@@ -1,0 +1,12 @@
+# Supabase CLI configuration for Athlete OS.
+# project_id is a local placeholder; link the real project with
+# `supabase link --project-ref <ref>` (the ref is not stored in the repo).
+project_id = "athlete-os"
+
+# AI coach proxy. JWT verification is enforced by the gateway and again inside
+# the function (auth.getUser) so only signed-in users can reach providers.
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.ai-status]
+verify_jwt = true
