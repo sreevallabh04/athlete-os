@@ -6,10 +6,12 @@ import 'presentation/ai_memory_screen.dart';
 import 'presentation/ai_provider_settings_screen.dart';
 import 'presentation/coach_screen.dart';
 
-/// Root of the `Coach` bottom-navigation branch.
+/// Root of the `Coach` bottom-navigation branch. Other screens deep-link with
+/// `/coach?prompt=...` to prefill the composer.
 GoRoute coachTabRoute() => GoRoute(
   path: AppPaths.coach,
-  builder: (context, state) => const CoachScreen(),
+  builder: (context, state) =>
+      CoachScreen(initialPrompt: state.uri.queryParameters['prompt']),
 );
 
 /// Full-screen routes owned by the coach feature (pushed above the shell).
