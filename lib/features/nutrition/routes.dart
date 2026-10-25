@@ -17,7 +17,10 @@ final nutritionRoutes = <RouteBase>[
   GoRoute(
     path: AppPaths.addFood,
     parentNavigatorKey: rootNavigatorKey,
-    builder: (context, state) => const AddFoodScreen(),
+    builder: (context, state) => AddFoodScreen(
+      initialMeal: state.uri.queryParameters['meal'],
+      initialDate: state.uri.queryParameters['date'],
+    ),
   ),
   GoRoute(
     path: AppPaths.nutritionHistory,
