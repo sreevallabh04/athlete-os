@@ -1,5 +1,10 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
-import { GEMINI_DUMMY_THOUGHT_SIGNATURE, geminiAdapter, sanitizeGeminiSchema } from "./gemini.ts";
+import {
+  GEMINI_DUMMY_THOUGHT_SIGNATURE,
+  GEMINI_THINKING_HEADROOM,
+  geminiAdapter,
+  sanitizeGeminiSchema,
+} from "./gemini.ts";
 import { classifyError } from "../resilience.ts";
 import type { ToolCallBlock } from "./types.ts";
 import { bodyOf, conversation, headersOf, input, WEATHER_TOOL } from "../testing.ts";
@@ -13,7 +18,11 @@ Deno.test("gemini request: url, header, system, tools, generationConfig", () => 
   assertEquals(headersOf(init)["x-goog-api-key"], "AIzaTestKey");
   const body = bodyOf(init);
   assertEquals(body.systemInstruction, { parts: [{ text: "You are a coach." }] });
-  assertEquals(body.generationConfig, { maxOutputTokens: 1024 });
+  // Thought tokens count toward the cap: headroom is added and reasoning kept light.
+  assertEquals(body.generationConfig, {
+    maxOutputTokens: 1024 + GEMINI_THINKING_HEADROOM,
+    thinkingConfig: { thinkingLevel: "low" },
+  });
   const decl = (body.tools as { functionDeclarations: Record<string, unknown>[] }[])[0].functionDeclarations[0];
   assertEquals(decl.name, "log_water");
   const params = decl.parameters as Record<string, unknown>;

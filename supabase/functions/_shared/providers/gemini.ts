@@ -180,13 +180,34 @@ function mapFinish(reason: unknown, sawCall: boolean): StopReason {
   }
 }
 
+/**
+ * Gemini 3.x Flash models always "think", and thought tokens count toward
+ * maxOutputTokens. Keep reasoning light for a fast assistant and add headroom
+ * so the caller's max_tokens budget means *visible answer* tokens.
+ * Override with AI_GEMINI_THINKING_LEVEL (minimal | low | medium | high).
+ */
+export const GEMINI_THINKING_HEADROOM = 1024;
+
+function geminiThinkingLevel(): string {
+  try {
+    const v = Deno.env.get("AI_GEMINI_THINKING_LEVEL")?.trim().toLowerCase();
+    if (v && ["minimal", "low", "medium", "high"].includes(v)) return v;
+  } catch {
+    // No env permission (unit tests) — use the default.
+  }
+  return "low";
+}
+
 export const geminiAdapter: ProviderAdapter = {
   id: "gemini",
 
   buildRequest(input: ProviderInput, apiKey: string): BuiltRequest {
     const body: JsonObject = {
       contents: mapGeminiContents(input.messages),
-      generationConfig: { maxOutputTokens: input.maxTokens },
+      generationConfig: {
+        maxOutputTokens: input.maxTokens + GEMINI_THINKING_HEADROOM,
+        thinkingConfig: { thinkingLevel: geminiThinkingLevel() },
+      },
     };
     if (input.system) body.systemInstruction = { parts: [{ text: input.system }] };
     if (input.tools.length > 0) {

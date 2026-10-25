@@ -502,3 +502,8 @@ openai/gpt-oss-120b ≈ $0.002. A food estimate ≈ $0.003 (Gemini, thinking
 tokens dominate) or $0.0006 (Groq); a meal photo ≈ $0.002–0.004. Everything
 else in the app is on-device and free.
 Spending stops at the monthly budget.
+
+## Gemini thinking budget (fixed 2026-10-26)
+
+Gemini 3.x Flash models always reason, and thought tokens count toward `maxOutputTokens`. Live testing showed a 256-token request truncated mid-sentence (252 output tokens, mostly thoughts). The Gemini adapter now sends `thinkingConfig.thinkingLevel = low` (override with the `AI_GEMINI_THINKING_LEVEL` secret: minimal | low | medium | high) and adds `GEMINI_THINKING_HEADROOM` (1,024) tokens so `max_tokens` means visible answer tokens. Verified live: greeting 5 s / complete; 2-sentence nutrition answer 14 s / complete.
+
