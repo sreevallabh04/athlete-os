@@ -3,133 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../agent/coach_controller.dart';
+import '../../data/ai_backend.dart';
 import '../../tools/tool_args_validator.dart';
 import '../../tools/tool_registry.dart';
-import 'markdown_lite.dart';
 
-class MessageBubble extends StatelessWidget {
-  const MessageBubble.user(this.text, {super.key})
-    : isUser = true,
-      sources = const [];
-  const MessageBubble.assistant(this.text, {super.key, this.sources = const []})
-    : isUser = false;
-
-  final String text;
-  final bool isUser;
-  final List<String> sources;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
-    final maxWidth = MediaQuery.sizeOf(context).width * 0.84;
-    final bubble = Container(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        gradient: isUser ? AppGradients.brand : null,
-        color: isUser ? null : scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(AppRadii.lg),
-          topRight: const Radius.circular(AppRadii.lg),
-          bottomLeft: Radius.circular(isUser ? AppRadii.lg : 6),
-          bottomRight: Radius.circular(isUser ? 6 : AppRadii.lg),
-        ),
-      ),
-      child: isUser
-          ? Text(text, style: t.bodyLarge?.copyWith(color: Colors.white))
-          : MarkdownLite(text, style: t.bodyLarge),
-    );
-    return Semantics(
-      label: isUser ? 'You said' : 'Coach said',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Column(
-          crossAxisAlignment: isUser
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            bubble,
-            if (sources.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, left: 6),
-                child: Text(
-                  'Sources: ${sources.join(' · ')}',
-                  style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ToolActivityChip extends StatelessWidget {
-  const ToolActivityChip(this.entry, {super.key});
-  final ToolChipEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (icon, color) = switch (entry.status) {
-      ToolChipStatus.running => (Icons.sync, AppColors.info),
-      ToolChipStatus.ok => (
-        entry.isWrite ? Icons.check_circle_outline : Icons.dataset_outlined,
-        entry.isWrite ? AppColors.success : scheme.onSurfaceVariant,
-      ),
-      ToolChipStatus.error => (Icons.error_outline, AppColors.danger),
-      ToolChipStatus.pending => (Icons.pending_outlined, AppColors.warning),
-      ToolChipStatus.rejected => (Icons.block, scheme.onSurfaceVariant),
-      ToolChipStatus.consent => (Icons.lock_outline, AppColors.warning),
-    };
-    final suffix = switch (entry.status) {
-      ToolChipStatus.error => ' · failed',
-      ToolChipStatus.pending => ' · awaiting approval',
-      ToolChipStatus.rejected => ' · not done',
-      ToolChipStatus.consent => ' · needs consent',
-      _ => '',
-    };
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm + 2,
-            vertical: 5,
-          ),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.10),
-            borderRadius: AppRadii.chip,
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  '${entry.label}$suffix',
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: color),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Approve / Edit / Reject card for a pending write, or Allow / Not now for
-/// a consent request.
+/// Approve / Edit / Reject card for a pending write ("authorisation"), or
+/// Allow / Not now for a consent request ("privacy check").
 class PendingActionCard extends StatelessWidget {
   const PendingActionCard({
     super.key,
@@ -144,67 +23,248 @@ class PendingActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
     final t = Theme.of(context).textTheme;
-    final accent = pending.isConsent ? AppColors.warning : AppColors.brand;
-    return AppCard(
-      accent: accent,
-      semanticLabel: pending.title,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                pending.isConsent ? Icons.lock_outline : Icons.edit_note,
-                color: accent,
+    final consent = pending.isConsent;
+    final accent = consent ? AppColors.warning : hud.accent;
+    return Semantics(
+      container: true,
+      label: pending.title,
+      child: Entrance(
+        fromScale: 0.96,
+        child: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: HudFrame(
+            color: accent,
+            cornerLength: 16,
+            tag: consent ? 'PRIVACY·CHECK' : 'AUTH·REQUIRED',
+            inset: -4,
+            child: GlassPanel(
+              accent: accent,
+              glow: true,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GlowIcon(
+                        consent
+                            ? Icons.lock_outline_rounded
+                            : Icons.verified_user_outlined,
+                        color: accent,
+                        size: 18,
+                        framed: true,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              consent
+                                  ? 'PERMISSION REQUEST'
+                                  : 'AWAITING YOUR APPROVAL',
+                              style: hud.label(size: 11, color: accent),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(pending.title, style: t.titleMedium),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  for (final line in pending.summary)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 9, right: 10),
+                            child: Container(
+                              width: 5,
+                              height: 1.5,
+                              color: accent.withValues(alpha: 0.8),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              line,
+                              style: t.bodyMedium?.copyWith(height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!consent)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Nothing is saved until you approve.',
+                        style: hud.mono(size: 10.5),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: HudButton(
+                          label: consent ? 'Allow' : 'Approve',
+                          icon: consent
+                              ? Icons.lock_open_rounded
+                              : Icons.check_rounded,
+                          compact: true,
+                          expand: true,
+                          onPressed: () {
+                            Haptics.success();
+                            onApprove(null);
+                          },
+                        ),
+                      ),
+                      if (!consent) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        HudButton.secondary(
+                          label: 'Edit',
+                          icon: Icons.tune_rounded,
+                          compact: true,
+                          onPressed: () async {
+                            final edited =
+                                await showHudBottomSheet<Map<String, Object?>>(
+                                  context,
+                                  title: 'Edit · ${pending.title}',
+                                  builder: (_) =>
+                                      EditArgsDialog(pending: pending),
+                                );
+                            if (edited != null) {
+                              Haptics.success();
+                              onApprove(edited);
+                            }
+                          },
+                        ),
+                      ],
+                      const SizedBox(width: AppSpacing.xs),
+                      HudButton.ghost(
+                        label: consent ? 'Not now' : 'Reject',
+                        compact: true,
+                        onPressed: () {
+                          Haptics.heavy();
+                          onReject();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(pending.title, style: t.titleSmall)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          for (final line in pending.summary)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(line, style: t.bodyMedium),
             ),
-          if (!pending.isConsent)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(
-                'Nothing is saved until you approve.',
-                style: t.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: [
-              FilledButton(
-                onPressed: () => onApprove(null),
-                child: Text(pending.isConsent ? 'Allow' : 'Approve'),
-              ),
-              if (!pending.isConsent)
-                OutlinedButton(
-                  onPressed: () async {
-                    final edited = await showDialog<Map<String, Object?>>(
-                      context: context,
-                      builder: (_) => EditArgsDialog(pending: pending),
-                    );
-                    if (edited != null) onApprove(edited);
-                  },
-                  child: const Text('Edit'),
-                ),
-              TextButton(
-                onPressed: onReject,
-                child: Text(pending.isConsent ? 'Not now' : 'Reject'),
-              ),
-            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A red "link fault" card with retry options.
+class LinkFaultCard extends StatelessWidget {
+  const LinkFaultCard({
+    super.key,
+    required this.error,
+    this.onRetry,
+    this.onFastRetry,
+    this.onSettings,
+  });
+
+  final AiBackendException error;
+  final VoidCallback? onRetry;
+
+  /// "Try Groq": re-send on the fast provider.
+  final VoidCallback? onFastRetry;
+  final VoidCallback? onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
+    final title = switch (error.code) {
+      'timeout' => 'The link timed out',
+      'network' => 'No connection to the AI core',
+      'rate_limited' => 'Rate limited',
+      'budget_exceeded' => 'Monthly budget reached',
+      'unauthorized' => 'Session expired',
+      'awaiting_credentials' => 'AI backend not configured',
+      'providers_unavailable' => 'All providers are down',
+      _ => 'The AI core reported a fault',
+    };
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Entrance(
+        child: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: GlassPanel(
+            accent: AppColors.danger,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const GlowIcon(
+                      Icons.report_gmailerrorred_rounded,
+                      color: AppColors.danger,
+                      size: 18,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'LINK FAULT · ${error.code.toUpperCase()}',
+                      style: hud.label(size: 11, color: AppColors.danger),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(title, style: t.titleSmall),
+                const SizedBox(height: 2),
+                Text(
+                  error.message,
+                  style: t.bodyMedium?.copyWith(color: hud.textMuted),
+                ),
+                if (onRetry != null ||
+                    onFastRetry != null ||
+                    onSettings != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      if (onRetry != null)
+                        HudButton(
+                          label: 'Retry',
+                          icon: Icons.refresh_rounded,
+                          compact: true,
+                          onPressed: onRetry,
+                        ),
+                      if (onFastRetry != null)
+                        HudButton.secondary(
+                          label: 'Try Groq (fast)',
+                          icon: Icons.bolt_rounded,
+                          compact: true,
+                          onPressed: onFastRetry,
+                        ),
+                      if (onSettings != null)
+                        HudButton.secondary(
+                          label: 'Settings',
+                          icon: Icons.settings_outlined,
+                          compact: true,
+                          onPressed: onSettings,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -212,7 +272,8 @@ class PendingActionCard extends StatelessWidget {
 
 /// Generic editor for tool arguments: one field per scalar leaf (including
 /// leaves of objects inside arrays, e.g. items[0].calories). The result is
-/// validated against the tool schema before it can be approved.
+/// validated against the tool schema before it can be approved. Shown in a
+/// HUD bottom sheet; pops the edited arguments.
 class EditArgsDialog extends StatefulWidget {
   const EditArgsDialog({super.key, required this.pending});
   final PendingAction pending;
@@ -311,56 +372,66 @@ class _EditArgsDialogState extends State<EditArgsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Edit · ${widget.pending.title}'),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final l in _leaves)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: TextField(
+                controller: l.controller,
+                keyboardType: l.original is num
+                    ? const TextInputType.numberWithOptions(decimal: true)
+                    : TextInputType.text,
+                decoration: InputDecoration(labelText: l.label),
+              ),
+            ),
+          for (final e in _errors)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                e,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.danger),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
             children: [
-              for (final l in _leaves)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: TextField(
-                    controller: l.controller,
-                    keyboardType: l.original is num
-                        ? const TextInputType.numberWithOptions(decimal: true)
-                        : TextInputType.text,
-                    decoration: InputDecoration(labelText: l.label),
-                  ),
+              HudButton.ghost(
+                label: 'Cancel',
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: HudButton(
+                  label: 'Approve edited',
+                  icon: Icons.check_rounded,
+                  expand: true,
+                  onPressed: () {
+                    final edited = _build();
+                    final spec = toolByName(widget.pending.toolName);
+                    final errors = spec == null
+                        ? const <String>[]
+                        : const ToolArgsValidator().validate(
+                            spec.inputSchema,
+                            edited,
+                          );
+                    if (errors.isNotEmpty) {
+                      Haptics.warning();
+                      setState(() => _errors = errors.take(4).toList());
+                      return;
+                    }
+                    Navigator.pop(context, edited);
+                  },
                 ),
-              for (final e in _errors)
-                Text(
-                  e,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AppColors.danger),
-                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final edited = _build();
-            final spec = toolByName(widget.pending.toolName);
-            final errors = spec == null
-                ? const <String>[]
-                : const ToolArgsValidator().validate(spec.inputSchema, edited);
-            if (errors.isNotEmpty) {
-              setState(() => _errors = errors.take(4).toList());
-              return;
-            }
-            Navigator.pop(context, edited);
-          },
-          child: const Text('Approve edited'),
-        ),
-      ],
     );
   }
 }

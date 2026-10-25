@@ -90,11 +90,11 @@ class _AiHistoryScreenState extends ConsumerState<AiHistoryScreen> {
     final recs = ref.watch(recommendationsProvider);
     final repo = ref.read(coachRepositoryProvider);
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
 
     return AppPage(
       title: 'AI activity log',
+      eyebrow: 'JARVIS · AUDIT TRAIL',
       subtitle:
           'Every tool the coach used, what it read or changed, and your '
           'responses to its recommendations.',
@@ -120,36 +120,48 @@ class _AiHistoryScreenState extends ConsumerState<AiHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${r.kind} · ${Fmt.ago(r.createdAt, now)} · ${r.status}',
-                            style: t.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                            '${r.kind} · ${Fmt.ago(r.createdAt, now)} · '
+                                    '${r.status}'
+                                .toUpperCase(),
+                            style: HudTheme.of(context).mono(size: 10),
                           ),
                           const SizedBox(height: 4),
                           Text(r.content, style: t.bodyMedium),
                           if (r.status == 'pending')
-                            Wrap(
-                              spacing: AppSpacing.sm,
-                              children: [
-                                TextButton(
-                                  onPressed: () => repo.respondToRecommendation(
-                                    r.id,
-                                    'accepted',
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.sm,
+                              ),
+                              child: Row(
+                                children: [
+                                  HudButton.secondary(
+                                    label: 'Accept',
+                                    compact: true,
+                                    onPressed: () {
+                                      Haptics.success();
+                                      repo.respondToRecommendation(
+                                        r.id,
+                                        'accepted',
+                                      );
+                                    },
                                   ),
-                                  child: const Text('Accept'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _editRecommendation(r),
-                                  child: const Text('Edit'),
-                                ),
-                                TextButton(
-                                  onPressed: () => repo.respondToRecommendation(
-                                    r.id,
-                                    'dismissed',
+                                  const SizedBox(width: AppSpacing.xs),
+                                  HudButton.ghost(
+                                    label: 'Edit',
+                                    compact: true,
+                                    onPressed: () => _editRecommendation(r),
                                   ),
-                                  child: const Text('Dismiss'),
-                                ),
-                              ],
+                                  HudButton.ghost(
+                                    label: 'Dismiss',
+                                    compact: true,
+                                    onPressed: () =>
+                                        repo.respondToRecommendation(
+                                          r.id,
+                                          'dismissed',
+                                        ),
+                                  ),
+                                ],
+                              ),
                             ),
                         ],
                       ),
@@ -176,30 +188,60 @@ class _AiHistoryScreenState extends ConsumerState<AiHistoryScreen> {
                 ]
               : [
                   AppCard(
-                    padding: EdgeInsets.zero,
                     child: Column(
-                      children: [
+                      children: spaced(gap: AppSpacing.md, [
                         for (final a in list)
-                          ListTile(
-                            dense: true,
-                            leading: Icon(
-                              a.isWrite
-                                  ? Icons.edit_note
-                                  : Icons.dataset_outlined,
-                              color: _statusColor(a.status),
-                            ),
-                            title: Text(_title(a, now)),
-                            subtitle: Text(
-                              [
-                                a.status.replaceAll('_', ' '),
-                                Fmt.ago(a.createdAt, now),
-                                summarizeToolResult(a.resultSummary),
-                              ].where((s) => s.isNotEmpty).join(' · '),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _statusColor(a.status)
+                                      .withValues(alpha: 0.12),
+                                  border: Border.all(
+                                    color: _statusColor(a.status)
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: Icon(
+                                  a.isWrite
+                                      ? Icons.edit_note
+                                      : Icons.dataset_outlined,
+                                  size: 15,
+                                  color: _statusColor(a.status),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_title(a, now), style: t.bodyMedium),
+                                    Text(
+                                      [
+                                            a.status.replaceAll('_', ' '),
+                                            Fmt.ago(a.createdAt, now),
+                                            summarizeToolResult(
+                                              a.resultSummary,
+                                            ),
+                                          ]
+                                          .where((s) => s.isNotEmpty)
+                                          .join(' · ')
+                                          .toUpperCase(),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: HudTheme.of(context)
+                                          .mono(size: 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                      ],
+                      ]),
                     ),
                   ),
                 ],

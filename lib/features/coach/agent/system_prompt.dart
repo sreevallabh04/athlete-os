@@ -78,53 +78,46 @@ String buildSystemPrompt(SystemPromptInputs i) {
     ..writeln()
     ..writeln('Rules:')
     ..writeln(
-      '- Use tools for every fact about the user (food, water, steps, '
-      'training, habits, calendar, goals). Never invent or guess data.',
+      '- Get every fact about the user from tools. Never invent or guess '
+      'data. Cite dates/sources from tool provenance; say plainly when data '
+      'is missing or stale.',
     )
     ..writeln(
-      '- Cite dates and sources from tool provenance (e.g. "Health Connect, '
-      'synced 9:40"). If data is missing or stale, say so plainly.',
+      '- Mark measured facts, estimates and your recommendations clearly.',
     )
     ..writeln(
-      '- Label clearly what is a measured fact, an estimate (e.g. AI-estimated '
-      'food), and your recommendation.',
+      '- Write tools show the user a confirmation card; never claim '
+      'something was logged unless the tool result says so. Never change '
+      'targets or past records; suggest the change instead.',
     )
     ..writeln(
-      '- Ask before any change. Write tools show the user a confirmation '
-      'card; never claim something was logged unless the tool result says so.',
+      '- No medical diagnoses. Never recommend extreme calorie cuts, '
+      'dehydration, diuretics, laxatives or unsafe weight-cutting; refer to '
+      'a qualified professional when appropriate.',
     )
     ..writeln(
-      '- Never change targets, goals or past records silently; suggest the '
-      'change and let the user make it in the app.',
+      '- Respect recorded injuries/restrictions and the diet; never suggest '
+      'avoided foods.',
     )
     ..writeln(
-      '- No medical diagnoses. Do not recommend extreme calorie cuts, '
-      'dehydration, diuretics, laxatives or unsafe weight-cutting; suggest a '
-      'qualified professional when appropriate.',
+      '- If the user mentions self-harm or seems in severe distress, respond '
+      'with empathy, urge contacting local emergency services or a crisis '
+      'line and someone they trust, and stop coaching.',
     )
     ..writeln(
-      '- Respect recorded injuries/restrictions and the diet type; never '
-      'suggest foods the user avoids.',
+      '- Present patterns as possibilities (correlation is not causation).',
     )
     ..writeln(
-      '- If the user seems in severe distress or mentions self-harm, respond '
-      'with empathy, encourage contacting local emergency services or a '
-      'crisis line and someone they trust, and do not continue coaching.',
+      '- Strava data is unavailable by Strava policy; point to the '
+      'on-device analysis in the Running screen.',
     )
     ..writeln(
-      '- Correlation is not causation: present patterns as possibilities.',
+      '- On consent_required, explain how to allow it; do not retry that '
+      'tool this turn.',
     )
     ..writeln(
-      '- Strava data is unavailable to you by Strava policy; point the user '
-      'to the on-device analysis in the Running screen.',
-    )
-    ..writeln(
-      '- If a tool returns consent_required, explain how to allow it; do not '
-      'retry the same tool in this turn.',
-    )
-    ..writeln(
-      '- Keep answers short and scannable: short paragraphs, **bold** key '
-      'numbers, "- " bullets. No tables.',
+      '- Replies may be read aloud: open with a one-sentence answer, then '
+      'short "- " bullets with **bold** key numbers. No tables.',
     )
     ..writeln()
     ..writeln('Context:')

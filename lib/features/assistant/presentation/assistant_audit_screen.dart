@@ -26,6 +26,14 @@ class AssistantAuditScreen extends ConsumerWidget {
     _ => Icons.settings_outlined,
   };
 
+  static Color _actionColor(String action, HudTheme hud) => switch (action) {
+    AuditAction.send || AuditAction.approve => AppColors.success,
+    AuditAction.sendFailed || AuditAction.killSwitch => AppColors.danger,
+    AuditAction.reject => AppColors.warning,
+    AuditAction.draft => hud.accent,
+    _ => hud.textMuted,
+  };
+
   static Color _statusColor(String s) => switch (s) {
     DraftStatus.handedOff => AppColors.success,
     DraftStatus.failed => AppColors.danger,
@@ -42,19 +50,18 @@ class AssistantAuditScreen extends ConsumerWidget {
     final labels = {for (final a in apps) a.packageName: a.appLabel};
     final now = ref.watch(clockProvider).now();
     final t = Theme.of(context).textTheme;
-    final muted = t.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
+    final hud = HudTheme.of(context);
 
     return AppPage(
       title: 'Automation log',
+      eyebrow: 'AUDIT · CONTENT-FREE',
       subtitle:
           '"Handed off" means the reply was given to the app\'s own reply '
           'action. Apps do not confirm delivery.',
       children: [
         const SectionHeader('Replies'),
         replies.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(lines: 3),
           error: (e, _) => const ErrorState(message: 'Could not load replies.'),
           data: (list) => list.isEmpty
               ? const AppCard(
@@ -65,35 +72,55 @@ class AssistantAuditScreen extends ConsumerWidget {
                   ),
                 )
               : AppCard(
-                  padding: EdgeInsets.zero,
                   child: Column(
-                    children: [
+                    children: spaced(gap: AppSpacing.md, [
                       for (final d in list)
-                        ListTile(
-                          title: Text(
-                            d.draftText.isEmpty
-                                ? '(text deleted by retention)'
-                                : d.draftText,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            [
-                              appLabelFor(d.packageName, labels),
-                              if (d.sendPolicy != null) d.sendPolicy!,
-                              Fmt.ago(
-                                d.sentAt ?? d.decidedAt ?? d.createdAt,
-                                now,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InitialsAvatar(
+                              name: appLabelFor(d.packageName, labels),
+                              seed: d.packageName,
+                              size: 32,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    d.draftText.isEmpty
+                                        ? '(text deleted by retention)'
+                                        : d.draftText,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.bodyMedium,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    [
+                                      appLabelFor(d.packageName, labels),
+                                      if (d.sendPolicy != null) d.sendPolicy!,
+                                      Fmt.ago(
+                                        d.sentAt ?? d.decidedAt ?? d.createdAt,
+                                        now,
+                                      ),
+                                      if (d.deliveryDetail != null)
+                                        d.deliveryDetail!,
+                                    ].join(' · '),
+                                    style: hud.mono(size: 10),
+                                  ),
+                                ],
                               ),
-                              if (d.deliveryDetail != null) d.deliveryDetail!,
-                            ].join(' · '),
-                          ),
-                          trailing: StatusPill(
-                            DraftStatus.label(d.status),
-                            color: _statusColor(d.status),
-                          ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            StatusPill(
+                              DraftStatus.label(d.status),
+                              color: _statusColor(d.status),
+                            ),
+                          ],
                         ),
-                    ],
+                    ]),
                   ),
                 ),
         ),
@@ -102,7 +129,7 @@ class AssistantAuditScreen extends ConsumerWidget {
           subtitle: 'Metadata only — never message text.',
         ),
         audit.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(lines: 4),
           error: (e, _) => const ErrorState(message: 'Could not load the log.'),
           data: (rows) => rows.isEmpty
               ? const AppCard(
@@ -113,34 +140,98 @@ class AssistantAuditScreen extends ConsumerWidget {
                   ),
                 )
               : AppCard(
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.fromLTRB(12, 14, 14, 6),
                   child: Column(
                     children: [
-                      for (final a in rows)
-                        ListTile(
-                          dense: true,
-                          leading: Icon(_icon(a.action)),
-                          title: Text(
-                            [
-                              a.action.replaceAll('_', ' '),
-                              if (a.packageName != null)
-                                appLabelFor(a.packageName!, labels),
-                            ].join(' · '),
-                          ),
-                          subtitle: Text(
-                            [
-                              Fmt.ago(a.createdAt, now),
-                              if (a.detail != null && a.detail!.isNotEmpty)
-                                a.detail!,
-                            ].join(' · '),
-                            style: muted,
-                          ),
+                      for (var i = 0; i < rows.length; i++)
+                        _TimelineRow(
+                          icon: _icon(rows[i].action),
+                          color: _actionColor(rows[i].action, hud),
+                          title: [
+                            rows[i].action.replaceAll('_', ' '),
+                            if (rows[i].packageName != null)
+                              appLabelFor(rows[i].packageName!, labels),
+                          ].join(' · '),
+                          subtitle: [
+                            Fmt.ago(rows[i].createdAt, now),
+                            if (rows[i].detail != null &&
+                                rows[i].detail!.isNotEmpty)
+                              rows[i].detail!,
+                          ].join(' · '),
+                          last: i == rows.length - 1,
                         ),
                     ],
                   ),
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.last,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color.withValues(alpha: 0.12),
+                    border: Border.all(color: color.withValues(alpha: 0.5)),
+                  ),
+                  child: Icon(icon, size: 14, color: color),
+                ),
+                if (!last)
+                  Expanded(
+                    child: Container(
+                      width: 1,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      color: hud.hairline.withValues(alpha: 0.2),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3, bottom: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: t.bodyMedium),
+                  Text(subtitle, style: hud.mono(size: 10)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
