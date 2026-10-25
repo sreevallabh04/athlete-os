@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../core/util/format.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../data/db/database.dart';
 import '../../../../data/repositories/integration_status_repository.dart';
+import 'hud_kit.dart';
 
 /// Display status of an integration, combining build config and DB state.
 enum IntegrationDisplayStatus {
@@ -48,33 +50,36 @@ IntegrationDisplayStatus displayStatus(
   }
 }
 
+/// HUD status pill with a glowing dot (pulses while connected).
 class StatusChip extends StatelessWidget {
   const StatusChip(this.status, {super.key});
   final IntegrationDisplayStatus status;
 
   @override
   Widget build(BuildContext context) {
+    final c = status.color;
     return Semantics(
       label: 'Status: ${status.label}',
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.fromLTRB(4, 2, 9, 2),
         decoration: BoxDecoration(
-          color: status.color.withValues(alpha: 0.14),
-          borderRadius: AppRadii.chip,
+          color: c.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadii.xs),
+          border: Border.all(color: c.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(status.icon, size: 14, color: status.color),
-            const SizedBox(width: 4),
+            HudDot(
+              color: c,
+              size: 5,
+              pulse: status == IntegrationDisplayStatus.connected,
+            ),
             Text(
               status.label,
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: status.color),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: c, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -83,7 +88,8 @@ class StatusChip extends StatelessWidget {
   }
 }
 
-/// Compact sync row for the Train tab: name, status, last sync, sync button.
+/// Status + last sync + action for one import source (used in the Train
+/// tab's sync sheet).
 class SyncStatusTile extends StatelessWidget {
   const SyncStatusTile({
     super.key,
@@ -110,53 +116,67 @@ class SyncStatusTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = displayStatus(row, configured: configured);
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final last = row?.lastSyncAt;
-    final sub = status == IntegrationDisplayStatus.connected
-        ? (last == null
-              ? 'Not synced yet'
-              : 'Synced ${Fmt.ago(last.toLocal(), now)}')
-        : status.label;
-    return Row(
+    final connected = status == IntegrationDisplayStatus.connected;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: t.labelLarge),
-              Text(
-                sub,
-                style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-        if (status == IntegrationDisplayStatus.connected)
-          syncing
-              ? const Padding(
-                  padding: EdgeInsets.all(AppSpacing.md),
-                  child: SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              : IconButton(
-                  tooltip: 'Sync $name now',
-                  onPressed: onSync,
-                  icon: const Icon(Icons.sync),
-                )
-        else
-          TextButton(
-            onPressed: onSetup,
-            child: Text(
-              status == IntegrationDisplayStatus.error ? 'Fix' : 'Set up',
+        Row(
+          children: [
+            HudBadge(
+              text: name.substring(0, 2).toUpperCase(),
+              color: color,
+              size: 44,
             ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  StatusChip(status),
+                  const SizedBox(height: 4),
+                  Text(
+                    connected
+                        ? (last == null
+                              ? 'Not synced yet'
+                              : 'Last synced ${Fmt.ago(last.toLocal(), now)}')
+                        : status == IntegrationDisplayStatus.awaitingCredentials
+                        ? 'This build has no credentials for $name yet.'
+                        : 'Not connected on this phone.',
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (row?.lastError != null && !connected) ...[
+          const SizedBox(height: AppSpacing.md),
+          NoticeBanner(
+            message: 'Last error: ${row!.lastError}',
+            color: AppColors.danger,
+            icon: Icons.error_outline,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        if (connected)
+          HudButton(
+            label: syncing ? 'Syncing…' : 'Sync $name now',
+            icon: Icons.sync,
+            loading: syncing,
+            expand: true,
+            onPressed: syncing ? null : onSync,
+          )
+        else
+          HudButton.secondary(
+            label: status == IntegrationDisplayStatus.error
+                ? 'Fix in Integrations'
+                : 'Set up in Integrations',
+            icon: Icons.settings_outlined,
+            expand: true,
+            onPressed: onSetup,
           ),
       ],
     );

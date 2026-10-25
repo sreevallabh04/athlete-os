@@ -1,4 +1,9 @@
 import 'package:athlete_os/core/util/ids.dart';
+import 'package:athlete_os/core/widgets/widgets.dart';
+import 'package:athlete_os/data/repositories/settings_repository.dart';
+import 'package:athlete_os/features/onboarding/domain/calibration.dart';
+import 'package:athlete_os/features/onboarding/domain/training_program.dart';
+import 'package:athlete_os/features/train/presentation/log_workout_screen.dart';
 import 'package:athlete_os/features/train/data/workout_repository.dart';
 import 'package:athlete_os/features/train/domain/workout_draft.dart';
 import 'package:athlete_os/features/train/presentation/train_screen.dart';
@@ -57,6 +62,45 @@ void main() {
 
     expect(find.text('Upper A'), findsOneWidget);
     expect(find.textContaining('500 kg'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('with a program: week HUD, today session and one-tap start', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.75;
+    addTearDown(tester.view.reset);
+    final db = newTestDb();
+    addTearDown(db.close);
+    await SettingsRepository(db).set(
+      PersonaKeys.program,
+      generateMensPhysiqueProgram(startMonday: '2026-10-19').toJson(),
+    );
+    await tester.pumpWidget(
+      testHarness(
+        const TrainScreen(),
+        db: db,
+        now: DateTime(2026, 10, 23, 6, 5), // Friday: Upper · V-taper
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('THIS WEEK'), findsOneWidget);
+    expect(find.text('Upper · V-taper'), findsOneWidget);
+    expect(find.text('0/5'), findsOneWidget); // lifts done this week
+    // First run: compact setup card, never a fabricated PR or number.
+    expect(find.text('No training data yet'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(HudButton, 'Start session'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    expect(find.byType(LogWorkoutScreen), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Upper · V-taper'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 10));

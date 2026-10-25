@@ -9,6 +9,7 @@ import '../../../core/time/clock.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../train/presentation/widgets/hud_kit.dart';
 import '../application/health_providers.dart';
 import '../application/health_sync_service.dart';
 import '../domain/health_types.dart';
@@ -16,6 +17,9 @@ import '../domain/steps_math.dart';
 import 'widgets/health_charts.dart';
 import 'widgets/health_widgets.dart';
 
+/// Steps: a reactor ring for today (remaining = max(0, goal − steps), a
+/// per-waking-hour estimate), 7/30-day history and manual entry. Never
+/// shows a fabricated number: without access it explains how to get one.
 class StepsScreen extends ConsumerStatefulWidget {
   const StepsScreen({super.key});
 
@@ -37,10 +41,9 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
     final conn = ref.watch(healthConnectionProvider).value;
 
     final goal = profile?.stepGoal ?? 0;
-    final window = WakingWindow(
-      wakeMinutes: profile?.wakeMinutes ?? 390,
-      sleepMinutes: profile?.sleepMinutes ?? 1350,
-    );
+    final wake = profile?.wakeMinutes ?? 390;
+    final sleep = profile?.sleepMinutes ?? 1350;
+    final window = WakingWindow(wakeMinutes: wake, sleepMinutes: sleep);
     final access = groupAccess(
       HealthGroup.activity,
       diagnostics: diag.value,
@@ -52,11 +55,15 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
 
     return AppPage(
       title: 'Steps',
+      eyebrow: [
+        if (goal > 0) 'GOAL ${Fmt.integer(goal)}',
+        'AWAKE ${clockLabel(wake)}–${clockLabel(sleep)}',
+      ].join(' · '),
       onRefresh: () =>
           runHealthSync(context, ref, trigger: SyncTrigger.pullToRefresh),
       actions: const [SyncButton(compact: true)],
       children: history.when(
-        loading: () => const [LoadingState()],
+        loading: () => const [ScanlineLoader(height: 260, lines: 0)],
         error: (e, _) => [
           ErrorState(
             message: 'Could not load steps.',
@@ -65,13 +72,21 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
         ],
         data: (byDay) {
           final todaySteps = byDay[today];
+          final hasHcData = byDay.values.any((d) => d != null && !d.isManual);
           final children = <Widget>[];
           if (todaySteps == null && !stepsGranted && !diag.isLoading) {
             children.add(
-              _StepsUnavailableCard(access: access, localDate: today),
+              _StepsSetupCard(
+                access: access,
+                localDate: today,
+                goal: goal,
+                hcInstalled: diag.value?.sdk == HcSdkStatus.available,
+                hasStepData: hasHcData,
+                synced: conn?.lastSyncAt != null,
+              ),
             );
           } else if (todaySteps == null) {
-            children.add(_NoStepsTodayCard(localDate: today));
+            children.add(_NoStepsTodayCard(localDate: today, goal: goal));
           } else {
             children.add(
               _TodayCard(
@@ -80,7 +95,6 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
                 now: now,
                 window: window,
                 lastSyncAt: conn?.lastSyncAt,
-                localDate: today,
               ),
             );
             if (todaySteps.origin == HealthKeys.originHc &&
@@ -109,19 +123,17 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
             ),
           );
           children.add(
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => showManualStepsDialog(
-                  context,
-                  ref,
-                  localDate: today,
-                  initial: todaySteps?.isManual ?? false
-                      ? todaySteps!.steps
-                      : todaySteps?.overriddenManual,
-                ),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Enter steps manually'),
+            HudButton.ghost(
+              label: 'Enter steps manually',
+              icon: Icons.edit_outlined,
+              expand: true,
+              onPressed: () => showManualStepsDialog(
+                context,
+                ref,
+                localDate: today,
+                initial: todaySteps?.isManual ?? false
+                    ? todaySteps!.steps
+                    : todaySteps?.overriddenManual,
               ),
             ),
           );
@@ -132,13 +144,72 @@ class _StepsScreenState extends ConsumerState<StepsScreen> {
   }
 }
 
-class _StepsUnavailableCard extends ConsumerWidget {
-  const _StepsUnavailableCard({required this.access, required this.localDate});
+/// The ring with a center readout, shared by all states.
+class _StepsRing extends StatelessWidget {
+  const _StepsRing({
+    required this.progress,
+    required this.value,
+    required this.sub,
+    this.dim = false,
+    this.size = 216,
+  });
+  final double progress;
+  final String value;
+  final String sub;
+  final bool dim;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return ProgressRing(
+      progress: progress,
+      color: AppColors.steps,
+      size: size,
+      stroke: size * 0.07,
+      semanticLabel: 'Step goal progress',
+      center: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('TODAY', style: hud.label(size: 11)),
+          AnimatedTicker(
+            value,
+            style: hud.number(
+              size: size * 0.21,
+              color: dim ? hud.textMuted : hud.text,
+            ),
+          ),
+          Text(
+            sub,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: hud.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepsSetupCard extends ConsumerWidget {
+  const _StepsSetupCard({
+    required this.access,
+    required this.localDate,
+    required this.goal,
+    required this.hcInstalled,
+    required this.hasStepData,
+    required this.synced,
+  });
   final GroupAccess access;
   final String localDate;
+  final int goal;
+  final bool hcInstalled;
+  final bool hasStepData;
+  final bool synced;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     final reason = switch (access) {
       GroupAccess.unavailable =>
         'Health Connect is not available or not installed on this phone.',
@@ -150,27 +221,55 @@ class _StepsUnavailableCard extends ConsumerWidget {
     };
     return AppCard(
       accent: AppColors.steps,
+      brackets: true,
       semanticLabel: 'Step data unavailable',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          EmptyState(
-            icon: Icons.directions_walk,
-            title: 'The app cannot currently access step data',
-            message: reason,
-            compact: true,
+          Center(
+            child: _StepsRing(
+              progress: 0,
+              value: '—',
+              sub: goal > 0 ? 'goal ${Fmt.integer(goal)}' : 'no goal set',
+              dim: true,
+              size: 168,
+            ),
           ),
-          FilledButton.icon(
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'The app cannot currently access step data',
+            style: t.titleSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reason,
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+            textAlign: TextAlign.center,
+          ),
+          const HudDivider(height: AppSpacing.xl),
+          HudSteps(
+            steps: stepsSetup(
+              hcInstalled: hcInstalled,
+              hasStepData: hasStepData,
+              granted: access == GroupAccess.granted,
+              synced: synced,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          HudButton(
+            label: 'Set up Health Connect',
+            icon: Icons.health_and_safety_outlined,
+            expand: true,
             onPressed: () => context.push(AppPaths.healthStatus),
-            icon: const Icon(Icons.health_and_safety_outlined),
-            label: const Text('Set up Health Connect'),
           ),
           const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
+          HudButton.secondary(
+            label: 'Enter steps manually',
+            icon: Icons.edit_outlined,
+            expand: true,
             onPressed: () =>
                 showManualStepsDialog(context, ref, localDate: localDate),
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Enter steps manually'),
           ),
         ],
       ),
@@ -179,32 +278,42 @@ class _StepsUnavailableCard extends ConsumerWidget {
 }
 
 class _NoStepsTodayCard extends ConsumerWidget {
-  const _NoStepsTodayCard({required this.localDate});
+  const _NoStepsTodayCard({required this.localDate, required this.goal});
   final String localDate;
+  final int goal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return AppCard(
+      accent: AppColors.steps,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const EmptyState(
-            icon: Icons.directions_walk,
-            title: 'No step data for today yet',
-            message:
-                'Sync to fetch today\'s steps from Health Connect. If it stays '
-                'empty, check that Samsung Health is syncing to Health '
-                'Connect.',
-            compact: true,
+          Center(
+            child: _StepsRing(
+              progress: 0,
+              value: '—',
+              sub: goal > 0 ? 'goal ${Fmt.integer(goal)}' : 'steps',
+              dim: true,
+            ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'No step data for today yet',
+            style: t.titleSmall,
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            'Sync to fetch today\'s steps from Health Connect. If it stays '
+            'empty, check that your step-counting app writes to Health '
+            'Connect.',
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.lg),
           const SyncButton(),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () =>
-                showManualStepsDialog(context, ref, localDate: localDate),
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Enter steps manually'),
-          ),
         ],
       ),
     );
@@ -218,7 +327,6 @@ class _TodayCard extends StatelessWidget {
     required this.now,
     required this.window,
     required this.lastSyncAt,
-    required this.localDate,
   });
 
   final DaySteps day;
@@ -226,12 +334,11 @@ class _TodayCard extends StatelessWidget {
   final DateTime now;
   final WakingWindow window;
   final DateTime? lastSyncAt;
-  final String localDate;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final p = stepsProgress(day.steps, goal);
     final perHour = stepsPerRemainingHour(
       steps: day.steps,
@@ -268,59 +375,63 @@ class _TodayCard extends StatelessWidget {
 
     return AppCard(
       accent: AppColors.steps,
+      brackets: true,
+      glow: p.goalMet,
       semanticLabel:
           'Steps today ${Fmt.integer(day.steps)}'
           '${p.hasGoal ? ' of ${Fmt.integer(goal)}' : ''}',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProgressRing(
-            progress: p.fraction,
-            color: AppColors.steps,
-            size: 200,
-            stroke: 16,
-            semanticLabel: 'Step goal progress',
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(Fmt.integer(day.steps), style: t.displaySmall),
-                Text(
-                  p.hasGoal ? 'of ${Fmt.integer(goal)}' : 'steps',
-                  style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
+          Center(
+            child: _StepsRing(
+              progress: p.hasGoal ? p.fraction : 0,
+              value: Fmt.integer(day.steps),
+              sub: p.hasGoal ? 'of ${Fmt.integer(goal)}' : 'steps',
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
-                child: StatTile(
+                child: HudReadout(
                   label: 'Remaining',
                   value: p.hasGoal ? Fmt.integer(p.remaining) : '–',
-                  icon: Icons.flag_outlined,
+                  size: 24,
+                  color: p.goalMet ? AppColors.success : null,
+                ),
+              ),
+              Expanded(
+                child: HudReadout(
+                  label: 'Progress',
+                  value: p.hasGoal ? '${p.percent}%' : '–',
+                  size: 24,
                   color: AppColors.steps,
                 ),
               ),
               Expanded(
-                child: StatTile(
-                  label: 'Progress',
-                  value: p.hasGoal ? '${p.percent}%' : '–',
-                  icon: Icons.percent,
-                  color: AppColors.steps,
+                child: HudReadout(
+                  label: 'Needed / hr',
+                  value: perHour == null ? '–' : Fmt.integer(perHour),
+                  size: 24,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Semantics(
-            label: paceText,
-            excludeSemantics: true,
-            child: Row(
-              children: [
-                Icon(Icons.schedule, size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(paceText, style: t.bodyMedium)),
-              ],
+          GlassPanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            radius: AppRadii.md,
+            child: Semantics(
+              label: paceText,
+              excludeSemantics: true,
+              child: Row(
+                children: [
+                  Icon(Icons.schedule, size: 16, color: hud.accent),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: Text(paceText, style: t.bodySmall)),
+                ],
+              ),
             ),
           ),
           if (pace.behind) ...[
@@ -358,8 +469,8 @@ class _TodayCard extends StatelessWidget {
             Text(
               'Your manual entry (${Fmt.integer(day.overriddenManual!)}) is '
               'overridden: Health Connect data is measured and de-duplicated '
-              'across phone and watch, so it takes precedence.',
-              style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              'across apps and devices, so it takes precedence.',
+              style: t.bodySmall?.copyWith(color: hud.textMuted),
             ),
           ],
         ],
@@ -383,6 +494,7 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hud = context.hud;
     final keys = byDay.keys.toList()..sort();
     final shown = keys.sublist(keys.length - rangeDays.clamp(0, keys.length));
     final values = [
@@ -396,7 +508,7 @@ class _HistoryCard extends StatelessWidget {
     final hasAny = values.any((v) => v.value != null);
     return AppCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -406,37 +518,51 @@ class _HistoryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: 7, label: Text('7 days')),
-                  ButtonSegment(value: 30, label: Text('30 days')),
-                ],
-                selected: {rangeDays},
-                onSelectionChanged: (s) => onRange(s.first),
+              SizedBox(
+                width: 160,
+                child: SegmentedHud<int>(
+                  segments: const [
+                    HudSegment(value: 7, label: '7 days'),
+                    HudSegment(value: 30, label: '30 days'),
+                  ],
+                  value: rangeDays,
+                  onChanged: onRange,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           if (!hasAny)
-            const EmptyState(
-              icon: Icons.bar_chart,
-              title: 'No step history yet',
-              message: 'Days without data are left blank, never shown as 0.',
-              compact: true,
+            SizedBox(
+              height: 120,
+              child: Center(
+                child: Text(
+                  'No step history yet. Days without data stay blank, '
+                  'never 0.',
+                  textAlign: TextAlign.center,
+                  style: hud.mono(size: 11),
+                ),
+              ),
             )
           else
-            DailyBarChart(
-              values: values,
-              color: AppColors.steps,
-              goal: goal > 0 ? goal.toDouble() : null,
-              highlight: (d) => byDay[d]?.isManual ?? false,
-              formatValue: (v) => Fmt.integer(v),
-              semanticLabel:
-                  'Steps for the last $rangeDays days'
-                  '${goal > 0 ? ', goal ${Fmt.integer(goal)}' : ''}',
+            AnimatedSwitcher(
+              duration: AppMotion.medium,
+              child: DailyBarChart(
+                key: ValueKey(rangeDays),
+                values: values,
+                color: AppColors.steps,
+                goal: goal > 0 ? goal.toDouble() : null,
+                goalLabel: goal > 0
+                    ? 'GOAL ${(goal / 1000).toStringAsFixed(goal % 1000 == 0 ? 0 : 1)}K'
+                    : null,
+                highlight: (d) => byDay[d]?.isManual ?? false,
+                formatValue: (v) => '${Fmt.integer(v)} steps',
+                semanticLabel:
+                    'Steps for the last $rangeDays days'
+                    '${goal > 0 ? ', goal ${Fmt.integer(goal)}' : ''}',
+              ),
             ),
-          const SizedBox(height: AppSpacing.md),
+          const HudDivider(),
           Row(
             children: [
               Expanded(
@@ -444,6 +570,7 @@ class _HistoryCard extends StatelessWidget {
                   label: '7-day average',
                   value: s7.average == null ? '–' : Fmt.integer(s7.average!),
                   sub: '${s7.goalHitDays}/${s7.daysWithData} goal days',
+                  color: AppColors.steps,
                 ),
               ),
               Expanded(
@@ -459,9 +586,7 @@ class _HistoryCard extends StatelessWidget {
           Text(
             'Averages include only days with data. Faded bars are manual '
             'entries; the dashed line is your goal.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: hud.mono(size: 10),
           ),
         ],
       ),
