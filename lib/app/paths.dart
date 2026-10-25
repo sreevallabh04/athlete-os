@@ -42,4 +42,7 @@ abstract final class AppPaths {
   static const onboarding = '/onboarding';
   static const program = '/train/program';
   static const routine = '/routine';
+
+  /// HUD component gallery (developer QA).
+  static const devGallery = '/dev/gallery';
 }

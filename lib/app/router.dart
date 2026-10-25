@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/assistant/routes.dart';
 import '../features/coach/routes.dart';
+import '../features/devgallery/routes.dart';
 import '../features/health/routes.dart';
 import '../features/integrations/routes.dart';
 import '../features/life/routes.dart';
@@ -40,6 +41,7 @@ GoRouter buildRouter({String initialLocation = AppPaths.today}) => GoRouter(
     ...planningRoutes,
     ...assistantRoutes,
     ...onboardingRoutes,
+    ...devGalleryRoutes,
   ],
 );
 

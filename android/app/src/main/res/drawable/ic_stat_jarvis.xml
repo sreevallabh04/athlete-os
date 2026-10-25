@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Athlete OS emblem, white silhouette for notification small icons.
+     Generated from the EmblemPainter geometry (lib/core/widgets/emblem.dart). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M12.76,3.70 L18.81,7.20 M19.57,8.51 L19.57,15.49 M18.81,16.80 L12.76,20.30 M11.24,20.30 L5.19,16.80 M4.43,15.49 L4.43,8.51 M5.19,7.20 L11.24,3.70" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12.00,6.18 L16.89,16.58 L14.96,16.58 L12.00,10.23 L9.04,16.58 L7.11,16.58 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.44,13.27 L13.56,13.27 L13.56,14.16 L10.44,14.16 Z" />
+</vector>
