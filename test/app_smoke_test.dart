@@ -1,5 +1,6 @@
 import 'package:athlete_os/app/app.dart';
 import 'package:athlete_os/core/time/clock.dart';
+import 'package:athlete_os/core/widgets/dock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +21,8 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(NavigationBar), findsOneWidget);
+      // The stock NavigationBar was replaced by the floating HUD dock.
+      expect(find.byType(HudDock), findsOneWidget);
       for (final label in ['Today', 'Train', 'Nutrition', 'AI Coach', 'Life']) {
         expect(find.text(label), findsWidgets);
       }

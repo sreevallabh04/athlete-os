@@ -39,4 +39,7 @@ abstract final class AppPaths {
   static const assistantSettings = '/assistant/settings';
   static const assistantAudit = '/assistant/audit';
   static const capabilities = '/settings/capabilities';
+
+  /// HUD component gallery (developer QA).
+  static const devGallery = '/dev/gallery';
 }
