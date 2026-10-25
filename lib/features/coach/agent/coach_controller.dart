@@ -12,6 +12,7 @@ import '../../../data/repositories/settings_repository.dart';
 import '../data/ai_backend.dart';
 import '../data/ai_preferences.dart';
 import '../data/ai_text_service.dart';
+import '../data/coach_auth.dart';
 import '../data/coach_repository.dart';
 import '../tools/tool_executor.dart';
 import '../tools/tool_registry.dart';
@@ -249,11 +250,16 @@ List<Map<String, Object?>> decodeBlocks(String json) {
 /// Converts persisted messages to the normalised wire format: tool results
 /// become user turns, consecutive same-role turns are merged, history is
 /// trimmed to [maxMessages] without starting on an orphaned tool result.
+///
+/// Results of tools named in [withheldTools] (their consent is off now, e.g.
+/// revoked after an earlier turn) are replaced by [withheldToolResult], so
+/// data shared under a consent is not re-sent once that consent is gone.
 List<Map<String, Object?>> toWireMessages(
   List<AiMessage> rows, {
   int maxMessages = maxHistoryMessages,
   int maxChars = 150000,
   bool compactOldToolResults = false,
+  Set<String> withheldTools = const {},
 }) {
   final out = <Map<String, Object?>>[];
   // Results of earlier turns were already used by the model; big ones are
@@ -280,6 +286,17 @@ List<Map<String, Object?>> toWireMessages(
           if (b['type'] == 'tool_result' &&
               (b['content'] as String? ?? '').length > 400)
             {...b, 'content': trimmedToolResult}
+          else
+            b,
+      ];
+    }
+    if (withheldTools.isNotEmpty && r.role == 'tool') {
+      blocks = [
+        for (final b in blocks)
+          if (b['type'] == 'tool_result' &&
+              withheldTools.contains(b['name']) &&
+              !_isDataFreeResult(b['content']))
+            {...b, 'content': withheldToolResult, 'is_error': false}
           else
             b,
       ];
@@ -345,6 +362,69 @@ List<Map<String, Object?>> toWireMessages(
 const trimmedToolResult =
     '{"note":"Earlier result trimmed to save tokens; call the tool again '
     'if you need these numbers."}';
+
+/// Stub for results whose consent is off now (see [toWireMessages]).
+const withheldToolResult =
+    '{"status":"withheld","note":"The user no longer allows this data to be '
+    'shared with the AI; it was removed from the history. Do not use or '
+    'guess it."}';
+
+/// Status-only results (consent prompts, rejections, cancellations) carry no
+/// user data and stay as they are.
+bool _isDataFreeResult(Object? content) {
+  if (content is! String) return true;
+  try {
+    final json = jsonDecode(content);
+    return json is Map &&
+        const {
+          'consent_required',
+          'consent_declined',
+          'rejected_by_user',
+          'cancelled',
+          'withheld',
+        }.contains(json['status']);
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Model-issued tool-call ids are the idempotency keys of tool side effects
+/// (`conversationId:toolCallId`), so they must be unique per conversation.
+/// Providers that do not issue ids get synthesised ones on the server
+/// (`gemini-0-log_water`), which repeat across turns: a second "log 250 ml"
+/// would then replay the first call's stored result instead of asking for
+/// approval and writing. Ids already used in [taken] (or repeated within
+/// [content]) are given a deterministic suffix; matching is by id only, so the
+/// rest of each block (provider metadata) is untouched.
+List<Map<String, Object?>> withUniqueToolCallIds(
+  List<Map<String, Object?>> content,
+  Set<String> taken,
+) {
+  final used = {...taken};
+  return [
+    for (final b in content)
+      if (b['type'] == 'tool_call' && b['id'] is String)
+        () {
+          final id = b['id'] as String;
+          var unique = id;
+          for (var n = 2; used.contains(unique); n++) {
+            unique = '${id}_$n';
+          }
+          used.add(unique);
+          return unique == id ? b : {...b, 'id': unique};
+        }()
+      else
+        b,
+  ];
+}
+
+/// Every tool-call id already present in a conversation.
+Set<String> toolCallIdsIn(List<AiMessage> rows) => {
+  for (final r in rows)
+    if (r.role == 'assistant')
+      for (final b in decodeBlocks(r.contentJson))
+        if (b['type'] == 'tool_call' && b['id'] is String) b['id'] as String,
+};
 
 /// Tool names called in [rows], newest first, without duplicates.
 List<String> recentToolNames(List<AiMessage> rows, {int max = 4}) {
@@ -550,8 +630,10 @@ class CoachController extends Notifier<CoachState> {
   /// history stays valid. Finished calls replay their stored result; pending
   /// writes are recorded as interrupted (nothing is written).
   Future<void> _closeDanglingToolCalls(String id, List<AiMessage> rows) async {
-    if (rows.isEmpty || rows.last.role != 'assistant') return;
-    final calls = decodeBlocks(rows.last.contentJson)
+    // Local briefing rows never reach a model; look past them.
+    final wire = rows.where((r) => r.role != localRole);
+    if (wire.isEmpty || wire.last.role != 'assistant') return;
+    final calls = decodeBlocks(wire.last.contentJson)
         .where((b) => b['type'] == 'tool_call')
         .toList();
     if (calls.isEmpty) return;
@@ -605,20 +687,60 @@ class CoachController extends Notifier<CoachState> {
     return id;
   }
 
+  /// Runs one step of the agent loop. Any unexpected failure (database,
+  /// tool plumbing) ends the turn with a retryable error card instead of
+  /// leaving the coach "busy" forever.
+  Future<void> _guarded(int gen, Future<void> Function() step) async {
+    try {
+      await step();
+    } catch (e) {
+      if (gen != _generation || !ref.mounted) return;
+      _fail(AiBackendException('internal', ToolExecutor.safeErrorMessage(e)));
+    }
+  }
+
   /// Sends a user message and runs the agent loop. [viaVoice] marks the
   /// turn as spoken so the UI can read the answer aloud.
-  Future<void> send(String text, {bool viaVoice = false}) async {
+  ///
+  /// Returns false when the message was not accepted (empty, a turn or card
+  /// is in progress, or the backend is unavailable), so the caller can keep
+  /// the text instead of losing it.
+  Future<bool> send(String text, {bool viaVoice = false}) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || state.busy || state.pending != null) return;
-    final backend = ref.read(aiBackendClientProvider);
+    if (trimmed.isEmpty || state.busy || state.pending != null) return false;
+    final gen = _generation;
+    var backend = ref.read(aiBackendClientProvider);
+    if (backend.state == AiBackendState.signedOut) {
+      // The automatic anonymous sign-in runs once at launch and gives up
+      // quietly when offline; try again now that the user wants the coach.
+      _setPhase(CoachPhase.consulting, status: 'Signing in…');
+      await ensureAnonymousSession(
+        ref.read(coachAuthProvider),
+        ref.read(settingsRepositoryProvider),
+      );
+      if (gen != _generation || !ref.mounted) return false;
+      backend = ref.read(aiBackendClientProvider);
+      state = state.copyWith(
+        busy: false,
+        phase: CoachPhase.idle,
+        statusText: () => null,
+      );
+    }
     if (backend.state != AiBackendState.ready) {
       state = state.copyWith(
-        error: () => const AiBackendException(
-          'awaiting_credentials',
-          'The AI backend is not set up yet. Open AI settings to connect it.',
-        ),
+        error: () => backend.state == AiBackendState.signedOut
+            ? const AiBackendException(
+                'unauthorized',
+                "Couldn't sign in to the AI backend. Check your connection "
+                    'and try again, or sign in from AI settings.',
+              )
+            : const AiBackendException(
+                'awaiting_credentials',
+                'The AI backend is not set up yet. Open AI settings to '
+                    'connect it.',
+              ),
       );
-      return;
+      return false;
     }
     final message = trimmed.length > 4000
         ? trimmed.substring(0, 4000)
@@ -631,16 +753,22 @@ class CoachController extends Notifier<CoachState> {
       voiceTurn: viaVoice,
     );
     _setPhase(CoachPhase.consulting, status: 'Consulting…');
-    final id = await _ensureConversation(message);
-    await _repo.addMessage(id, 'user', [
-      {'type': 'text', 'text': message},
-    ]);
-    final rows = await _repo.messages(id);
-    _route = routeTools(message, recentTools: recentToolNames(rows));
-    _rounds = 0;
-    _deadline = _clock.now().add(turnTimeout);
-    await _reload();
-    await _callModel(_generation);
+    await _guarded(gen, () async {
+      final id = await _ensureConversation(message);
+      // A turn that failed mid-batch (and was not retried) may have left
+      // tool calls without results; close them so the history stays valid.
+      await _closeDanglingToolCalls(id, await _repo.messages(id));
+      await _repo.addMessage(id, 'user', [
+        {'type': 'text', 'text': message},
+      ]);
+      final rows = await _repo.messages(id);
+      _route = routeTools(message, recentTools: recentToolNames(rows));
+      _rounds = 0;
+      _deadline = _clock.now().add(turnTimeout);
+      await _reload();
+      await _callModel(gen);
+    });
+    return true;
   }
 
   /// Retries the failed model call with the SAME request id, so the server
@@ -658,11 +786,14 @@ class CoachController extends Notifier<CoachState> {
       _requestId = null;
     }
     state = state.copyWith(error: () => null);
-    if (_batch != null) {
-      await _processBatch(_generation);
-    } else {
-      await _callModel(_generation);
-    }
+    final gen = _generation;
+    await _guarded(gen, () async {
+      if (_batch != null) {
+        await _processBatch(gen);
+      } else {
+        await _callModel(gen);
+      }
+    });
   }
 
   /// Stops the current turn. Unanswered tool calls are closed as cancelled
@@ -674,20 +805,26 @@ class CoachController extends Notifier<CoachState> {
     _batch = null;
     _requestId = null;
     if (id != null && batch != null) {
-      while (!batch.done) {
-        final c = batch.current;
-        final outcome = await _executor.reject(
-          conversationId: id,
-          toolCallId: c['id'] as String,
-          name: c['name'] as String,
-          args: (c['arguments'] as Map?)?.cast<String, Object?>() ?? {},
-          reason: 'cancelled',
-        );
-        batch.results.add(outcome.toResultBlock());
-        batch.index++;
+      try {
+        while (!batch.done) {
+          final c = batch.current;
+          final outcome = await _executor.reject(
+            conversationId: id,
+            toolCallId: c['id'] as String,
+            name: c['name'] as String,
+            args: (c['arguments'] as Map?)?.cast<String, Object?>() ?? {},
+            reason: 'cancelled',
+          );
+          batch.results.add(outcome.toResultBlock());
+          batch.index++;
+        }
+        await _repo.addMessage(id, 'tool', batch.results);
+      } catch (_) {
+        // Stopping must always succeed; unanswered calls are closed when the
+        // conversation is next opened.
       }
-      await _repo.addMessage(id, 'tool', batch.results);
     }
+    if (!ref.mounted) return;
     state = state.copyWith(
       busy: false,
       phase: CoachPhase.idle,
@@ -725,6 +862,12 @@ class CoachController extends Notifier<CoachState> {
         rows,
         maxChars: historyCharBudget,
         compactOldToolResults: true,
+        withheldTools: {
+          for (final t in coachTools)
+            if ((t.consent == ToolConsent.health && !inputs.healthConsent) ||
+                (t.consent == ToolConsent.journal && !inputs.journalConsent))
+              t.name,
+        },
       );
       final tools = [for (final t in _turnTools) t.toWire()];
       state = state.copyWith(
@@ -773,16 +916,25 @@ class CoachController extends Notifier<CoachState> {
       fallbackUsed: resp.meta['fallback_used'] == true,
       lastLatency: DateTime.now().difference(started),
     );
+    // Tool-call ids key tool side effects; make them unique in this
+    // conversation before they are stored (see [withUniqueToolCallIds]).
+    final content = withUniqueToolCallIds(
+      resp.content,
+      toolCallIdsIn(await _repo.messages(id)),
+    );
     await _repo.addMessage(
       id,
       'assistant',
-      resp.content,
+      content,
       provider: resp.provider,
       model: resp.model,
       inputTokens: resp.inputTokens,
       outputTokens: resp.outputTokens,
     );
-    final calls = resp.toolCalls;
+    final calls = [
+      for (final b in content)
+        if (b['type'] == 'tool_call') b,
+    ];
     if (calls.isEmpty) {
       state = state.copyWith(
         busy: false,
@@ -939,6 +1091,16 @@ class CoachController extends Notifier<CoachState> {
     if (p == null || batch == null || id == null) return;
     final gen = _generation;
     state = state.copyWith(pending: () => null, busy: true);
+    await _guarded(gen, () => _approve(p, batch, id, gen, editedArgs));
+  }
+
+  Future<void> _approve(
+    PendingAction p,
+    _Batch batch,
+    String id,
+    int gen,
+    Map<String, Object?>? editedArgs,
+  ) async {
     if (p.isConsent) {
       await ref
           .read(settingsRepositoryProvider)
@@ -978,18 +1140,20 @@ class CoachController extends Notifier<CoachState> {
     if (p == null || batch == null || id == null) return;
     final gen = _generation;
     state = state.copyWith(pending: () => null, busy: true);
-    final outcome = await _executor.reject(
-      conversationId: id,
-      toolCallId: p.toolCallId,
-      name: p.toolName,
-      args: p.args,
-      reason: p.isConsent ? 'consent_declined' : 'rejected_by_user',
-    );
-    if (gen != _generation || !ref.mounted) return;
-    batch.results.add(outcome.toResultBlock());
-    batch.index++;
-    _deadline = _clock.now().add(turnTimeout);
-    await _processBatch(gen);
+    await _guarded(gen, () async {
+      final outcome = await _executor.reject(
+        conversationId: id,
+        toolCallId: p.toolCallId,
+        name: p.toolName,
+        args: p.args,
+        reason: p.isConsent ? 'consent_declined' : 'rejected_by_user',
+      );
+      if (gen != _generation || !ref.mounted) return;
+      batch.results.add(outcome.toResultBlock());
+      batch.index++;
+      _deadline = _clock.now().add(turnTimeout);
+      await _processBatch(gen);
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -1010,6 +1174,20 @@ class CoachController extends Notifier<CoachState> {
       voiceTurn: viaVoice,
     );
     _setPhase(CoachPhase.briefing, status: 'Compiling briefing…');
+    try {
+      await _brief(mode, gen);
+    } catch (_) {
+      if (gen != _generation || !ref.mounted) return;
+      state = state.copyWith(
+        busy: false,
+        phase: CoachPhase.idle,
+        statusText: () => null,
+        notice: () => 'The briefing could not be compiled. Try again.',
+      );
+    }
+  }
+
+  Future<void> _brief(BriefingMode mode, int gen) async {
     final id = await _ensureConversation(
       mode == BriefingMode.morning ? 'Morning briefing' : 'Evening review',
     );
@@ -1036,11 +1214,14 @@ class CoachController extends Notifier<CoachState> {
       final persona = resolvePersona(
         await settings.get<String>(AiSettingKeys.persona),
       );
+      // Only health-consented facts are sent; device-only lines (names from
+      // other apps' notifications) are appended locally afterwards.
+      final split = splitBriefingForAi(mode, inputs);
       final r = await ref
           .read(aiTextServiceProvider)
           .complete(
             system: briefingPolishPrompt(persona),
-            user: text,
+            user: split.forAi,
             maxTokens: 700,
           )
           .timeout(const Duration(seconds: 25));
@@ -1053,7 +1234,9 @@ class CoachController extends Notifier<CoachState> {
             {
               'type': 'text',
               'mode': mode.name,
-              'text': polished,
+              'text': split.deviceOnly.isEmpty
+                  ? polished
+                  : '$polished\n${split.deviceOnly}',
               'polished': true,
               'facts': text,
             },

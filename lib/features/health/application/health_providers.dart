@@ -104,7 +104,7 @@ final healthDiagnosticsProvider = FutureProvider<HealthDiagnostics>((
 /// local date. Null values mean "no data for that day".
 final stepsHistoryProvider = StreamProvider.family<Map<String, DaySteps?>, int>(
   (ref, days) {
-    final today = LocalDates.key(ref.watch(clockProvider).now());
+    final today = ref.watch(localDayProvider);
     final start = LocalDates.addDays(today, -(days - 1));
     return ref.watch(healthRepositoryProvider).watchResolvedSteps(start, today);
   },
@@ -113,7 +113,7 @@ final stepsHistoryProvider = StreamProvider.family<Map<String, DaySteps?>, int>(
 /// Today's resolved steps (HC preferred over manual). For other features
 /// (Today dashboard, habits auto-rule, AI tools, notifications).
 final todayStepsProvider = StreamProvider<DaySteps?>((ref) {
-  final today = LocalDates.key(ref.watch(clockProvider).now());
+  final today = ref.watch(localDayProvider);
   return ref
       .watch(healthRepositoryProvider)
       .watchResolvedSteps(today, today)
@@ -124,7 +124,7 @@ final todayStepsProvider = StreamProvider<DaySteps?>((ref) {
 final dailySummariesProvider =
     StreamProvider.family<List<DailyHealthSummary>, (String, int)>((ref, arg) {
       final (type, days) = arg;
-      final today = LocalDates.key(ref.watch(clockProvider).now());
+      final today = ref.watch(localDayProvider);
       return ref
           .watch(healthRepositoryProvider)
           .watchSummaries(type, LocalDates.addDays(today, -(days - 1)), today);

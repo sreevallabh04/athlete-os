@@ -29,7 +29,7 @@ import {
   isLongRateLimit,
 } from "../_shared/resilience.ts";
 import type { UsageStore, UserSettingsStore } from "../_shared/stores.ts";
-import { LIMITS } from "../_shared/validate.ts";
+import { LIMITS, readBodyLimited } from "../_shared/validate.ts";
 
 export interface StatusDeps {
   env: EnvFn;
@@ -47,6 +47,7 @@ export interface StatusDeps {
 }
 
 export const TEST_RATE_LIMIT_PER_MIN = 5;
+export const STATUS_BODY_LIMIT_BYTES = 4096;
 const TEST_TIMEOUT_MS = 20_000;
 
 export function createStatusHandler(deps: StatusDeps): (req: Request) => Promise<Response> {
@@ -67,8 +68,9 @@ export function createStatusHandler(deps: StatusDeps): (req: Request) => Promise
       let action = "status";
       let provider: ProviderId | undefined;
       if (req.method === "POST") {
-        const text = await req.text();
-        if (text.length > 4096) return errorResponse("invalid_request", "Request body is too large.");
+        // Stream with a byte cap: never buffer an arbitrarily large body.
+        const text = await readBodyLimited(req, STATUS_BODY_LIMIT_BYTES);
+        if (text === null) return errorResponse("invalid_request", "Request body is too large.");
         let body: unknown = {};
         if (text.trim()) {
           try {

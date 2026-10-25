@@ -52,6 +52,21 @@ class ReplyService {
   final Duration retryDelay;
   final Future<void> Function(String text) _copy;
 
+  /// Serialises "find the conversation's open draft, else create one" so
+  /// concurrent callers (ingestion, a double-tapped "Draft" button, the
+  /// summary card) can never create two open drafts for one conversation.
+  Future<void> _draftLock = Future.value();
+
+  Future<T> _withDraftLock<T>(Future<T> Function() body) {
+    final run = _draftLock.then((_) => body());
+    _draftLock = run.then((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  /// A send left in `sending` for longer than this was interrupted (process
+  /// killed mid hand-off) and is closed as failed by [recoverInterruptedSends].
+  static const interruptedSendAfter = Duration(minutes: 5);
+
   /// Whether [source]'s content may be given to the AI drafter.
   ({bool allowed, String? reason}) aiAllowed({
     required AssistantSettings settings,
@@ -107,28 +122,30 @@ class ReplyService {
       _ => 'manual',
     };
 
-    var draft = await repo.openDraftFor(
-      source.packageName,
-      source.conversationKey,
-    );
-    final isNew = draft == null;
-    if (draft == null) {
-      draft = await repo.createDraft(
-        source: source,
-        status: status,
-        risk: sensitivity.risk,
-        riskFlags: sensitivity.csv,
-        sendPolicy: sendPolicy,
+    final (draft, isNew) = await _withDraftLock(() async {
+      final open = await repo.openDraftFor(
+        source.packageName,
+        source.conversationKey,
       );
-    } else {
+      if (open == null) {
+        final created = await repo.createDraft(
+          source: source,
+          status: status,
+          risk: sensitivity.risk,
+          riskFlags: sensitivity.csv,
+          sendPolicy: sendPolicy,
+        );
+        return (created, true);
+      }
       await repo.attachToLatest(
-        draft.id,
+        open.id,
         notificationId: source.id,
         risk: sensitivity.risk,
         riskFlags: sensitivity.csv,
         status: status,
       );
-    }
+      return (open, false);
+    });
     await repo.setCapturedStatus(source.id, CaptureStatus.drafted);
     await repo.audit(
       AuditAction.draft,
@@ -244,10 +261,21 @@ class ReplyService {
     required MessagingContactRule? contact,
   }) async {
     final app = await repo.app(draft.packageName);
-    final msgs = await repo.conversation(
-      draft.packageName,
-      draft.conversationKey,
-    );
+    // Only this conversation, only within the app's CURRENT retention, and
+    // never a message the classifier flagged as OTP / credentials / crisis
+    // (an earlier flagged message must not ride along with a later one).
+    final retention = Duration(days: (app?.retentionDays ?? 7).clamp(1, 90));
+    final oldest = clock.now().toUtc().subtract(retention);
+    final msgs = [
+      for (final m in await repo.conversation(
+        draft.packageName,
+        draft.conversationKey,
+      ))
+        if (!m.postedAt.toUtc().isBefore(oldest) &&
+            !SensitivityResult.parseCsv(m.sensitivityFlags)
+                .any(aiExcludedFlags.contains))
+          m,
+    ];
     if (msgs.isEmpty) return null;
     return DraftRequest(
       appLabel: app?.appLabel ?? draft.packageName,
@@ -314,18 +342,25 @@ class ReplyService {
     if (settings.killSwitch) return null;
     final c = await repo.captured(capturedId);
     if (c == null) return null;
-    final existing = await repo.openDraftFor(c.packageName, c.conversationKey);
-    if (existing != null) return existing;
     final flags = SensitivityResult(
       SensitivityResult.parseCsv(c.sensitivityFlags),
     );
-    final d = await repo.createDraft(
-      source: c,
-      status: DraftStatus.draft,
-      risk: flags.risk,
-      riskFlags: flags.csv,
-      sendPolicy: 'manual',
-    );
+    final (d, isNew) = await _withDraftLock(() async {
+      final existing = await repo.openDraftFor(
+        c.packageName,
+        c.conversationKey,
+      );
+      if (existing != null) return (existing, false);
+      final created = await repo.createDraft(
+        source: c,
+        status: DraftStatus.draft,
+        risk: flags.risk,
+        riskFlags: flags.csv,
+        sendPolicy: 'manual',
+      );
+      return (created, true);
+    });
+    if (!isNew) return d;
     await repo.setCapturedStatus(c.id, CaptureStatus.drafted);
     await repo.audit(
       AuditAction.draft,
@@ -431,6 +466,22 @@ class ReplyService {
     if (settings.killSwitch) {
       return const SendOutcome('refused', 'Emergency stop is on.');
     }
+    if (trigger == 'restricted_auto' &&
+        isAutoSendBlockedInCode(d.packageName)) {
+      // Defence in depth: the policy engine already blocks this; an automated
+      // send must never go out for a ToS-blocked / unverified app.
+      await repo.audit(
+        AuditAction.sendFailed,
+        packageName: d.packageName,
+        conversationKey: d.conversationKey,
+        refId: id,
+        detail: 'app_auto_send_blocked;trigger=$trigger',
+      );
+      return const SendOutcome(
+        'refused',
+        'This app does not allow automated replies.',
+      );
+    }
     final moved = await repo.transition(
       id,
       DraftStatus.sending,
@@ -473,19 +524,28 @@ class ReplyService {
       return SendOutcome(DraftStatus.unsupported, detail);
     }
 
-    var result = await platform.sendReply(
-      notificationKey: source.notificationKey,
-      text: d.draftText,
-      idempotencyKey: d.idempotencyKey,
-    );
+    Future<SendReplyResult> attempt() async {
+      try {
+        return await platform.sendReply(
+          notificationKey: source.notificationKey,
+          text: d.draftText,
+          idempotencyKey: d.idempotencyKey,
+        );
+      } catch (e) {
+        // Never leave the draft stuck in `sending`; never mark it sent.
+        return SendReplyResult(
+          status: 'failed',
+          code: 'send_error',
+          detail: 'The platform reported an error (${errorCode(e)}).',
+        );
+      }
+    }
+
+    var result = await attempt();
     if (result.code == 'listener_not_connected') {
       // At most one retry, and only when nothing was handed off.
       await Future<void>.delayed(retryDelay);
-      result = await platform.sendReply(
-        notificationKey: source.notificationKey,
-        text: d.draftText,
-        idempotencyKey: d.idempotencyKey,
-      );
+      result = await attempt();
     }
 
     final to = switch (result.status) {
@@ -520,6 +580,39 @@ class ReplyService {
       'trigger': trigger,
     });
     return SendOutcome(to, detail);
+  }
+
+  /// Closes drafts left in `sending` by an interrupted hand-off (e.g. the
+  /// process was killed between approval and the platform result) as
+  /// `failed`. They are never retried automatically: the hand-off may or may
+  /// not have happened. Returns how many were closed.
+  Future<int> recoverInterruptedSends() async {
+    final cutoff = clock.now().toUtc().subtract(interruptedSendAfter);
+    var n = 0;
+    for (final d in await repo.allDrafts()) {
+      if (d.status != DraftStatus.sending) continue;
+      final since = d.decidedAt ?? d.createdAt;
+      if (since.toUtc().isAfter(cutoff)) continue;
+      final ok = await repo.transition(
+        d.id,
+        DraftStatus.failed,
+        from: {DraftStatus.sending},
+        deliveryDetail:
+            'The hand-off was interrupted; it may or may not have reached the '
+            'app. Check the conversation before replying again.',
+      );
+      if (!ok) continue;
+      n++;
+      await repo.audit(
+        AuditAction.sendFailed,
+        packageName: d.packageName,
+        conversationKey: d.conversationKey,
+        refId: d.id,
+        detail: 'interrupted',
+      );
+    }
+    if (n > 0) safeLog('send_recovered', {'count': n});
+    return n;
   }
 
   DateTime _localDayStartUtc() {

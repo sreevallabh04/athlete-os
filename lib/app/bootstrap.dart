@@ -15,6 +15,7 @@ import '../features/planning/bootstrap.dart';
 import '../features/surfaces/bootstrap.dart';
 import '../features/today/bootstrap.dart';
 import '../features/train/bootstrap.dart';
+import 'day_change.dart';
 
 /// Start-up hooks registered by features (notifications init, timezone setup,
 /// backend client...). Each hook must be fast and must not throw; failures are
@@ -35,6 +36,16 @@ final List<BootstrapHook> bootstrapHooks = [
   surfacesBootstrap,
 ];
 
+/// Longest the first frame waits for the start-up hooks. Hooks run
+/// concurrently; any still running after this keep going in the background
+/// (a slow plugin, Health Connect or a cold DB must never hold the splash).
+const bootstrapBudget = Duration(milliseconds: 1200);
+
+/// Upper bound for a single hook, so a hung future is abandoned (and logged).
+const bootstrapHookTimeout = Duration(seconds: 5);
+
+DayChangeWatcher? _dayWatcher;
+
 Future<void> bootstrap(ProviderContainer container) async {
   FlutterError.onError = (details) {
     debugPrint('FlutterError: ${redactSecrets(details.exceptionAsString())}');
@@ -44,11 +55,35 @@ Future<void> bootstrap(ProviderContainer container) async {
     debugPrint('Uncaught: ${redactSecrets(error.toString())}');
     return true;
   };
-  for (final hook in bootstrapHooks) {
+  _dayWatcher?.dispose();
+  _dayWatcher = DayChangeWatcher(container)..start();
+  await runBootstrapHooks(container, bootstrapHooks, budget: bootstrapBudget);
+}
+
+/// Runs [hooks] concurrently, each guarded (errors logged, redacted) and
+/// bounded by [hookTimeout]; returns after all finished or after [budget],
+/// whichever comes first. Never throws.
+@visibleForTesting
+Future<void> runBootstrapHooks(
+  ProviderContainer container,
+  List<BootstrapHook> hooks, {
+  required Duration budget,
+  Duration hookTimeout = bootstrapHookTimeout,
+}) async {
+  Future<void> guarded(BootstrapHook hook) async {
     try {
-      await hook(container).timeout(const Duration(seconds: 5));
+      await Future.sync(() => hook(container)).timeout(hookTimeout);
     } catch (e) {
       debugPrint('Bootstrap hook failed: ${redactSecrets(e.toString())}');
     }
   }
+
+  final all = Future.wait([for (final h in hooks) guarded(h)]);
+  await all.timeout(
+    budget,
+    onTimeout: () {
+      debugPrint('Bootstrap budget reached; remaining hooks continue.');
+      return const [];
+    },
+  );
 }

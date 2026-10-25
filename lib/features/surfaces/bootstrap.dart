@@ -5,10 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/paths.dart' show rootNavigatorKey;
 import '../../app/router.dart';
-import '../../core/time/clock.dart';
 import '../../core/util/redact.dart';
-import '../onboarding/application/persona_providers.dart';
-import '../today/application/today_providers.dart';
 import 'application/deep_link_router.dart';
 import 'application/water_queue_drainer.dart';
 import 'application/widget_sync.dart';
@@ -20,7 +17,6 @@ import 'presentation/water_quick_add_sheet.dart';
 StreamSubscription<SurfaceEvent>? _eventsSub;
 ProviderSubscription<WidgetSnapshot?>? _snapshotSub;
 AppLifecycleListener? _lifecycle;
-Timer? _midnight;
 
 /// Start-up work for the home-screen surfaces (widget, shortcuts, deep
 /// links, Quick Settings tile). Fast and never throws.
@@ -29,7 +25,8 @@ Timer? _midnight;
 /// * Handles the launch link and live `athleteos://open/...` links.
 /// * Keeps the widget snapshot fresh (≤ 1 push / 15 s, only on change) and
 ///   flushes it when the app goes to the background.
-/// * Recomputes the day's data at local midnight.
+/// * The day's data moves to the new date at local midnight via
+///   `localDayProvider` (see `app/day_change.dart`).
 Future<void> surfacesBootstrap(ProviderContainer container) async {
   try {
     final platform = container.read(surfacesPlatformProvider);
@@ -66,8 +63,6 @@ Future<void> surfacesBootstrap(ProviderContainer container) async {
       onResume: () => unawaited(_drain(drainer)),
       onHide: sync.flush,
     );
-
-    _scheduleMidnight(container);
   } catch (e) {
     debugPrint('surfaces bootstrap degraded: ${redactSecrets(e.toString())}');
   }
@@ -93,6 +88,9 @@ Future<void> _openInitialLink(
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _safely(() => links.open(link)),
     );
+    // Start-up hooks are time-boxed, so this may resolve after the first
+    // frame; make sure another frame (and the callback) actually runs.
+    WidgetsBinding.instance.ensureVisualUpdate();
   } catch (e) {
     debugPrint('surfaces initial link failed: ${redactSecrets(e.toString())}');
   }
@@ -119,20 +117,4 @@ void _safely(void Function() f) {
   } catch (e) {
     debugPrint('surfaces link failed: ${redactSecrets(e.toString())}');
   }
-}
-
-/// At local midnight, recompute "today" so the widget never shows
-/// yesterday's totals as today's (the native renderer also blanks values
-/// whose date is not today).
-void _scheduleMidnight(ProviderContainer container) {
-  _midnight?.cancel();
-  final now = container.read(clockProvider).now();
-  final next = DateTime(now.year, now.month, now.day + 1, 0, 0, 5);
-  _midnight = Timer(next.difference(now), () {
-    container
-      ..invalidate(todaySnapshotProvider)
-      ..invalidate(todaysPlannedSessionProvider)
-      ..invalidate(todaysRoutineProvider);
-    _scheduleMidnight(container);
-  });
 }

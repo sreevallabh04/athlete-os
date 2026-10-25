@@ -7,7 +7,7 @@ import '../data/journal_repository.dart';
 import '../data/mood_repository.dart';
 import '../domain/mood_stats.dart';
 
-String _today(Ref ref) => LocalDates.key(ref.watch(clockProvider).now());
+String _today(Ref ref) => ref.watch(localDayProvider);
 
 /// Latest mood check-in today (multiple per day are allowed).
 final todayMoodProvider = StreamProvider<MoodEntry?>(

@@ -56,9 +56,29 @@ export class SupabaseUsageStore implements UsageStore {
     };
   }
 
+  /** See record_ai_usage() (migration 20261026000200): never overwrites a paid row or another user's row. */
   async record(row: UsageRow): Promise<void> {
-    const { error } = await this.db.from("ai_usage").upsert(row, { onConflict: "request_id" });
-    if (error) fail("ai_usage upsert", error);
+    const { error } = await this.db.rpc("record_ai_usage", {
+      p_user: row.user_id,
+      p_request_id: row.request_id,
+      p_provider: row.provider,
+      p_model: row.model,
+      p_credential_alias: row.credential_alias,
+      p_input_tokens: row.input_tokens,
+      p_output_tokens: row.output_tokens,
+      p_cost_usd: row.cost_usd,
+      p_status: row.status,
+      p_latency_ms: row.latency_ms,
+    });
+    if (!error) return;
+    // Function not deployed yet (functions shipped before `db push`): keep
+    // recording with the legacy upsert rather than losing the row.
+    if ((error as { code?: string }).code === "PGRST202") {
+      const legacy = await this.db.from("ai_usage").upsert(row, { onConflict: "request_id" });
+      if (legacy.error) fail("ai_usage upsert", legacy.error);
+      return;
+    }
+    fail("record_ai_usage", error);
   }
 }
 

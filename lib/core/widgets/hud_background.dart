@@ -47,28 +47,38 @@ mixin HudTimeDriver<T extends StatefulWidget> on State<T>, TickerProvider {
   final ValueNotifier<double> hudTime = ValueNotifier(HudClock.seconds);
   late final Ticker _ticker = createTicker(_tick);
   late final AppLifecycleListener _lifecycle;
-  Duration _last = Duration.zero;
+  Timer? _rearm;
   bool _resumed = true;
+  bool _wantRun = false;
 
   /// Override to stop animating (e.g. `widget.animate == false`).
   bool get wantsTicks => true;
   int get fps => 30;
 
-  void _tick(Duration elapsed) {
-    if (elapsed - _last >= Duration(microseconds: 1000000 ~/ fps)) {
-      _last = elapsed;
-      hudTime.value = HudClock.seconds;
-    }
+  // One vsync-aligned tick per paint, then sleep until the next paint is
+  // due. Keeping the ticker running would schedule a frame on every vsync
+  // (60-120 Hz), re-rasterising full-screen shaders at the display rate
+  // regardless of [fps].
+  void _tick(Duration _) {
+    hudTime.value = HudClock.seconds;
+    _ticker.stop();
+    _rearm?.cancel();
+    _rearm = Timer(Duration(microseconds: 1000000 ~/ fps), () {
+      _rearm = null;
+      if (mounted && _wantRun && !_ticker.isActive) _ticker.start();
+    });
   }
 
   void syncTicker() {
     if (!mounted) return;
     final run = wantsTicks && _resumed && !AppMotion.reduced(context);
-    if (run && !_ticker.isActive) {
-      _last = Duration.zero;
-      _ticker.start();
-    } else if (!run && _ticker.isActive) {
-      _ticker.stop();
+    _wantRun = run;
+    if (run) {
+      if (!_ticker.isActive && _rearm == null) _ticker.start();
+    } else {
+      _rearm?.cancel();
+      _rearm = null;
+      if (_ticker.isActive) _ticker.stop();
     }
   }
 
@@ -93,6 +103,7 @@ mixin HudTimeDriver<T extends StatefulWidget> on State<T>, TickerProvider {
 
   @override
   void dispose() {
+    _rearm?.cancel();
     _lifecycle.dispose();
     _ticker.dispose();
     hudTime.dispose();

@@ -12,7 +12,10 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (provided by Supabase),
 //      STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET (set via `supabase secrets set`),
 //      STRAVA_ALLOWED_REDIRECT (optional, default athleteos://localhost/strava).
-import { createClient } from "jsr:@supabase/supabase-js@2";
+// Pinned like the other functions (an unpinned `@2` resolves to whatever is
+// latest at deploy time).
+import { createClient } from "npm:@supabase/supabase-js@2.75.0";
+import { readStravaRequest } from "./request.ts";
 
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 // Revocation endpoint (Strava docs, Oct 2026). Older docs name
@@ -116,12 +119,11 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) return fail(401, "unauthorized", "Sign in required.");
     const userId = userData.user.id;
 
-    let body: { action?: string; code?: string; redirect_uri?: string; scope?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return fail(400, "invalid_request", "Body must be JSON.");
-    }
+    // Byte-capped read + strict shape/type checks (a null/array body or a
+    // non-string code/scope used to surface as a 500).
+    const parsed = await readStravaRequest(req, allowedRedirect);
+    if (!parsed.ok) return fail(parsed.status, parsed.error, parsed.message);
+    const body = parsed.value;
 
     const loadRow = async (): Promise<TokenRow | null> => {
       const { data, error } = await admin.from("strava_tokens").select("*")
@@ -169,8 +171,7 @@ Deno.serve(async (req) => {
 
     switch (body.action) {
       case "exchange": {
-        if (!body.code) return fail(400, "invalid_request", "Missing code.");
-        if (body.redirect_uri !== allowedRedirect) return fail(400, "invalid_redirect_uri");
+        // code / redirect_uri allowlist / scope already validated by parseStravaRequest.
         const res = await postToken({
           client_id: clientId, client_secret: clientSecret,
           code: body.code, grant_type: "authorization_code",

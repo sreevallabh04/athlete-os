@@ -246,10 +246,22 @@ class AssistantRepository {
   /// their app's retention. Returns the number of captured rows deleted.
   Future<int> purgeExpired() async {
     final now = _nowUtc;
-    final deleted = await (_db.delete(
+    var deleted = await (_db.delete(
       _db.capturedNotifications,
     )..where((c) => c.expiresAt.isSmallerOrEqualValue(now))).go();
     final apps = {for (final a in await this.apps()) a.packageName: a};
+    // `expiresAt` is fixed at capture time; a retention the user shortened
+    // later must still apply to rows captured before the change.
+    for (final a in apps.values) {
+      final cutoff = now.subtract(Duration(days: a.retentionDays.clamp(1, 90)));
+      deleted +=
+          await (_db.delete(_db.capturedNotifications)..where(
+                (c) =>
+                    c.packageName.equals(a.packageName) &
+                    c.postedAt.isSmallerOrEqualValue(cutoff),
+              ))
+              .go();
+    }
     final drafts = await (_db.select(
       _db.replyDrafts,
     )..where((d) => d.draftText.equals('').not())).get();

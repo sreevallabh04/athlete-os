@@ -54,10 +54,14 @@ definitions (e.g. `workouts(source, external_id)`,
 
 ### Migration strategy
 
-`AppDatabase.schemaVersion` (currently **1**) + `MigrationStrategy`:
+`AppDatabase.schemaVersion` (currently **2**) + `MigrationStrategy`:
 
 * `onCreate` creates all tables, the indexes above and seeds the profile row.
 * `beforeOpen` enables `PRAGMA foreign_keys = ON`.
+* Every connection runs `PRAGMA journal_mode = WAL` and `PRAGMA busy_timeout = 5000`
+  (`AppDatabase.configureConnection`): the notification-action isolate opens its
+  own connection to the same file, so writers wait for each other instead of
+  failing with "database is locked".
 * To change the schema: edit `tables.dart`, bump `schemaVersion`, add an
   `onUpgrade` step (`if (from < 2) await m.addColumn(...)`), regenerate with
   `dart run build_runner build`, and export a schema snapshot

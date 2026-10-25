@@ -21,7 +21,8 @@ import 'application/notifications/notification_providers.dart';
 ///   (debounced, idempotent).
 Future<void> lifeBootstrap(ProviderContainer container) async {
   try {
-    tzdata.initializeTimeZones();
+    // Guarded: re-initialising resets tz.local to UTC.
+    if (!tz.timeZoneDatabase.isInitialized) tzdata.initializeTimeZones();
     try {
       final info = await FlutterTimezone.getLocalTimezone().timeout(
         const Duration(milliseconds: 800),
@@ -46,6 +47,9 @@ Future<void> lifeBootstrap(ProviderContainer container) async {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _openFromTap(container, launch),
       );
+      // Start-up hooks are time-boxed, so this may resolve after the first
+      // frame; make sure another frame (and the callback) actually runs.
+      WidgetsBinding.instance.ensureVisualUpdate();
     }
 
     // Keeps the trigger alive for the app's lifetime; the first emission

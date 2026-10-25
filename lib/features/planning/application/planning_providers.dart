@@ -66,6 +66,7 @@ final competitionViewProvider = StreamProvider<CompetitionView?>((ref) {
   final db = ref.watch(databaseProvider);
   final repo = ref.watch(planningRepositoryProvider);
   final clock = ref.watch(clockProvider);
+  ref.watch(localDayProvider); // recompute at local midnight
   return watchTables(db, {
     db.competitions,
     db.appSettings,
@@ -138,6 +139,7 @@ final progressReviewProvider = StreamProvider<ProgressReviewData>((ref) {
   final db = ref.watch(databaseProvider);
   final q = ref.watch(metricsQueriesProvider);
   final clock = ref.watch(clockProvider);
+  ref.watch(localDayProvider); // recompute at local midnight
   return watchTables(
     db,
     {

@@ -27,6 +27,10 @@ object ReplySender {
         if (usedKeys.contains(idempotencyKey)) {
             return result("failed", "duplicate", "This reply was already handed off once; it is never sent twice.")
         }
+        // Defence in depth: the kill switch blocks sends natively as well.
+        if (AssistantConfig.load(ctx).killSwitch) {
+            return result("failed", "kill_switch", "Emergency stop is on — nothing can be sent.")
+        }
         val listener = AssistantNotificationListener.instance()
             ?: return result(
                 "failed", "listener_not_connected",
@@ -55,7 +59,9 @@ object ReplySender {
         RemoteInput.setResultsSource(fill, RemoteInput.SOURCE_FREE_FORM_INPUT)
 
         // Mark used before sending so a crash/retry can never double-send.
-        usedKeys.add(idempotencyKey)
+        if (!usedKeys.add(idempotencyKey)) {
+            return result("failed", "duplicate", "This reply was already handed off once; it is never sent twice.")
+        }
         return try {
             action.actionIntent.send(ctx, 0, fill)
             Log.i(TAG, "reply handed off")

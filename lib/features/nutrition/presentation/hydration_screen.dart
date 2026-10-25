@@ -69,6 +69,7 @@ class _HydrationScreenState extends ConsumerState<HydrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(localDayProvider); // rebuild at local midnight
     final now = ref.watch(clockProvider).now();
     final today = LocalDates.key(now);
     final logs = ref.watch(waterDayProvider(today));

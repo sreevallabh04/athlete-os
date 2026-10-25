@@ -578,7 +578,9 @@ class _DraftCardState extends ConsumerState<DraftCard> {
   }
 
   Future<void> _send() async {
+    if (_busy) return;
     if (!await DraftActions.confirmSensitive(context, widget.draft)) return;
+    if (!mounted) return;
     setState(() => _busy = true);
     try {
       await _save();

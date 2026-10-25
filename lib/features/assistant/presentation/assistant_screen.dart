@@ -15,6 +15,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
 import '../application/providers.dart';
 import '../application/reply_drafter.dart';
+import '../application/reply_service.dart' show aiExcludedFlags;
 import '../domain/assistant_models.dart';
 import '../domain/briefing_builder.dart';
 import '../domain/priority.dart';
@@ -535,6 +536,10 @@ class _ConversationCardState extends ConsumerState<_ConversationCard> {
         '${Fmt.ago(latest.postedAt, widget.now)}'
         '${flags.isEmpty ? '' : ' · ${flags.map((f) => f.label).join(', ')}'}';
     if (!mounted) return;
+    if (settings.killSwitch) {
+      setState(() => _summary = '$local\n(Emergency stop is on.)');
+      return;
+    }
     if (!settings.aiConsent || !(app?.allowAi ?? false)) {
       setState(
         () => _summary =
@@ -745,19 +750,33 @@ class _SharedTextCard extends ConsumerWidget {
     final drafter = ref.read(replyDrafterProvider);
     var initial = '';
     String? note;
-    if (settings.aiConsent && drafter.isConfigured) {
-      final r = await drafter.draft(
-        DraftRequest(
-          appLabel: 'Shared text',
-          conversationTitle: null,
-          isGroup: false,
-          messages: [
-            DraftMessage(text: shared, at: ref.read(clockProvider).now()),
-          ],
-          tone: settings.tone,
-          maxLength: settings.limits.maxLength,
-        ),
-      );
+    final flags = const SensitivityClassifier().classify(text: shared).flags;
+    if (settings.killSwitch) {
+      note = 'Emergency stop is on — write your reply below.';
+    } else if (flags.any(aiExcludedFlags.contains)) {
+      note =
+          'Not sent to AI: looks like a code, credentials or an emergency. '
+          'Please reply yourself.';
+    } else if (settings.aiConsent && drafter.isConfigured) {
+      DraftResult r;
+      try {
+        r = await drafter.draft(
+          DraftRequest(
+            appLabel: 'Shared text',
+            conversationTitle: null,
+            isGroup: false,
+            messages: [
+              DraftMessage(text: shared, at: ref.read(clockProvider).now()),
+            ],
+            tone: settings.tone,
+            maxLength: settings.limits.maxLength,
+          ),
+        );
+      } catch (_) {
+        r = const DraftResult.unavailable(
+          'AI drafting failed — write your reply below.',
+        );
+      }
       if (r.available) {
         initial = r.text!;
       } else {

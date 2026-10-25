@@ -41,7 +41,14 @@ import {
   type UserSettings,
   type UserSettingsStore,
 } from "../_shared/stores.ts";
-import { clamp, hasImage, LIMITS, readBodyLimited, validateChatRequest } from "../_shared/validate.ts";
+import {
+  clamp,
+  hasImage,
+  imagePayloadChars,
+  LIMITS,
+  readBodyLimited,
+  validateChatRequest,
+} from "../_shared/validate.ts";
 
 export interface ChatDeps {
   env: EnvFn;
@@ -146,7 +153,10 @@ export function createChatHandler(deps: ChatDeps): (req: Request) => Promise<Res
       if (!v.ok) return errorResponse("invalid_request", v.message);
       const chat = v.value;
       requestId = chat.request_id;
-      if (!hasImage(chat) && new TextEncoder().encode(raw).length > LIMITS.bodyBytes) {
+      // The larger limit only covers the image payload itself: everything else
+      // (text, tools, history) is still held to LIMITS.bodyBytes, so one tiny
+      // image can't smuggle ~1.6 MB of prompt text to a paid provider.
+      if (new TextEncoder().encode(raw).length - imagePayloadChars(chat) > LIMITS.bodyBytes) {
         return errorResponse("invalid_request", `Request body exceeds ${LIMITS.bodyBytes} bytes.`);
       }
 

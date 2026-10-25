@@ -38,6 +38,8 @@ dependencies:
   go_router: ^18.1.1
   drift: ^2.35.3
   drift_flutter: ^0.3.1
+  # Per-connection PRAGMAs (WAL, busy_timeout) in AppDatabase.
+  sqlite3: ^3.8.0
   path_provider: ^2.1.6
   path: ^1.9.1
   flutter_local_notifications: ^22.3.3
@@ -76,7 +78,6 @@ dev_dependencies:
   drift_dev: ^2.35.2
   build_runner: ^2.17.1
   mocktail: ^1.0.5
-  sqlite3: ^3.8.0
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.8
 

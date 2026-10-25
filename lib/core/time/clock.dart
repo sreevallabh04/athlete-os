@@ -15,6 +15,27 @@ class FixedClock extends Clock {
 
 final clockProvider = Provider<Clock>((ref) => const Clock());
 
+/// The current local calendar day (`YYYY-MM-DD`).
+///
+/// Day-scoped providers watch this (rather than reading the clock once) so
+/// they recompute when the date changes while the app stays open. The app
+/// calls [LocalDayNotifier.refresh] at local midnight and on resume; it only
+/// notifies when the date actually changed.
+final localDayProvider = NotifierProvider<LocalDayNotifier, String>(
+  LocalDayNotifier.new,
+);
+
+class LocalDayNotifier extends Notifier<String> {
+  @override
+  String build() => LocalDates.key(ref.watch(clockProvider).now());
+
+  /// Re-reads the clock; updates (and notifies) only on a new date.
+  void refresh() {
+    final key = LocalDates.key(ref.read(clockProvider).now());
+    if (key != state) state = key;
+  }
+}
+
 /// Calendar-date helpers. A "local date" is a YYYY-MM-DD key in the device's
 /// current timezone at the moment of logging.
 abstract final class LocalDates {

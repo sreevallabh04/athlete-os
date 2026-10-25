@@ -62,6 +62,21 @@ class AssistantForegroundService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        // Kill switch is authoritative natively too: a START_STICKY restart or
+        // a stale start request must not bring Assistant mode back. Checked
+        // after startForeground() so a startForegroundService() call never
+        // ends without it (that crashes the process).
+        val killed = try {
+            AssistantConfig.load(this).killSwitch
+        } catch (_: Throwable) {
+            false
+        }
+        if (killed) {
+            running = false
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         return START_STICKY
     }
 

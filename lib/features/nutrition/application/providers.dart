@@ -101,7 +101,7 @@ String todayKey(Ref ref) => LocalDates.key(ref.read(clockProvider).now());
 /// Date shown on the Nutrition tab.
 class NutritionDateNotifier extends Notifier<String> {
   @override
-  String build() => LocalDates.key(ref.watch(clockProvider).now());
+  String build() => ref.watch(localDayProvider);
 
   void set(String date) => state = date;
   void shift(int days) => state = LocalDates.addDays(state, days);
