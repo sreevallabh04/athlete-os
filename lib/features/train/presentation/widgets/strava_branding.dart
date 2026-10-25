@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/motion/pressable_scale.dart';
 import '../../../../core/theme/tokens.dart';
 
 const kStravaOrange = Color(0xFFFC5200);
@@ -102,7 +103,7 @@ class ViewOnStravaLink extends StatelessWidget {
       link: true,
       label: 'View on Strava',
       excludeSemantics: true,
-      child: InkWell(
+      child: PressableScale(
         onTap: () => launchUrl(
           stravaActivityUri(stravaId),
           mode: LaunchMode.externalApplication,

@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../core/util/format.dart';
+import '../../../../core/widgets/widgets.dart';
+import '../../../train/presentation/widgets/hud_kit.dart';
 import '../../application/health_permissions.dart';
 import '../../application/health_providers.dart';
 import '../../application/health_sync_service.dart';
@@ -28,7 +30,8 @@ GroupAccess groupAccess(
   return GroupAccess.granted;
 }
 
-/// Runs a sync and reports the outcome in a snackbar.
+/// Runs a sync and reports the outcome in a snackbar (with a matching
+/// haptic).
 Future<void> runHealthSync(
   BuildContext context,
   WidgetRef ref, {
@@ -39,6 +42,16 @@ Future<void> runHealthSync(
       .read(healthSyncServiceProvider)
       .sync(trigger: trigger);
   ref.invalidate(healthDiagnosticsProvider);
+  switch (result.outcome) {
+    case SyncOutcome.ok:
+      Haptics.success();
+    case SyncOutcome.failed ||
+        SyncOutcome.notPermitted ||
+        SyncOutcome.unavailable:
+      Haptics.warning();
+    default:
+      break;
+  }
   final msg = switch (result.outcome) {
     SyncOutcome.ok => 'Synced from Health Connect',
     SyncOutcome.partial =>
@@ -54,14 +67,13 @@ Future<void> runHealthSync(
   messenger?.showSnackBar(SnackBar(content: Text(msg)));
 }
 
-/// "Last synced 12 min ago" line + sync button. Never claims live data.
+/// "Last synced 12 min ago" strip + sync button. Never claims live data.
 class SyncStatusRow extends ConsumerWidget {
   const SyncStatusRow({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final conn = ref.watch(healthConnectionProvider).value;
     final syncing = ref.watch(healthSyncingProvider).value ?? false;
     final now = ref.watch(clockProvider).now();
@@ -72,20 +84,29 @@ class SyncStatusRow extends ConsumerWidget {
         ? 'Not synced from Health Connect yet'
         : 'Last synced ${Fmt.ago(last, now)} · refreshes on open, '
               'resume or pull-to-refresh';
+    final c = syncing
+        ? hud.accent
+        : last == null
+        ? AppColors.warning
+        : AppColors.success;
     return Semantics(
       liveRegion: true,
-      child: Row(
-        children: [
-          Icon(Icons.sync, size: 16, color: scheme.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              text,
-              style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ),
-          SyncButton(compact: true, syncing: syncing),
-        ],
+      child: GlassPanel(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.xs,
+          AppSpacing.xs,
+        ),
+        radius: AppRadii.md,
+        child: Row(
+          children: [
+            HudDot(color: c, size: 6, pulse: syncing),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: Text(text, style: hud.mono(size: 10.5))),
+            SyncButton(compact: true, syncing: syncing),
+          ],
+        ),
       ),
     );
   }
@@ -99,23 +120,21 @@ class SyncButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final busy = syncing ?? (ref.watch(healthSyncingProvider).value ?? false);
-    final icon = busy
-        ? const SizedBox.square(
-            dimension: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : const Icon(Icons.refresh);
     if (compact) {
       return IconButton(
         tooltip: busy ? 'Syncing' : 'Sync now',
         onPressed: busy ? null : () => runHealthSync(context, ref),
-        icon: icon,
+        icon: busy
+            ? const HudSpinner(size: 18)
+            : const Icon(Icons.sync, size: 20),
       );
     }
-    return FilledButton.tonalIcon(
+    return HudButton.secondary(
+      label: busy ? 'Syncing…' : 'Sync now',
+      icon: Icons.sync,
+      loading: busy,
+      expand: true,
       onPressed: busy ? null : () => runHealthSync(context, ref),
-      icon: icon,
-      label: Text(busy ? 'Syncing…' : 'Sync now'),
     );
   }
 }
@@ -127,10 +146,9 @@ Future<GroupEnableResult?> showHealthPermissionSheet(
   WidgetRef ref,
   HealthGroup group,
 ) async {
-  final proceed = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  final proceed = await showHudBottomSheet<bool>(
+    context,
+    title: 'Share ${group.label.toLowerCase()} data?',
     builder: (ctx) => _PermissionSheet(group: group),
   );
   if (proceed != true || !context.mounted) return null;
@@ -139,6 +157,11 @@ Future<GroupEnableResult?> showHealthPermissionSheet(
       .read(healthPermissionControllerProvider)
       .enableGroup(group);
   ref.invalidate(healthDiagnosticsProvider);
+  if (result == GroupEnableResult.granted) {
+    Haptics.success();
+  } else if (result != GroupEnableResult.partial) {
+    Haptics.warning();
+  }
   messenger?.showSnackBar(
     SnackBar(
       content: Text(switch (result) {
@@ -164,78 +187,62 @@ class _PermissionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.gutter,
-          0,
-          AppSpacing.gutter,
-          AppSpacing.xl,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final hud = context.hud;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(group.description, style: t.bodyMedium),
+        const SizedBox(height: AppSpacing.lg),
+        Text('READ ACCESS ONLY', style: hud.label(size: 11)),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs + 2,
+          runSpacing: AppSpacing.xs,
           children: [
-            Semantics(
-              header: true,
-              child: Text(
-                'Share ${group.label.toLowerCase()} data?',
-                style: t.titleLarge,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(group.description, style: t.bodyMedium),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Athlete OS will ask for READ access to:',
-              style: t.labelLarge,
-            ),
-            const SizedBox(height: AppSpacing.xs),
             for (final type in group.types)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 16,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(type.label, style: t.bodyMedium),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              '• Read-only: we never write to Health Connect.\n'
-              '• Data is stored on this phone only.\n'
-              '• Syncs happen when the app is open (no background access), '
-              'so values are as of the last sync — never live.\n'
-              '• You can revoke access any time in Health Connect.',
-              style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Row(
+              HudChip(label: type.label, icon: Icons.check, uppercase: false),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        for (final line in const [
+          'Read-only: Athlete OS never writes to Health Connect.',
+          'Data stays on this phone.',
+          'Syncs when the app is open (no background access), so values are '
+              'as of the last sync — never live.',
+          'Revoke any time in Health Connect.',
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Not now'),
-                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, right: AppSpacing.sm),
+                  child: HudDot(color: hud.accent, size: 4),
                 ),
-                const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Continue'),
+                  child: Text(
+                    line,
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
+        const SizedBox(height: AppSpacing.lg),
+        HudButton(
+          label: 'Continue',
+          expand: true,
+          onPressed: () => Navigator.of(context).pop(true),
         ),
-      ),
+        const SizedBox(height: AppSpacing.xs),
+        HudButton.ghost(
+          label: 'Not now',
+          expand: true,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+      ],
     );
   }
 }
@@ -247,10 +254,10 @@ Future<void> showManualStepsDialog(
   required String localDate,
   int? initial,
 }) async {
-  final value = await showDialog<int>(
-    context: context,
-    builder: (ctx) => _NumberDialog(
-      title: 'Enter steps',
+  final value = await showHudBottomSheet<num>(
+    context,
+    title: 'Enter steps',
+    builder: (ctx) => _NumberSheet(
       label: 'Steps on ${Fmt.weekdayDayMonth(LocalDates.parse(localDate))}',
       helper:
           'Saved as a manual entry. If Health Connect has data for this day, '
@@ -258,6 +265,7 @@ Future<void> showManualStepsDialog(
           'secondary.',
       initial: initial?.toString(),
       decimals: false,
+      quick: const [1000, 2500, 5000],
       validate: (v) => v == null || v < 0 || v > 200000
           ? 'Enter a number between 0 and 200,000'
           : null,
@@ -267,16 +275,19 @@ Future<void> showManualStepsDialog(
   await ref
       .read(healthRepositoryProvider)
       .setManualSteps(localDate, value.round());
+  Haptics.success();
 }
 
 /// Manual weight entry. Stored with origin 'manual', device 'manual'.
 Future<void> showManualWeightDialog(BuildContext context, WidgetRef ref) async {
-  final value = await showDialog<num>(
-    context: context,
-    builder: (ctx) => _NumberDialog(
-      title: 'Add weight',
+  final value = await showHudBottomSheet<num>(
+    context,
+    title: 'Add weight',
+    builder: (ctx) => _NumberSheet(
       label: 'Weight (kg)',
-      helper: 'Saved as a manual entry with the current time.',
+      helper:
+          'Saved as a manual entry with the current time. Weigh in the '
+          'morning, after the bathroom, for comparable numbers.',
       decimals: true,
       validate: (v) => v == null || v < 20 || v > 400
           ? 'Enter a weight between 20 and 400 kg'
@@ -285,30 +296,33 @@ Future<void> showManualWeightDialog(BuildContext context, WidgetRef ref) async {
   );
   if (value == null) return;
   await ref.read(healthRepositoryProvider).addManualWeight(value.toDouble());
+  Haptics.success();
 }
 
-class _NumberDialog extends StatefulWidget {
-  const _NumberDialog({
-    required this.title,
+class _NumberSheet extends StatefulWidget {
+  const _NumberSheet({
     required this.label,
     required this.helper,
     required this.decimals,
     required this.validate,
     this.initial,
+    this.quick = const [],
   });
 
-  final String title;
   final String label;
   final String helper;
   final bool decimals;
   final String? Function(num? v) validate;
   final String? initial;
 
+  /// Quick-add increments (e.g. +1,000 steps).
+  final List<int> quick;
+
   @override
-  State<_NumberDialog> createState() => _NumberDialogState();
+  State<_NumberSheet> createState() => _NumberSheetState();
 }
 
-class _NumberDialogState extends State<_NumberDialog> {
+class _NumberSheetState extends State<_NumberSheet> {
   late final _ctrl = TextEditingController(text: widget.initial);
   String? _error;
 
@@ -318,10 +332,13 @@ class _NumberDialogState extends State<_NumberDialog> {
     super.dispose();
   }
 
+  num? get _value => num.tryParse(_ctrl.text.trim().replaceAll(',', ''));
+
   void _submit() {
-    final v = num.tryParse(_ctrl.text.trim().replaceAll(',', ''));
+    final v = _value;
     final err = widget.validate(v);
     if (err != null) {
+      Haptics.warning();
       setState(() => _error = err);
       return;
     }
@@ -330,11 +347,12 @@ class _NumberDialogState extends State<_NumberDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Column(
+    final hud = context.hud;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
             controller: _ctrl,
@@ -347,23 +365,40 @@ class _NumberDialogState extends State<_NumberDialog> {
                 RegExp(widget.decimals ? r'[0-9.,]' : r'[0-9,]'),
               ),
             ],
+            style: hud.number(size: 28),
             decoration: InputDecoration(
               labelText: widget.label,
               errorText: _error,
             ),
             onSubmitted: (_) => _submit(),
           ),
+          if (widget.quick.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                for (final q in widget.quick)
+                  HudChip(
+                    label: '+${Fmt.integer(q)}',
+                    onTap: () => setState(() {
+                      _ctrl.text = Fmt.integer((_value ?? 0) + q)
+                          .replaceAll(',', '');
+                      _error = null;
+                    }),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
-          Text(widget.helper, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            widget.helper,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: hud.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          HudButton(label: 'Save', expand: true, onPressed: _submit),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Save')),
-      ],
     );
   }
 }
@@ -376,15 +411,14 @@ class OriginChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
+    final hud = context.hud;
+    final c = color ?? hud.textMuted;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: AppRadii.chip,
+        color: c.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadii.xs),
+        border: Border.all(color: c.withValues(alpha: 0.25)),
       ),
       child: Text(
         label,
@@ -396,3 +430,46 @@ class OriginChip extends StatelessWidget {
 
 /// Fire-and-forget helper for buttons.
 void fireAndForget(Future<void> f) => unawaited(f.catchError((_) {}));
+
+/// "06:00" from minutes after midnight.
+String clockLabel(int minutes) =>
+    '${(minutes ~/ 60 % 24).toString().padLeft(2, '0')}:'
+    '${(minutes % 60).toString().padLeft(2, '0')}';
+
+/// Honest phone-only step counting steps for this user's OPPO (Android 13).
+/// [hcInstalled], [granted] and [synced] tick steps off as they happen.
+List<HudStep> stepsSetup({
+  required bool hcInstalled,
+  required bool hasStepData,
+  required bool granted,
+  required bool synced,
+  Widget? installAction,
+  Widget? grantAction,
+}) => [
+  HudStep(
+    'Install Health Connect',
+    'On Android 13 it is a separate app from the Play Store (Android 14+ '
+        'has it built in).',
+    done: hcInstalled,
+    action: hcInstalled ? null : installAction,
+  ),
+  HudStep(
+    'Add a phone step counter',
+    'Health Connect does not count steps itself. With no watch, use a '
+        'phone step counter that writes to it (e.g. Google Fit or Samsung '
+        'Health) and turn on its Health Connect sync.',
+    done: hasStepData,
+  ),
+  HudStep(
+    'Allow Athlete OS to read',
+    'Grant read access to Activity (steps, distance, exercise).',
+    done: granted,
+    action: granted || !hcInstalled ? null : grantAction,
+  ),
+  HudStep(
+    'Sync',
+    'Pull to refresh or tap Sync. Phone steps arrive in batches, so they '
+        'can lag a little.',
+    done: synced,
+  ),
+];

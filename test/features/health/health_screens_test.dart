@@ -148,6 +148,7 @@ void main() {
     tester,
   ) async {
     tallScreen(tester);
+    final semantics = tester.ensureSemantics();
     final fake = FakeHealthDataSource(granted: {HcDataType.steps});
     await tester.pumpWidget(harness(const HealthStatusScreen(), db, fake));
     await settle(tester);
@@ -155,13 +156,13 @@ void main() {
     expect(find.text('Available'), findsOneWidget);
     expect(find.text('Needs setup'), findsOneWidget);
     expect(find.text('Never'), findsOneWidget);
-    expect(find.text('✓ Steps'), findsOneWidget);
-    expect(find.text('✗ Distance'), findsOneWidget);
+    // Capability matrix: granted but not yet shared vs not granted.
+    expect(find.bySemanticsLabel('Steps: granted, paused'), findsOneWidget);
+    expect(find.bySemanticsLabel('Distance: not granted'), findsOneWidget);
     expect(find.text('Open Health Connect settings'), findsOneWidget);
-    expect(
-      find.text('Turn on Health Connect sync in Samsung Health'),
-      findsOneWidget,
-    );
+    // Phone-only setup path is spelled out.
+    expect(find.text('Add a phone step counter'), findsOneWidget);
     await finish(tester);
+    semantics.dispose();
   });
 }

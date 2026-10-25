@@ -1,4 +1,5 @@
 import 'package:athlete_os/core/util/ids.dart';
+import 'package:athlete_os/core/widgets/widgets.dart';
 import 'package:athlete_os/data/db/database.dart';
 import 'package:athlete_os/features/train/data/workout_repository.dart';
 import 'package:athlete_os/features/train/domain/run_review.dart';
@@ -99,13 +100,18 @@ void main() {
     );
     await settle(tester);
     expect(find.text('Weekly volume'), findsOneWidget);
-    expect(find.text('Sets per muscle group'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Improving'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Improving'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Muscle sets'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Muscle sets'), findsOneWidget);
     await finish(tester);
   });
 
@@ -180,11 +186,8 @@ void main() {
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    final btn = tester.widget<OutlinedButton>(
-      find.ancestor(
-        of: find.text('Ask AI coach for a deeper review'),
-        matching: find.byType(OutlinedButton),
-      ),
+    final btn = tester.widget<HudButton>(
+      find.widgetWithText(HudButton, 'Ask AI coach for a deeper review'),
     );
     expect(btn.onPressed, isNull);
     expect(find.textContaining('prohibit'), findsOneWidget);
@@ -210,11 +213,10 @@ void main() {
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    final btn = find.ancestor(
-      of: find.text('Ask AI coach for a deeper review'),
-      matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+    final btn = tester.widget<HudButton>(
+      find.widgetWithText(HudButton, 'Ask AI coach for a deeper review'),
     );
-    expect(tester.widget<ButtonStyleButton>(btn.first).onPressed, isNotNull);
+    expect(btn.onPressed, isNotNull);
     expect(find.byType(PoweredByStrava), findsNothing);
     await finish(tester);
   });

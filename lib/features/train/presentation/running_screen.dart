@@ -6,14 +6,17 @@ import '../../../app/paths.dart';
 import '../../../core/config/env.dart';
 import '../../../core/domain/provenance.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/time/clock.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/repositories/integration_status_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../onboarding/application/persona_providers.dart';
+import '../../onboarding/domain/training_program.dart';
 import '../application/train_providers.dart';
 import '../domain/running_analytics.dart';
 import '../domain/running_models.dart';
-import 'widgets/charts.dart';
+import 'widgets/hud_kit.dart';
 import 'widgets/strava_branding.dart';
 import 'widgets/sync_status.dart';
 
@@ -28,6 +31,7 @@ class RunningScreen extends ConsumerWidget {
     final goalTime = profile?.runGoalTimeS ?? 1800;
     final goalDist = profile?.runGoalDistanceM ?? 5000;
     final strava = ref.watch(integrationStatusProvider(Providers.strava)).value;
+    final program = ref.watch(activeProgramProvider).value;
 
     Future<void> refresh() async {
       if (Env.hasStrava && isConnected(strava)) {
@@ -36,134 +40,153 @@ class RunningScreen extends ConsumerWidget {
     }
 
     return async.when(
-      loading: () =>
-          const AppPage(title: 'Running', children: [LoadingState()]),
+      loading: () => const AppPage(
+        title: 'Running',
+        children: [ScanlineLoader(height: 200, lines: 0)],
+      ),
       error: (e, _) => const AppPage(
         title: 'Running',
         children: [ErrorState(message: 'Could not load activities.')],
       ),
       data: (all) {
         final runs = all.where((a) => a.isRun).toList();
-        if (all.isEmpty) {
-          return AppPage(
-            title: 'Running',
-            onRefresh: refresh,
-            children: [
-              EmptyState(
-                icon: Icons.directions_run,
-                title: 'No runs yet',
-                message:
-                    'Connect Strava or allow exercise sessions in Health '
-                    'Connect to see pace trends and 5K goal progress.',
-                actionLabel: 'Connect apps',
-                onAction: () => context.push(AppPaths.integrations),
-              ),
-            ],
-          );
-        }
-        final weeks = weeklyRunning(all, todayKey: today, weeks: 8);
-        final consistency = runConsistency(all, todayKey: today);
         final bests = runningBests(runs);
         final goal = goalProgress(
           bests.best5k,
           goalTimeS: goalTime,
           goalDistanceM: goalDist,
         );
+        final eyebrow =
+            '${(goalDist / 1000).toStringAsFixed(goalDist % 1000 == 0 ? 0 : 1)}K '
+            'GOAL < ${Fmt.duration(goalTime)} · '
+            '${Fmt.pace(goal.goalPaceSPerKm).toUpperCase()}';
+        if (all.isEmpty) {
+          return AppPage(
+            title: 'Running',
+            eyebrow: eyebrow,
+            onRefresh: refresh,
+            children: [
+              _GoalCard(goal: goal, best: null),
+              const SizedBox(height: AppSpacing.md),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const HudRow(
+                      leading: HudBadge(
+                        icon: Icons.directions_run,
+                        color: AppColors.running,
+                      ),
+                      title: 'No runs yet',
+                      subtitle:
+                          'Runs arrive from Strava or Health Connect '
+                          'exercise sessions. Then pace trends, splits '
+                          'and your 5K estimate light up.',
+                      chevron: false,
+                    ),
+                    if (program != null) ...[
+                      const HudDivider(),
+                      for (final d in [
+                        for (var i = 0; i < 7; i++)
+                          program.sessionFor(
+                            LocalDates.addDays(LocalDates.weekStart(today), i),
+                          ),
+                      ].where((d) => d.run != null))
+                        HudRow(
+                          leading: const HudBadge(
+                            icon: Icons.route_outlined,
+                            color: AppColors.running,
+                            size: 36,
+                          ),
+                          title: '${weekdayShort[d.weekday - 1]} · ${d.title}',
+                          subtitle:
+                              '${d.run!.minutes} min · '
+                              '${formatPaceRange(d.run!.paceMinS, d.run!.paceMaxS)} '
+                              '(estimate)',
+                          chevron: false,
+                        ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    HudButton.secondary(
+                      label: 'Connect apps',
+                      icon: Icons.hub_outlined,
+                      expand: true,
+                      onPressed: () => context.push(AppPaths.integrations),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    HudButton.ghost(
+                      label: 'See this week\'s run plan',
+                      icon: Icons.route_outlined,
+                      expand: true,
+                      onPressed: () =>
+                          context.push('${AppPaths.program}?hero=running'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        final weeks = weeklyRunning(all, todayKey: today, weeks: 8);
+        final consistency = runConsistency(all, todayKey: today);
         final pace = paceTrend(runs);
-        final dist = distanceTrend(runs);
         final hasStrava = all.any((a) => a.isStrava);
         return AppPage(
           title: 'Running',
+          eyebrow: eyebrow,
           onRefresh: refresh,
           children: [
-            AppCard(
-              accent: AppColors.running,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: StatTile(
-                      label: 'This week',
-                      value:
-                          '${(weeks.last.distanceM / 1000).toStringAsFixed(1)} km',
-                      sub: '${weeks.last.runs} runs',
-                      icon: Icons.directions_run,
-                      color: AppColors.running,
-                    ),
-                  ),
-                  Expanded(
-                    child: StatTile(
-                      label: 'Consistency',
-                      value:
-                          '${consistency.weeksWithRuns}/${consistency.weeks} wks',
-                      sub: '${consistency.currentStreakWeeks}-week streak',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SectionHeader('5K goal'),
             _GoalCard(goal: goal, best: bests.best5k),
-            const SectionHeader(
-              'Weekly distance',
-              subtitle: 'km, Monday weeks',
-            ),
-            AppCard(
-              child: SimpleBarChart(
-                values: [for (final w in weeks) w.distanceM / 1000],
-                labels: [for (final w in weeks) weekLabel(w.weekStart)],
-                color: AppColors.running,
-                semanticLabel: 'Weekly running distance for 8 weeks',
-                valueLabel: (v) => '${v.toStringAsFixed(1)} km',
-              ),
-            ),
+            const SizedBox(height: AppSpacing.md),
+            _WeeklyCard(weeks: weeks, consistency: consistency),
             const SectionHeader(
               'Pace trend',
-              subtitle: 'Average moving pace per run ≥ 1 km (lower is faster)',
+              subtitle: 'Line = 4-run average',
+              accent: AppColors.running,
             ),
             AppCard(
               child: pace.length < 2
-                  ? const Text('Need at least two runs of 1 km or more.')
-                  : TrendLineChart(
-                      points: [
-                        for (var i = 0; i < pace.length; i++)
-                          (i.toDouble(), pace[i].value),
-                      ],
+                  ? Text(
+                      'Need at least two runs of 1 km or more.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  : HudLineChart(
+                      values: [for (final p in pace) p.value],
                       color: AppColors.running,
+                      invert: true,
+                      rollingWindow: 4,
+                      rollingLabel: '4-run avg',
+                      reference: goal.goalPaceSPerKm,
+                      referenceLabel:
+                          'GOAL ${Fmt.pace(goal.goalPaceSPerKm).replaceAll(' /km', '')}',
                       semanticLabel:
                           'Pace trend. Latest ${Fmt.pace(pace.last.value)}',
-                      yLabel: (v) => Fmt.pace(v).replaceAll(' /km', ''),
-                      xLabel: (v) {
-                        final i = v.round();
-                        return i >= 0 && i < pace.length
-                            ? Fmt.dayMonth(pace[i].date)
-                            : '';
-                      },
-                    ),
-            ),
-            const SectionHeader('Distance trend', subtitle: 'km per run'),
-            AppCard(
-              child: dist.length < 2
-                  ? const Text('Need at least two runs.')
-                  : TrendLineChart(
-                      points: [
-                        for (var i = 0; i < dist.length; i++)
-                          (i.toDouble(), dist[i].value / 1000),
-                      ],
-                      color: AppColors.running,
-                      semanticLabel: 'Distance per run trend',
-                      yLabel: (v) => v.toStringAsFixed(1),
-                      xLabel: (v) {
-                        final i = v.round();
-                        return i >= 0 && i < dist.length
-                            ? Fmt.dayMonth(dist[i].date)
-                            : '';
-                      },
+                      format: (v) => Fmt.pace(v).replaceAll(' /km', ''),
+                      xLabel: (i) =>
+                          '${pace[i].date.day}/${pace[i].date.month}',
+                      tooltip: (i) =>
+                          '${Fmt.dayMonth(pace[i].date)} · '
+                          '${Fmt.pace(pace[i].value)}',
                     ),
             ),
             const SectionHeader('Personal bests'),
             _BestsRow(bests: bests),
             const SectionHeader('Recent activities'),
-            for (final a in all.take(20)) _ActivityTile(activity: a),
+            AppCard(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: StaggeredList(
+                gap: 0,
+                children: [
+                  for (final (i, a) in all.take(20).indexed) ...[
+                    if (i > 0) const HudDivider(height: 1),
+                    _ActivityTile(activity: a),
+                  ],
+                ],
+              ),
+            ),
             if (hasStrava) const PoweredByStrava(),
           ],
         );
@@ -180,63 +203,152 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final goalLabel =
-        '${(goal.goalDistanceM / 1000).toStringAsFixed(goal.goalDistanceM % 1000 == 0 ? 0 : 1)} km '
-        'in ${Fmt.duration(goal.goalTimeS)}';
+    final hud = context.hud;
+    final b = best;
+    final color = goal.achieved ? AppColors.gold : AppColors.running;
+    final bestPace = b == null ? null : b.timeS / 5;
     return AppCard(
-      accent: AppColors.running,
+      accent: color,
+      brackets: true,
+      glow: goal.achieved,
       semanticLabel: 'Goal progress',
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProgressRing(
-            progress: goal.fraction,
-            color: goal.achieved ? AppColors.success : AppColors.running,
-            size: 96,
-            stroke: 10,
-            semanticLabel: 'Progress toward $goalLabel',
-            center: Text(
-              goal.hasData ? '${(goal.fraction * 100).round()}%' : '—',
-              style: t.titleMedium,
-            ),
+          Row(
+            children: [
+              Text('5K goal', style: t.titleSmall),
+              const SizedBox(width: AppSpacing.sm),
+              const HudTag('ESTIMATE', color: AppColors.warning),
+              const Spacer(),
+              Text(
+                'TARGET ${Fmt.duration(goal.goalTimeS)}',
+                style: hud.mono(size: 11, color: hud.accentInk),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Goal: $goalLabel', style: t.titleSmall),
-                Text(
-                  'Target pace ${Fmt.pace(goal.goalPaceSPerKm)}',
-                  style: t.bodySmall,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                if (goal.goalDistanceM != 5000)
-                  Text(
-                    'Progress tracking currently supports 5 km goals.',
-                    style: t.bodySmall,
-                  )
-                else if (best == null)
-                  Text(
-                    'No valid 5K yet. Run ≥ 5 km with splits (Strava) or a '
-                    '4.9–5.3 km run to get an estimate.',
-                    style: t.bodySmall,
-                  )
-                else ...[
-                  Text(
-                    'Best: ${Fmt.duration(best!.timeS)}'
-                    '${goal.achieved ? ' — goal reached!' : ' · ${Fmt.duration(goal.gapS!)} to go'}',
-                    style: t.bodyMedium,
-                  ),
-                  Text(
-                    '${best!.label} · ${Fmt.dayMonth(best!.date)}',
-                    style: t.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              ArcGauge(
+                value: goal.fraction,
+                valueText: b == null ? '—' : Fmt.duration(b.timeS),
+                label: 'BEST 5K',
+                color: color,
+                width: 160,
+                stroke: 9,
+                semanticLabel:
+                    'Best 5K estimate versus the ${Fmt.duration(goal.goalTimeS)} goal',
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HudReadout(
+                      label: goal.achieved ? 'Goal' : 'To cut',
+                      value: !goal.hasData
+                          ? '—'
+                          : goal.achieved
+                          ? 'Reached'
+                          : Fmt.duration(goal.gapS!),
+                      size: 24,
+                      color: goal.achieved ? AppColors.gold : null,
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    const SizedBox(height: AppSpacing.md),
+                    HudReadout(
+                      label: 'Best pace',
+                      value: bestPace == null
+                          ? '—'
+                          : Fmt.pace(bestPace).replaceAll(' /km', ''),
+                      unit: bestPace == null ? null : '/km',
+                      caption:
+                          'goal ${Fmt.pace(goal.goalPaceSPerKm).replaceAll(' /km', '')} /km',
+                      size: 22,
+                      color: AppColors.running,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            goal.goalDistanceM != 5000
+                ? 'Progress tracking currently supports 5 km goals.'
+                : b == null
+                ? 'No valid 5K yet. A run ≥ 5 km with splits (Strava) or a '
+                      '4.9–5.3 km run gives an estimate.'
+                : '${b.label} · ${Fmt.dayMonth(b.date)}. An estimate from '
+                      'your runs, not a race result.',
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyCard extends StatefulWidget {
+  const _WeeklyCard({required this.weeks, required this.consistency});
+  final List<WeekRunning> weeks;
+  final RunConsistency consistency;
+
+  @override
+  State<_WeeklyCard> createState() => _WeeklyCardState();
+}
+
+class _WeeklyCardState extends State<_WeeklyCard> {
+  int? _sel;
+
+  @override
+  Widget build(BuildContext context) {
+    final weeks = widget.weeks;
+    final i = _sel ?? weeks.length - 1;
+    final w = weeks[i];
+    final c = widget.consistency;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: HudReadout(
+                  label: i == weeks.length - 1
+                      ? 'This week'
+                      : 'Week of ${weekLabel(w.weekStart)}',
+                  value: (w.distanceM / 1000).toStringAsFixed(1),
+                  unit: 'km',
+                  caption: '${w.runs} run${w.runs == 1 ? '' : 's'}',
+                  size: 32,
+                ),
+              ),
+              HudReadout(
+                label: 'Consistency',
+                value: '${c.weeksWithRuns}/${c.weeks}',
+                unit: 'wks',
+                caption: '${c.currentStreakWeeks}-week streak',
+                size: 22,
+                crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          HudBarChart(
+            values: [for (final w in weeks) w.distanceM / 1000],
+            labels: [for (final w in weeks) weekLabel(w.weekStart)],
+            color: AppColors.running,
+            highlight: i,
+            height: 140,
+            semanticLabel: 'Weekly running distance for 8 weeks',
+            tooltip: (i, v) =>
+                '${(v ?? 0).toStringAsFixed(1)} km · ${weeks[i].runs} runs',
+            onSelect: (s) {
+              if (s != null) setState(() => _sel = s);
+            },
           ),
         ],
       ),
@@ -250,16 +362,18 @@ class _BestsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget card(String label, String value, String? sub, String? id) =>
-        Expanded(
-          child: AppCard(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            onTap: id == null
-                ? null
-                : () => context.push('/running/activity/$id'),
-            child: StatTile(label: label, value: value, sub: sub),
-          ),
-        );
+    Widget card(
+      String label,
+      String value,
+      String? sub,
+      String? id,
+    ) => Expanded(
+      child: AppCard(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        onTap: id == null ? null : () => context.push('/running/activity/$id'),
+        child: HudReadout(label: label, value: value, caption: sub, size: 20),
+      ),
+    );
     final b5 = bests.best5k;
     final longest = bests.longestRun;
     final fastest = bests.fastestPaceRun;
@@ -279,15 +393,19 @@ class _BestsRow extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         card(
           'Longest',
-          longest?.distanceM == null ? '—' : Fmt.km(longest!.distanceM!),
-          longest == null ? null : Fmt.dayMonth(longest.startAt),
+          longest?.distanceM == null
+              ? '—'
+              : (longest!.distanceM! / 1000).toStringAsFixed(1),
+          longest == null ? null : 'km · ${Fmt.dayMonth(longest.startAt)}',
           longest?.id,
         ),
         const SizedBox(width: AppSpacing.sm),
         card(
-          'Fastest ≥3 km',
-          fastest == null ? '—' : Fmt.pace(fastest.paceSPerKm!),
-          fastest == null ? null : Fmt.dayMonth(fastest.startAt),
+          'Fastest',
+          fastest == null
+              ? '—'
+              : Fmt.pace(fastest.paceSPerKm!).replaceAll(' /km', ''),
+          fastest == null ? null : '/km · ≥ 3 km',
           fastest?.id,
         ),
       ],
@@ -309,36 +427,28 @@ class _ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     final a = activity;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(_icon, color: AppColors.running),
-      title: Text(a.name ?? _sportLabel(a.sportType)),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return HudRow(
+      leading: HudBadge(icon: _icon, color: AppColors.running),
+      title: a.name ?? _sportLabel(a.sportType),
+      subtitle: [
+        Fmt.weekdayDayMonth(a.startAt),
+        if (a.distanceM != null) Fmt.km(a.distanceM!),
+        if (a.isRun && a.paceSPerKm != null) Fmt.pace(a.paceSPerKm!),
+      ].join(' · '),
+      footer: Wrap(
+        spacing: AppSpacing.sm,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text(
-            [
-              Fmt.weekdayDayMonth(a.startAt),
-              if (a.distanceM != null) Fmt.km(a.distanceM!),
-              if (a.timeS != null) Fmt.duration(a.timeS!),
-              if (a.isRun && a.paceSPerKm != null) Fmt.pace(a.paceSPerKm!),
-            ].join(' · '),
-            style: t.bodySmall,
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: AppSpacing.xs,
-            children: [
-              SourceBadge(origin: DataOrigin.fromKey(a.source)),
-              if (a.alsoInHealthConnect)
-                Text('also in Health Connect', style: t.labelSmall),
-            ],
-          ),
+          SourceBadge(origin: DataOrigin.fromKey(a.source)),
+          if (a.alsoInHealthConnect)
+            Text('also in Health Connect', style: hud.mono(size: 10)),
         ],
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: a.timeS == null
+          ? null
+          : Text(Fmt.duration(a.timeS!), style: hud.number(size: 17)),
       onTap: () => context.push('/running/activity/${a.id}'),
     );
   }

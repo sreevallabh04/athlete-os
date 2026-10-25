@@ -23,19 +23,38 @@ void main() {
       expect(find.text('Hevy'), findsOneWidget);
       expect(find.text('Add API key'), findsOneWidget);
 
+      final list = find.byType(Scrollable).first;
       await tester.scrollUntilVisible(
-        find.text('Google Calendar'),
+        find.byType(ConnectWithStravaButton),
         200,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: list,
       );
       await tester.pump();
       expect(find.text('Strava'), findsOneWidget);
-      expect(find.text('Awaiting credentials'), findsNWidgets(2));
       // The branded Strava button is shown but disabled.
       final button = tester.widget<ConnectWithStravaButton>(
-        find.byType(ConnectWithStravaButton, skipOffstage: false),
+        find.byType(ConnectWithStravaButton),
       );
       expect(button.onPressed, isNull);
+      expect(find.text('Awaiting credentials'), findsWidgets);
+
+      await tester.scrollUntilVisible(
+        find.text('Google Calendar'),
+        200,
+        scrollable: list,
+      );
+      await tester.pump();
+      final google = find.ancestor(
+        of: find.text('Google Calendar'),
+        matching: find.byType(Column),
+      );
+      expect(
+        find.descendant(
+          of: google.first,
+          matching: find.text('Awaiting credentials'),
+        ),
+        findsOneWidget,
+      );
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 10));

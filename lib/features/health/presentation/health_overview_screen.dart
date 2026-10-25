@@ -11,6 +11,7 @@ import '../../../core/time/clock.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
+import '../../train/presentation/widgets/hud_kit.dart';
 import '../application/health_providers.dart';
 import '../application/health_sync_service.dart';
 import '../domain/aggregation.dart';
@@ -31,27 +32,35 @@ class HealthOverviewScreen extends ConsumerWidget {
 
     return AppPage(
       title: 'Health',
-      subtitle: 'From Health Connect and your manual entries',
+      eyebrow: 'HEALTH CONNECT + MANUAL · READ-ONLY',
       onRefresh: () =>
           runHealthSync(context, ref, trigger: SyncTrigger.pullToRefresh),
       actions: [
         IconButton(
           tooltip: 'Health Connect status',
           onPressed: () => context.push(AppPaths.healthStatus),
-          icon: const Icon(Icons.settings_outlined),
+          icon: const Icon(Icons.tune),
         ),
       ],
       children: [
         const SyncStatusRow(),
-        const SectionHeader('Sleep', subtitle: 'Last 7 nights'),
+        const SectionHeader(
+          'Sleep',
+          subtitle: 'Last 7 nights',
+          accent: AppColors.sleep,
+        ),
         _SleepCard(access: access(HealthGroup.sleep)),
-        const SectionHeader('Heart'),
-        _HeartCard(access: access(HealthGroup.heart)),
-        const SectionHeader('Weight'),
+        const SectionHeader('Weight', accent: AppColors.cyan),
         _WeightCard(access: access(HealthGroup.body)),
-        const SectionHeader('Active calories', subtitle: 'Last 7 days'),
+        const SectionHeader('Heart', accent: AppColors.heart),
+        _HeartCard(access: access(HealthGroup.heart)),
+        const SectionHeader(
+          'Active energy',
+          subtitle: 'Last 7 days',
+          accent: AppColors.calories,
+        ),
         _ActiveCaloriesCard(access: access(HealthGroup.activity)),
-        const SectionHeader('Recent exercise'),
+        const SectionHeader('Recent exercise', accent: AppColors.running),
         _ExerciseCard(access: access(HealthGroup.activity)),
         const SizedBox(height: AppSpacing.lg),
         Text(
@@ -59,68 +68,121 @@ class HealthOverviewScreen extends ConsumerWidget {
           'diagnose medical conditions — talk to a clinician about health '
           'concerns.',
           style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ?.copyWith(color: context.hud.textMuted),
         ),
       ],
     );
   }
 }
 
-/// Empty state that distinguishes "not permitted" from "no data".
+/// Compact gate that distinguishes "not permitted" from "no data".
 class _AccessGate extends ConsumerWidget {
   const _AccessGate({
     required this.access,
     required this.group,
     required this.icon,
-    required this.child,
+    required this.color,
   });
 
   final GroupAccess access;
   final HealthGroup group;
   final IconData icon;
-  final Widget child;
+  final Color color;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return switch (access) {
-      GroupAccess.granted => child,
-      GroupAccess.unavailable => AppCard(
-        child: EmptyState(
-          icon: icon,
-          title: 'Health Connect not available',
-          message:
-              'Set up Health Connect to see ${group.label.toLowerCase()} '
-              'data.',
-          actionLabel: 'Set up',
-          onAction: () => context.push(AppPaths.healthStatus),
-          compact: true,
-        ),
+    final (title, message, action, onAction) = switch (access) {
+      GroupAccess.granted => ('', '', null, null),
+      GroupAccess.unavailable => (
+        'Health Connect not available',
+        'Set up Health Connect to see ${group.label.toLowerCase()} data.',
+        'Set up',
+        () => context.push(AppPaths.healthStatus),
       ),
-      GroupAccess.notEnabled => AppCard(
-        child: EmptyState(
-          icon: icon,
-          title: '${group.label} data isn\'t shared',
-          message:
-              'You haven\'t allowed Athlete OS to read '
-              '${group.label.toLowerCase()} data.',
-          actionLabel: 'Allow access',
-          onAction: () => showHealthPermissionSheet(context, ref, group),
-          compact: true,
-        ),
+      GroupAccess.notEnabled => (
+        '${group.label} data isn\'t shared',
+        'You haven\'t allowed Athlete OS to read '
+            '${group.label.toLowerCase()} data.',
+        'Allow',
+        () => showHealthPermissionSheet(context, ref, group),
       ),
-      GroupAccess.notGranted => AppCard(
-        child: EmptyState(
-          icon: icon,
-          title: 'Permission not granted',
-          message:
-              '${group.label} permission is off in Health Connect '
-              '(it may have been revoked).',
-          actionLabel: 'Grant access',
-          onAction: () => showHealthPermissionSheet(context, ref, group),
-          compact: true,
-        ),
+      GroupAccess.notGranted => (
+        'Permission not granted',
+        '${group.label} permission is off in Health Connect (it may have '
+            'been revoked).',
+        'Grant',
+        () => showHealthPermissionSheet(context, ref, group),
       ),
     };
+    return _CompactState(
+      icon: icon,
+      color: color,
+      title: title,
+      message: message,
+      action: action,
+      onAction: onAction,
+    );
+  }
+}
+
+/// One-row empty/setup state: badge, title, message, optional action.
+class _CompactState extends StatelessWidget {
+  const _CompactState({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.message,
+    this.action,
+    this.onAction,
+    this.footer,
+  });
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String message;
+  final String? action;
+  final VoidCallback? onAction;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              HudBadge(icon: icon, color: color, size: 40),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: t.titleSmall),
+                    Text(
+                      message,
+                      style: t.bodySmall?.copyWith(color: hud.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              if (action != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                HudButton.secondary(
+                  label: action!,
+                  compact: true,
+                  onPressed: onAction,
+                ),
+              ],
+            ],
+          ),
+          ?footer,
+        ],
+      ),
+    );
   }
 }
 
@@ -137,6 +199,7 @@ class _SleepCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final now = ref.watch(clockProvider).now();
     final today = LocalDates.key(now);
+    final hud = context.hud;
     final rows = ref.watch(
       dailySummariesProvider((HealthKeys.sleepMinutes, 7)),
     );
@@ -147,42 +210,58 @@ class _SleepCard extends ConsumerWidget {
         access: access,
         group: HealthGroup.sleep,
         icon: Icons.bedtime_outlined,
-        child: const SizedBox.shrink(),
+        color: AppColors.sleep,
       );
     }
     return rows.when(
-      loading: () => const LoadingState(),
+      loading: () => const ScanlineLoader(height: 120, lines: 0),
       error: (e, _) => const ErrorState(message: 'Could not load sleep.'),
       data: (list) {
         if (list.isEmpty) {
-          return const AppCard(
-            child: EmptyState(
-              icon: Icons.bedtime_outlined,
-              title: 'No sleep recorded in the last 7 nights',
-              message:
-                  'Wear your watch to bed and keep Samsung Health syncing to '
-                  'Health Connect.',
-              compact: true,
-            ),
+          return const _CompactState(
+            icon: Icons.bedtime_outlined,
+            color: AppColors.sleep,
+            title: 'No sleep recorded in the last 7 nights',
+            message:
+                'Sleep needs an app or wearable that writes sleep sessions '
+                'to Health Connect.',
           );
         }
         final byDate = {for (final r in list) r.localDate: r};
         final days = LocalDates.range(LocalDates.addDays(today, -6), today);
         final latest = list.last;
+        final avg = list.fold<double>(0, (a, r) => a + r.value) / list.length;
         return AppCard(
           accent: AppColors.sleep,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              StatTile(
-                label: latest.localDate == today
-                    ? 'Last night'
-                    : 'Latest night',
-                value: _hm(latest.value),
-                sub:
-                    'Night ending ${Fmt.weekdayDayMonth(LocalDates.parse(latest.localDate))}',
-                icon: Icons.bedtime_outlined,
-                color: AppColors.sleep,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: HudReadout(
+                      label: latest.localDate == today
+                          ? 'Last night'
+                          : 'Latest night',
+                      value:
+                          '${latest.value ~/ 60}:'
+                          '${(latest.value.round() % 60).toString().padLeft(2, '0')}',
+                      unit: 'h',
+                      caption:
+                          'ending ${Fmt.weekdayDayMonth(LocalDates.parse(latest.localDate))}',
+                      size: 34,
+                      color: AppColors.sleep,
+                    ),
+                  ),
+                  HudReadout(
+                    label: 'Average',
+                    value: _hm(avg),
+                    caption: '${list.length} nights',
+                    size: 18,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.md),
               DailyBarChart(
@@ -194,12 +273,14 @@ class _SleepCard extends ConsumerWidget {
                     ),
                 ],
                 color: AppColors.sleep,
+                height: 130,
                 formatValue: (h) => _hm(h * 60),
                 semanticLabel: 'Sleep hours for the last 7 nights',
               ),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
                 children: [
                   SourceBadge(
                     origin: DataOrigin.healthConnect,
@@ -212,9 +293,9 @@ class _SleepCard extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Time in recorded sleep sessions, assigned to the morning the '
-                'session ended.',
-                style: Theme.of(context).textTheme.bodySmall,
+                'Time in recorded sleep sessions, assigned to the morning '
+                'the session ended.',
+                style: hud.mono(size: 10),
               ),
             ],
           ),
@@ -243,19 +324,19 @@ class _HeartCard extends ConsumerWidget {
           access: access,
           group: HealthGroup.heart,
           icon: Icons.favorite_border,
-          child: const SizedBox.shrink(),
+          color: AppColors.heart,
         );
       }
-      if (hr.isLoading || rhr.isLoading) return const LoadingState();
-      return const AppCard(
-        child: EmptyState(
-          icon: Icons.favorite_border,
-          title: 'No heart-rate data yet',
-          message:
-              'Watch heart rate reaches Health Connect with a delay after '
-              'Samsung Health syncs.',
-          compact: true,
-        ),
+      if (hr.isLoading || rhr.isLoading) {
+        return const ScanlineLoader(height: 80, lines: 0);
+      }
+      return const _CompactState(
+        icon: Icons.favorite_border,
+        color: AppColors.heart,
+        title: 'No heart-rate data yet',
+        message:
+            'Heart rate needs a watch or strap that writes to Health '
+            'Connect; a phone alone can\'t measure it.',
       );
     }
     return AppCard(
@@ -264,20 +345,15 @@ class _HeartCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _SampleTile(
-                  label: 'Latest heart rate',
-                  sample: latestHr,
-                  unit: 'bpm',
-                  now: now,
-                ),
+                child: _SampleTile(label: 'Latest', sample: latestHr, now: now),
               ),
               Expanded(
                 child: _SampleTile(
-                  label: 'Resting heart rate',
+                  label: 'Resting',
                   sample: latestRhr,
-                  unit: 'bpm',
                   now: now,
                 ),
               ),
@@ -285,9 +361,8 @@ class _HeartCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Readings as last synced, not live. Watch heart rate syncs to '
-            'Health Connect with a delay. Not for medical use.',
-            style: Theme.of(context).textTheme.bodySmall,
+            'Readings as last synced, not real-time. Not for medical use.',
+            style: context.hud.mono(size: 10),
           ),
         ],
       ),
@@ -299,20 +374,18 @@ class _SampleTile extends StatelessWidget {
   const _SampleTile({
     required this.label,
     required this.sample,
-    required this.unit,
     required this.now,
   });
 
   final String label;
   final HealthSample? sample;
-  final String unit;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final s = sample;
     if (s == null) {
-      return StatTile(label: label, value: '–', sub: 'No data');
+      return HudReadout(label: label, value: '–', caption: 'No data', size: 26);
     }
     final when = s.startAt.toLocal();
     final dateText = LocalDates.key(when) == LocalDates.key(now)
@@ -321,11 +394,12 @@ class _SampleTile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        StatTile(
+        HudReadout(
           label: label,
-          value: '${s.value.round()} $unit',
-          sub: '$dateText · ${Fmt.ago(when, now)}',
-          icon: Icons.favorite,
+          value: '${s.value.round()}',
+          unit: 'bpm',
+          caption: '$dateText · ${Fmt.ago(when, now)}',
+          size: 28,
           color: AppColors.heart,
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -349,120 +423,169 @@ class _WeightCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final now = ref.watch(clockProvider).now();
     final rows = ref.watch(weightTrendProvider);
-    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return rows.when(
-      loading: () => const LoadingState(),
+      loading: () => const ScanlineLoader(height: 120, lines: 0),
       error: (e, _) => const ErrorState(message: 'Could not load weight.'),
       data: (list) {
-        final addButton = OutlinedButton.icon(
-          onPressed: () => showManualWeightDialog(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Add weight'),
-        );
         if (list.isEmpty) {
-          return AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                EmptyState(
-                  icon: Icons.monitor_weight_outlined,
-                  title: 'No weight entries in the last 90 days',
-                  message: access == GroupAccess.granted
-                      ? 'Add one manually or weigh in with a scale that '
-                            'syncs to Health Connect.'
-                      : 'Add one manually, or allow Body data from Health '
-                            'Connect.',
-                  compact: true,
-                ),
-                addButton,
-                if (access == GroupAccess.notEnabled ||
-                    access == GroupAccess.notGranted)
-                  TextButton(
-                    onPressed: () => showHealthPermissionSheet(
-                      context,
-                      ref,
-                      HealthGroup.body,
+          return _CompactState(
+            icon: Icons.monitor_weight_outlined,
+            color: AppColors.cyan,
+            title: 'No weight entries in the last 90 days',
+            message: access == GroupAccess.granted
+                ? 'Add one manually or weigh in with a scale that syncs to '
+                      'Health Connect.'
+                : 'Add one manually, or allow Body data from Health '
+                      'Connect.',
+            action: 'Add',
+            onAction: () => showManualWeightDialog(context, ref),
+            footer:
+                access == GroupAccess.notEnabled ||
+                    access == GroupAccess.notGranted
+                ? Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: HudButton.ghost(
+                      label: 'Allow Health Connect weight',
+                      compact: true,
+                      onPressed: () => showHealthPermissionSheet(
+                        context,
+                        ref,
+                        HealthGroup.body,
+                      ),
                     ),
-                    child: const Text('Allow Health Connect weight'),
-                  ),
-              ],
-            ),
+                  )
+                : null,
           );
         }
-        final latest = list.last;
-        final recent = list.reversed.take(5).toList();
-        return AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return _WeightBody(list: list, now: now, hud: hud);
+      },
+    );
+  }
+}
+
+class _WeightBody extends ConsumerStatefulWidget {
+  const _WeightBody({required this.list, required this.now, required this.hud});
+  final List<HealthSample> list;
+  final DateTime now;
+  final HudTheme hud;
+
+  @override
+  ConsumerState<_WeightBody> createState() => _WeightBodyState();
+}
+
+class _WeightBodyState extends ConsumerState<_WeightBody> {
+  int? _scrub;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = widget.list;
+    final hud = widget.hud;
+    final latest = list.last;
+    final i = _scrub ?? list.length - 1;
+    final shown = list[i];
+    // Average of the first and last week of entries: steadier than two
+    // single weigh-ins.
+    double avgOf(Iterable<HealthSample> s) =>
+        s.fold<double>(0, (a, x) => a + x.value) / s.length;
+    final firstWeek = list.where(
+      (s) => s.startAt.difference(list.first.startAt).inDays < 7,
+    );
+    final lastWeek = list.where(
+      (s) => latest.startAt.difference(s.startAt).inDays < 7,
+    );
+    final change = list.length >= 4 ? avgOf(lastWeek) - avgOf(firstWeek) : null;
+    final spanDays = latest.startAt.difference(list.first.startAt).inDays;
+    return AppCard(
+      accent: AppColors.cyan,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              StatTile(
-                label: 'Latest',
-                value: '${Fmt.oneDp(latest.value)} kg',
-                sub: '${Fmt.dayMonth(latest.startAt)} · ${_sourceText(latest)}',
-                icon: Icons.monitor_weight_outlined,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (list.length > 1)
-                TrendLineChart(
-                  points: [
-                    for (final s in list)
-                      (
-                        at: s.startAt,
-                        value: s.value,
-                        manual: s.origin == HealthKeys.originManual,
-                      ),
-                  ],
-                  color: AppColors.brand,
-                  semanticLabel:
-                      'Weight trend, ${list.length} entries over 90 days',
+              Expanded(
+                child: HudReadout(
+                  label: _scrub == null
+                      ? 'Latest'
+                      : Fmt.weekdayDayMonth(shown.startAt),
+                  value: Fmt.oneDp(shown.value),
+                  unit: 'kg',
+                  caption: _sourceText(shown),
+                  size: 34,
                 ),
-              const SizedBox(height: AppSpacing.sm),
-              for (final s in recent)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${Fmt.dayMonth(s.startAt)}, ${Fmt.time(s.startAt)}',
-                          style: t.bodySmall,
-                        ),
-                      ),
-                      Text('${Fmt.oneDp(s.value)} kg', style: t.bodyMedium),
-                      const SizedBox(width: AppSpacing.sm),
-                      OriginChip(
-                        s.origin == HealthKeys.originManual
-                            ? 'Manual'
-                            : sourceAppLabel(s.sourceApp),
-                        color: s.origin == HealthKeys.originManual
-                            ? AppColors.warning
-                            : null,
-                      ),
-                    ],
+              ),
+              if (change != null)
+                HudReadout(
+                  label: 'Trend · $spanDays d',
+                  value: signed(change, unit: ' kg'),
+                  caption: 'weekly averages',
+                  size: 20,
+                  color: hud.accentInk,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                ),
+            ],
+          ),
+          if (list.length > 1) ...[
+            const SizedBox(height: AppSpacing.md),
+            HudLineChart(
+              values: [for (final s in list) s.value],
+              color: AppColors.cyan,
+              height: 150,
+              rollingWindow: list.length >= 6 ? 4 : null,
+              rollingLabel: 'avg',
+              semanticLabel:
+                  'Weight trend, ${list.length} entries over 90 days',
+              format: (v) => v.toStringAsFixed(1),
+              xLabel: (i) => '${list[i].startAt.day}/${list[i].startAt.month}',
+              tooltip: (i) =>
+                  '${Fmt.dayMonth(list[i].startAt)} · '
+                  '${Fmt.oneDp(list[i].value)} kg',
+              onScrub: (s) => setState(() => _scrub = s),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          GlassPanel(
+            radius: AppRadii.md,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.water_drop_outlined, size: 16, color: hud.accent),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Short-term changes aren\'t fat or muscle: day-to-day '
+                    'scale moves are mostly water, food and glycogen. Judge '
+                    'the trend over weeks.',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Day-to-day scale changes mostly reflect water, food and '
-                'glycogen — not fat or muscle. Watch the trend over weeks. '
-                'Hollow dots are manual entries.',
-                style: t.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
               SourceBadge(
                 origin: latest.origin == HealthKeys.originManual
                     ? DataOrigin.manual
                     : DataOrigin.healthConnect,
                 asOf: latest.syncedAt,
-                now: now,
+                now: widget.now,
                 staleAfter: const Duration(days: 7),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              addButton,
+              const Spacer(),
+              HudButton.secondary(
+                label: 'Add weight',
+                icon: Icons.add,
+                compact: true,
+                onPressed: () => showManualWeightDialog(context, ref),
+              ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -483,16 +606,17 @@ class _ActiveCaloriesCard extends ConsumerWidget {
           access: access,
           group: HealthGroup.activity,
           icon: Icons.local_fire_department_outlined,
-          child: const SizedBox.shrink(),
+          color: AppColors.calories,
         );
       }
-      if (rows.isLoading) return const LoadingState();
-      return const AppCard(
-        child: EmptyState(
-          icon: Icons.local_fire_department_outlined,
-          title: 'No active calories in the last 7 days',
-          compact: true,
-        ),
+      if (rows.isLoading) return const ScanlineLoader(height: 80, lines: 0);
+      return const _CompactState(
+        icon: Icons.local_fire_department_outlined,
+        color: AppColors.calories,
+        title: 'No active calories in the last 7 days',
+        message:
+            'They appear once an app writes active energy to Health '
+            'Connect.',
       );
     }
     final byDate = {for (final r in list) r.localDate: r};
@@ -502,24 +626,26 @@ class _ActiveCaloriesCard extends ConsumerWidget {
     return AppCard(
       accent: AppColors.calories,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
-                child: StatTile(
+                child: HudReadout(
                   label: 'Today',
-                  value: todayRow == null ? '–' : Fmt.kcal(todayRow.value),
-                  icon: Icons.local_fire_department_outlined,
+                  value: todayRow == null ? '–' : Fmt.integer(todayRow.value),
+                  unit: 'kcal',
+                  size: 28,
                   color: AppColors.calories,
                 ),
               ),
-              Expanded(
-                child: StatTile(
-                  label: 'Daily average',
-                  value: Fmt.kcal(avg),
-                  sub: '${list.length} days with data',
-                ),
+              HudReadout(
+                label: 'Daily average',
+                value: Fmt.integer(avg),
+                unit: 'kcal',
+                caption: '${list.length} days with data',
+                size: 20,
+                crossAxisAlignment: CrossAxisAlignment.end,
               ),
             ],
           ),
@@ -527,13 +653,14 @@ class _ActiveCaloriesCard extends ConsumerWidget {
           DailyBarChart(
             values: [for (final d in days) (date: d, value: byDate[d]?.value)],
             color: AppColors.calories,
-            height: 120,
+            height: 110,
             formatValue: Fmt.kcal,
             semanticLabel: 'Active calories for the last 7 days',
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
               SourceBadge(
                 origin: DataOrigin.healthConnect,
@@ -557,35 +684,36 @@ class _ExerciseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = ref.watch(clockProvider).now();
+    final hud = context.hud;
     final rows = ref.watch(
       recentSamplesProvider((HealthKeys.exerciseSession, 8)),
     );
     final list = rows.value ?? const <HealthSample>[];
-    final t = Theme.of(context).textTheme;
     if (list.isEmpty) {
       if (access != GroupAccess.granted) {
         return _AccessGate(
           access: access,
           group: HealthGroup.activity,
           icon: Icons.fitness_center,
-          child: const SizedBox.shrink(),
+          color: AppColors.running,
         );
       }
-      if (rows.isLoading) return const LoadingState();
-      return const AppCard(
-        child: EmptyState(
-          icon: Icons.fitness_center,
-          title: 'No exercise sessions recorded recently',
-          message: 'Workouts tracked in Samsung Health appear here after sync.',
-          compact: true,
-        ),
+      if (rows.isLoading) return const ScanlineLoader(height: 80, lines: 0);
+      return const _CompactState(
+        icon: Icons.fitness_center,
+        color: AppColors.running,
+        title: 'No exercise sessions recorded recently',
+        message: 'Workouts tracked by your phone apps appear here after sync.',
       );
     }
     return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       child: Column(
         children: [
-          for (final s in list)
+          for (final (i, s) in list.indexed)
             Builder(
               builder: (context) {
                 Map<String, dynamic> meta = const {};
@@ -596,28 +724,36 @@ class _ExerciseCard extends ConsumerWidget {
                 } catch (_) {}
                 final type = meta['workout_type'] as String?;
                 final distance = (meta['distance_m'] as num?)?.toDouble();
+                final sport = normaliseCardioSport(type);
                 final parts = <String>[
                   Fmt.duration((s.value * 60).round()),
                   if (distance != null && distance > 0) Fmt.km(distance),
                   sourceAppLabel(s.sourceApp),
                 ];
-                return ListTile(
-                  leading: Icon(
-                    normaliseCardioSport(type) == 'run'
-                        ? Icons.directions_run
-                        : normaliseCardioSport(type) == 'ride'
-                        ? Icons.directions_bike
-                        : normaliseCardioSport(type) != null
-                        ? Icons.directions_walk
-                        : Icons.fitness_center,
-                    color: AppColors.running,
-                  ),
-                  title: Text(workoutLabel(type)),
-                  subtitle: Text(
-                    '${Fmt.weekdayDayMonth(s.startAt)}, '
-                    '${Fmt.time(s.startAt)} · ${parts.join(' · ')}',
-                  ),
-                  trailing: Text(Fmt.ago(s.startAt, now), style: t.labelSmall),
+                return Column(
+                  children: [
+                    if (i > 0) const HudDivider(height: 1),
+                    HudRow(
+                      leading: HudBadge(
+                        icon: sport == 'run'
+                            ? Icons.directions_run
+                            : sport == 'ride'
+                            ? Icons.directions_bike
+                            : sport != null
+                            ? Icons.directions_walk
+                            : Icons.fitness_center,
+                        color: AppColors.running,
+                      ),
+                      title: workoutLabel(type),
+                      subtitle:
+                          '${Fmt.weekdayDayMonth(s.startAt)}, '
+                          '${Fmt.time(s.startAt)} · ${parts.join(' · ')}',
+                      trailing: Text(
+                        Fmt.ago(s.startAt, now),
+                        style: hud.mono(size: 10),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

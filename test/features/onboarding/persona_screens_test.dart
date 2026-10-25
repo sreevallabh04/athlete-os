@@ -1,4 +1,5 @@
 import 'package:athlete_os/core/time/clock.dart';
+import 'package:athlete_os/core/widgets/widgets.dart';
 import 'package:athlete_os/data/db/database.dart';
 import 'package:athlete_os/data/repositories/profile_repository.dart';
 import 'package:athlete_os/data/repositories/settings_repository.dart';
@@ -73,20 +74,20 @@ void main() {
       testHarness(const ProgramScreen(), db: db, now: monday),
     );
     await pumpUntil(tester, find.text('Push'));
-    expect(find.text('WEEK 1'), findsOneWidget);
+    expect(find.textContaining('WEEK 1 · MON'), findsOneWidget);
     expect(find.textContaining('Incline Machine Press'), findsWidgets);
     expect(
       find.textContaining('Incline Dumbbell Press → Incline Machine Press'),
       findsOneWidget,
     );
 
-    final start = find.widgetWithText(FilledButton, 'Start session');
+    final start = find.widgetWithText(HudButton, 'Start session');
     await tester.scrollUntilVisible(start, 300);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -200));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(start);
     await pumpUntil(tester, find.byType(LogWorkoutScreen));
-    expect(find.text('Log workout'), findsOneWidget);
+    expect(find.text('Log workout'), findsWidgets);
     expect(find.widgetWithText(TextField, 'Push'), findsOneWidget);
     expect(
       find.widgetWithText(TextField, 'Incline Machine Press'),
