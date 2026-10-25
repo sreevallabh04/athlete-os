@@ -44,6 +44,7 @@ class CompetitionModule extends StatelessWidget {
         button: true,
         label: 'Set your competition date',
         excludeSemantics: true,
+        onTap: () => context.push(AppPaths.competition),
         child: AppCard(
           accent: AppColors.gold,
           onTap: () => context.push(AppPaths.competition),
@@ -459,6 +460,7 @@ class _HabitChip extends StatelessWidget {
               : ''}'
           '${mark?.auto == true ? ', completed automatically' : ''}',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.none,
@@ -611,16 +613,18 @@ class _TaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = context.hud;
     final t = Theme.of(context).textTheme;
+    // Priority is rank, not alarm: red stays reserved for alerts.
     final pColor = switch (task.priority) {
-      1 => AppColors.red,
-      2 => AppColors.warning,
-      _ => hud.accent,
+      1 => hud.accentInk,
+      2 => hud.text,
+      _ => hud.textMuted,
     };
     return Semantics(
       checked: task.done,
       button: true,
       label: '${task.title}, priority ${task.priority}',
       excludeSemantics: true,
+      onTap: onToggle,
       child: PressableScale(
         onTap: onToggle,
         haptic: PressHaptic.none,
@@ -799,6 +803,7 @@ class ReviewCard extends StatelessWidget {
       button: true,
       label: '$label: $value',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.98,
@@ -925,7 +930,7 @@ class VitalsCard extends StatelessWidget {
         color: AppColors.running,
         value: runs.count == 0 ? null : Fmt.km(runs.distanceM),
         sub: runs.count == 0
-            ? 'No runs since Monday'
+            ? 'No runs this week'
             : '${runs.count} run${runs.count == 1 ? '' : 's'}',
         onTap: () => context.push(AppPaths.running),
       ),
@@ -936,8 +941,12 @@ class VitalsCard extends StatelessWidget {
         value: w?.title,
         sub: w == null
             ? 'No workouts recorded yet'
-            : '${Fmt.weekdayDayMonth(w.startAt)} · '
-                  '${s.latestWorkoutExercises} exercises',
+            : [
+                Fmt.weekdayDayMonth(w.startAt),
+                if (s.latestWorkoutExercises > 0)
+                  '${s.latestWorkoutExercises} exercise'
+                      '${s.latestWorkoutExercises == 1 ? '' : 's'}',
+              ].join(' · '),
         onTap: w == null
             ? () => context.push(AppPaths.strength)
             : () => context.push(
@@ -1011,6 +1020,7 @@ class _Vital extends StatelessWidget {
       button: true,
       label: '$label: ${value ?? ''} $sub',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.96,

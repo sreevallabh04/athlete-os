@@ -52,7 +52,7 @@ Theme-dependent values live in **`HudTheme`** (`context.hud`): `accent`, `accent
 
 ## 3. Typography (`AppTypography`, `AppFonts`)
 
-Bundled OFL fonts (`assets/fonts/`, licences in `OFL.txt`, registered with `LicenseRegistry`). Every style uses **tabular figures**.
+Bundled OFL fonts (`assets/fonts/`, licences in `OFL.txt`, registered with `LicenseRegistry`). The HUD faces (Rajdhani, JetBrains Mono) and every `AnimatedTicker` use **tabular figures**; the Inter text styles keep proportional figures because Inter's `tnum` also widens the hyphen (prose like "heart-rate" looked letter-spaced). Add `AppTypography.tabular` to an Inter style when a column of numbers must align.
 
 | Role | Family | Style |
 |---|---|---|

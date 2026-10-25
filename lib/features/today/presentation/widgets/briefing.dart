@@ -105,6 +105,7 @@ class BriefingStrip extends StatelessWidget {
       button: true,
       label: 'JARVIS briefing: $text. Open the full briefing.',
       excludeSemantics: true,
+      onTap: () => showBriefingSheet(context, summary: summary, now: now),
       child: PressableScale(
         onTap: () => showBriefingSheet(context, summary: summary, now: now),
         pressedScale: 0.98,
@@ -279,7 +280,7 @@ Future<void> showBriefingSheet(
         children: [
           Text(
             '${DateFormat('EEE d MMM').format(now).toUpperCase()} · '
-            '${DateFormat('HH:mm').format(now)} · DETERMINISTIC',
+            '${DateFormat('HH:mm').format(now)} · ON-DEVICE',
             style: hud.mono(size: 10, color: hud.accentInk),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -322,7 +323,7 @@ Future<void> showBriefingSheet(
               runSpacing: AppSpacing.xs,
               children: [
                 for (final u in summary.unavailable)
-                  HudChip(label: u, uppercase: false, icon: Icons.remove),
+                  HudChip(label: u, icon: Icons.remove),
               ],
             ),
           ],

@@ -512,6 +512,7 @@ class HabitChip extends ConsumerWidget {
             '${view.streak.current > 0 ? ', ${view.streak.format(view.streak.current)} streak' : ''}',
         hint: hint,
         excludeSemantics: true,
+        onTap: () => HabitActions.toggle(context, ref, view),
         onLongPress: state == HabitNodeState.open
             ? () =>
                   HabitActions.setToday(context, ref, view, HabitStatus.skipped)
@@ -532,10 +533,10 @@ class HabitChip extends ConsumerWidget {
           child: AnimatedContainer(
             duration: AppMotion.medium,
             curve: AppMotion.standard,
-            constraints: const BoxConstraints(minHeight: 44),
-            padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(24),
               color: lit
                   ? c.withValues(alpha: hud.isDark ? 0.13 : 0.16)
                   : hud.glassFill,
@@ -797,6 +798,7 @@ class HabitMonthHeatmap extends StatelessWidget {
                 label:
                     '${DateFormat('d MMMM').format(LocalDates.parse(key))}, $status',
                 excludeSemantics: true,
+                onTap: future ? null : () => onDayTap(key),
                 child: PressableScale(
                   onTap: future ? null : () => onDayTap(key),
                   haptic: PressHaptic.selection,

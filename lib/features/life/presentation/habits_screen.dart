@@ -422,6 +422,7 @@ class HabitTodayTile extends ConsumerWidget {
                   label: action,
                   hint: mark == null ? 'Long press to skip today' : null,
                   excludeSemantics: true,
+                  onTap: () => HabitActions.toggle(context, ref, view),
                   child: PressableScale(
                     key: Key('habit-check-${view.id}'),
                     haptic: PressHaptic.none,

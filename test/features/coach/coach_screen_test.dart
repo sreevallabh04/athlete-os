@@ -29,7 +29,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.textContaining('AI backend not configured'), findsOneWidget);
+    expect(find.textContaining('AI core not configured'), findsOneWidget);
     expect(find.text('Set up'), findsOneWidget);
     // Prefilled from ?prompt=, but sending is disabled.
     expect(find.text('How many steps left?'), findsWidgets);
@@ -59,7 +59,7 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('AI backend not configured'), findsNothing);
+    expect(find.textContaining('AI core not configured'), findsNothing);
     await tester.enterText(find.byType(TextField), 'hello coach');
     await tester.pump();
     await tester.tap(find.byKey(const Key('coach_send')));

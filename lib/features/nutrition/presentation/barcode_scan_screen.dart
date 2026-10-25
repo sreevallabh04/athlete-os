@@ -233,6 +233,7 @@ class _RoundGlass extends StatelessWidget {
       button: true,
       label: label,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         child: Container(

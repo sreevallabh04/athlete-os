@@ -279,6 +279,7 @@ class _ReplyHeader extends StatelessWidget {
               button: true,
               label: 'Read aloud',
               excludeSemantics: true,
+              onTap: onSpeak,
               child: PressableScale(
                 onTap: onSpeak,
                 haptic: PressHaptic.selection,

@@ -32,7 +32,9 @@ class DeckLabel extends StatelessWidget {
       children: [
         GlowIcon(icon, size: 15, color: c, glow: 0.7),
         const SizedBox(width: AppSpacing.sm),
-        Flexible(
+        // Expanded (not Flexible + Spacer, which split the free space and
+        // left trailing links floating mid-card).
+        Expanded(
           child: Semantics(
             header: true,
             child: Text(
@@ -43,7 +45,6 @@ class DeckLabel extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        const Spacer(),
         ?trailing,
         if (chevron) ...[
           const SizedBox(width: 2),

@@ -250,19 +250,9 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                     date: date,
                     today: today,
                     burst: _protein.burst,
+                    estimateCount: totals.estimateCount,
                     onSwipe: (dir) => _shiftDay(date, dir),
                   ),
-                  if (totals.estimateCount > 0) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    NoticeBanner(
-                      icon: Icons.auto_awesome_outlined,
-                      color: AppColors.warning,
-                      message:
-                          'Includes ${totals.estimateCount} estimated '
-                          'item${totals.estimateCount == 1 ? '' : 's'}. '
-                          'Totals are approximate.',
-                    ),
-                  ],
                   if (date == today && proteinLeft > 0) ...[
                     const SizedBox(height: AppSpacing.md),
                     MealIdeasCard(
@@ -365,9 +355,14 @@ class _ReactorCard extends StatelessWidget {
     required this.today,
     required this.burst,
     required this.onSwipe,
+    this.estimateCount = 0,
   });
 
   final DayTotals totals;
+
+  /// Estimated entries in [totals]: flagged inside the card (the totals are
+  /// what is approximate), never as a banner the quick-add button covers.
+  final int estimateCount;
   final NutritionTargets targets;
   final String date;
   final String today;
@@ -498,6 +493,24 @@ class _ReactorCard extends StatelessWidget {
                   target: targets.fiber!,
                   color: AppColors.fiber,
                   unit: ' g',
+                ),
+              ],
+              if (estimateCount > 0) ...[
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    const EstimateBadge(),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Includes $estimateCount estimated '
+                        'item${estimateCount == 1 ? '' : 's'}. '
+                        'Totals are approximate.',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: hud.textMuted),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -1090,6 +1103,7 @@ class _EntryRow extends ConsumerWidget {
             '${Fmt.kcal(e.calories)}, protein ${Fmt.grams(e.proteinG)}'
             '${estimate ? ', estimate' : ''}. Tap to edit, swipe left to delete.',
         excludeSemantics: true,
+        onTap: () => showEditEntrySheet(context, e),
         child: PressableScale(
           onTap: () => showEditEntrySheet(context, e),
           pressedScale: 0.98,
@@ -1247,6 +1261,7 @@ class _WaterCard extends ConsumerWidget {
               button: true,
               label: 'Add 250 millilitres of water',
               excludeSemantics: true,
+              onTap: () => _quickAdd(context, ref),
               child: PressableScale(
                 haptic: PressHaptic.none,
                 onTap: () => _quickAdd(context, ref),

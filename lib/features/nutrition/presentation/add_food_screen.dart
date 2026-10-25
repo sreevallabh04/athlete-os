@@ -286,6 +286,7 @@ class _ShortcutTile extends StatelessWidget {
       button: true,
       label: ai ? '$label, AI assisted' : label,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.93,

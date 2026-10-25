@@ -135,7 +135,12 @@ void main() {
       );
       await pumpUntil(tester, find.text('No habits yet'));
       await pumpUntil(tester, find.text('No check-in yet today'));
-      await pumpUntil(tester, find.text('Nothing written today — optional'));
+      // 48 dp touch targets push the journal card below the 600 px test
+      // viewport: scroll to it like a person would.
+      await tester.scrollUntilVisible(
+        find.text('Nothing written today — optional'),
+        200,
+      );
       for (final label in [
         'Planner',
         'Competition prep',

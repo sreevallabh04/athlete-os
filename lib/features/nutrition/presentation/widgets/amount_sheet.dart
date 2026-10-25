@@ -697,6 +697,7 @@ class MealPicker extends StatelessWidget {
                         selected: m == value,
                         label: m.label,
                         excludeSemantics: true,
+                        onTap: m == value ? null : () => onChanged(m),
                         child: PressableScale(
                           haptic: PressHaptic.selection,
                           pressedScale: 0.94,

@@ -882,5 +882,5 @@ abstract final class ReportBuilder {
     );
   }
 
-  static String _hm(int minutes) => '${minutes ~/ 60} h ${minutes % 60} m';
+  static String _hm(int minutes) => '${minutes ~/ 60} h ${minutes % 60} min';
 }

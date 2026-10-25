@@ -349,6 +349,7 @@ class _DayOption extends StatelessWidget {
       selected: selected,
       label: title,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.selection,

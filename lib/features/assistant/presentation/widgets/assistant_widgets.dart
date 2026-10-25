@@ -328,6 +328,7 @@ class KillSwitchCard extends ConsumerWidget {
             toggled: killed,
             label: killed ? 'Resume assistant' : 'Emergency stop',
             excludeSemantics: true,
+            onTap: flip,
             child: PressableScale(
               key: const Key('kill_switch_button'),
               onTap: flip,

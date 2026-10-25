@@ -45,9 +45,10 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../test/helpers/test_app.dart';
-import 'screenshots_test.dart' show loadShotFonts, shotDpr, shotPhysicalSize;
+import 'screenshots_test.dart'
+    show loadShotFonts, shotDir, shotDpr, shotPhysicalSize;
 
-const _dir = 'build/shots/r-train';
+const _dir = '$shotDir/r-train';
 
 /// Friday 23 Oct 2026, 06:05 — before the early-morning session.
 final friMorning = DateTime(2026, 10, 23, 6, 5);

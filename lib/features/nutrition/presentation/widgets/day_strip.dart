@@ -53,7 +53,7 @@ class _DayStripState extends State<DayStrip> {
   void _reveal() {
     if (!_scroll.hasClients) return;
     final pos = _scroll.position;
-    final itemStart = _selectedIndex * (_cell + _gap);
+    final itemStart = AppSpacing.gutter + _selectedIndex * (_cell + _gap);
     final itemEnd = itemStart + _cell;
     double? target;
     if (itemStart < pos.pixels + 8) {
@@ -83,30 +83,41 @@ class _DayStripState extends State<DayStrip> {
   @override
   Widget build(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
+    // The strip bleeds to the screen edges (cells rest on the page gutter and
+    // scroll off at the glass edge) instead of being sliced at the gutter.
     return SizedBox(
       height: 76 * scale,
-      child: ListView.separated(
-        controller: _scroll,
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        physics: const BouncingScrollPhysics(),
-        itemCount: widget.days,
-        separatorBuilder: (_, _) => const SizedBox(width: _gap),
-        itemBuilder: (context, i) {
-          final date = LocalDates.addDays(widget.today, -i);
-          return _DayCell(
-            date: date,
-            isToday: i == 0,
-            selected: date == widget.selected,
-            progress: widget.progress[date],
-            width: _cell,
-            onTap: () => widget.onSelect(date),
-            semantic: friendlyDate(date, widget.today),
-          );
-        },
+      child: LayoutBuilder(
+        builder: (context, box) => OverflowBox(
+          minWidth: box.maxWidth + 2 * AppSpacing.gutter,
+          maxWidth: box.maxWidth + 2 * AppSpacing.gutter,
+          child: _list(),
+        ),
       ),
     );
   }
+
+  Widget _list() => ListView.separated(
+    controller: _scroll,
+    scrollDirection: Axis.horizontal,
+    reverse: true,
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+    physics: const BouncingScrollPhysics(),
+    itemCount: widget.days,
+    separatorBuilder: (_, _) => const SizedBox(width: _gap),
+    itemBuilder: (context, i) {
+      final date = LocalDates.addDays(widget.today, -i);
+      return _DayCell(
+        date: date,
+        isToday: i == 0,
+        selected: date == widget.selected,
+        progress: widget.progress[date],
+        width: _cell,
+        onTap: () => widget.onSelect(date),
+        semantic: friendlyDate(date, widget.today),
+      );
+    },
+  );
 }
 
 class _DayCell extends StatelessWidget {
@@ -140,6 +151,7 @@ class _DayCell extends StatelessWidget {
       label:
           '$semantic${progress == null ? ', nothing logged' : ', ${(progress! * 100).round()} percent of calorie target'}',
       excludeSemantics: true,
+      onTap: selected ? null : onTap,
       child: PressableScale(
         onTap: selected ? null : onTap,
         haptic: PressHaptic.selection,

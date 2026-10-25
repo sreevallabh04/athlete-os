@@ -175,10 +175,9 @@ class QuickCommandBar extends StatelessWidget {
         blendMode: BlendMode.dstIn,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.gutter,
-            vertical: 6,
-          ),
+          // No vertical padding: each pill pads itself so its touch target
+          // spans the full 48 dp strip.
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
           itemCount: commands.length,
           separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
           itemBuilder: (context, i) => Entrance(
@@ -262,13 +261,18 @@ class _CommandPill extends StatelessWidget {
       enabled: onTap != null,
       label: command.label,
       excludeSemantics: true,
+      onTap: onTap,
       child: Opacity(
         opacity: onTap == null ? 0.5 : 1,
         child: PressableScale(
           onTap: onTap,
+          behavior: HitTestBehavior.opaque,
           haptic: PressHaptic.selection,
           pressedScale: 0.94,
-          child: pill,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: pill,
+          ),
         ),
       ),
     );

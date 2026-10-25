@@ -144,6 +144,7 @@ class SuggestedHabitTile extends StatelessWidget {
       label: tpl.name,
       hint: tpl.schedule.describe(),
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.selection,

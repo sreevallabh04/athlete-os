@@ -683,6 +683,7 @@ class _ExampleChip extends StatelessWidget {
       button: true,
       label: 'Use example: $text',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.selection,

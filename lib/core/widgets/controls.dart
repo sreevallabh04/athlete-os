@@ -132,7 +132,12 @@ class HudChip extends StatelessWidget {
           Flexible(
             child: Text(
               uppercase ? label.toUpperCase() : label,
-              style: AppTypography.hudLabel(fg, size: 12),
+              // Rajdhani is for short UPPERCASE labels; mixed-case chips
+              // (food names, tags, titles) read better in Inter.
+              style: uppercase
+                  ? AppTypography.hudLabel(fg, size: 12)
+                  : Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: fg, height: 1.2),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -144,6 +149,7 @@ class HudChip extends StatelessWidget {
       selected: selected,
       label: label,
       excludeSemantics: true,
+      onTap: onTap,
       child: onTap == null
           ? chip
           : PressableScale(
@@ -292,16 +298,26 @@ class HudButton extends StatelessWidget {
       enabled: enabled,
       label: this.label,
       excludeSemantics: true,
+      onTap: enabled ? onPressed : null,
       child: Opacity(
         opacity: enabled || loading ? 1 : 0.6,
         child: PressableScale(
           onTap: enabled ? onPressed : null,
+          behavior: HitTestBehavior.opaque,
           haptic:
               variant == HudButtonVariant.primary ||
                   variant == HudButtonVariant.danger
               ? PressHaptic.medium
               : PressHaptic.light,
-          child: body,
+          // Compact buttons look 40 px tall but keep a 48 dp touch target.
+          child: compact
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: AppSpacing.touchTarget,
+                  ),
+                  child: Center(widthFactor: 1, heightFactor: 1, child: body),
+                )
+              : body,
         ),
       ),
     );
@@ -504,6 +520,11 @@ class _SegmentedHudState<T> extends State<SegmentedHud<T>>
     value: _index.toDouble(),
   );
 
+  void _pick(int i) {
+    Haptics.selection();
+    widget.onChanged!(widget.segments[i].value);
+  }
+
   int get _index {
     final i = widget.segments.indexWhere((s) => s.value == widget.value);
     return i < 0 ? 0 : i;
@@ -587,14 +608,14 @@ class _SegmentedHudState<T> extends State<SegmentedHud<T>>
                         selected: i == _index,
                         label: widget.segments[i].label,
                         excludeSemantics: true,
+                        onTap: widget.onChanged == null || i == _index
+                            ? null
+                            : () => _pick(i),
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: widget.onChanged == null || i == _index
                               ? null
-                              : () {
-                                  Haptics.selection();
-                                  widget.onChanged!(widget.segments[i].value);
-                                },
+                              : () => _pick(i),
                           child: ConstrainedBox(
                             constraints: BoxConstraints(minHeight: minH - 6),
                             child: Center(

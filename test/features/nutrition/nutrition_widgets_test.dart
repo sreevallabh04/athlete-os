@@ -83,7 +83,8 @@ void main() {
     expect(find.text('Paneer'), findsOneWidget);
     expect(find.text('Samosa'), findsOneWidget);
     expect(find.text('Deleted cake'), findsNothing);
-    expect(find.text('ESTIMATE'), findsOneWidget);
+    // On the estimated entry and on the totals it makes approximate.
+    expect(find.text('ESTIMATE'), findsNWidgets(2));
     expect(find.textContaining('Includes 1 estimated item'), findsOneWidget);
     expect(find.text('Protein'), findsOneWidget);
     expect(find.text('Lunch'), findsOneWidget);

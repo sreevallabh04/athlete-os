@@ -7,11 +7,14 @@ import 'presentation/ai_provider_settings_screen.dart';
 import 'presentation/coach_screen.dart';
 
 /// Root of the `Coach` bottom-navigation branch. Other screens deep-link with
-/// `/coach?prompt=...` to prefill the composer.
+/// `/coach?prompt=...` to prefill the composer; the "Ask JARVIS" launcher
+/// shortcut opens `/coach?listen=1` to start listening straight away.
 GoRoute coachTabRoute() => GoRoute(
   path: AppPaths.coach,
-  builder: (context, state) =>
-      CoachScreen(initialPrompt: state.uri.queryParameters['prompt']),
+  builder: (context, state) => CoachScreen(
+    initialPrompt: state.uri.queryParameters['prompt'],
+    listen: state.uri.queryParameters['listen'] == '1',
+  ),
 );
 
 /// Full-screen routes owned by the coach feature (pushed above the shell).

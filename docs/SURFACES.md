@@ -123,7 +123,7 @@ Long-press the Athlete OS icon (or drag a shortcut to the home screen):
 | --- | --- | --- |
 | Log water | `athleteos://open/hydration?quickAdd=1` | Hydration screen + quick-add sheet (150/250/500/750 ml; nothing is logged until you tap) |
 | Log meal | `athleteos://open/nutrition/add` | Add food (meal pre-selected by time of day) |
-| Ask JARVIS | `athleteos://open/coach?listen=1` | Coach tab; `listen=1` asks the coach to start listening (honoured once the coach screen supports it, ignored otherwise) |
+| Ask JARVIS | `athleteos://open/coach?listen=1` | Coach tab; `listen=1` starts listening on arrival (same mic explainer + permission flow as a mic tap; a calm notice if the AI core is offline) |
 | Today's session | `athleteos://open/session` | Program screen with today's session and **Start session** |
 
 Static (`res/xml/shortcuts.xml`), with explicit `targetClass` so they always

@@ -14,9 +14,12 @@ class ConnectWithStravaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       button: true,
+      enabled: onPressed != null,
       label: 'Connect with Strava',
       excludeSemantics: true,
+      onTap: onPressed,
       child: SizedBox(
         height: 48,
         child: FilledButton(
@@ -102,21 +105,23 @@ class ViewOnStravaLink extends StatelessWidget {
     return Semantics(
       link: true,
       label: 'View on Strava',
-      excludeSemantics: true,
+      container: true,
       child: PressableScale(
         onTap: () => launchUrl(
           stravaActivityUri(stravaId),
           mode: LaunchMode.externalApplication,
         ),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Text(
-            'View on Strava',
-            style: TextStyle(
-              color: kStravaOrange,
-              fontWeight: FontWeight.w700,
-              decoration: TextDecoration.underline,
-              decorationColor: kStravaOrange,
+        child: const ExcludeSemantics(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text(
+              'View on Strava',
+              style: TextStyle(
+                color: kStravaOrange,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+                decorationColor: kStravaOrange,
+              ),
             ),
           ),
         ),

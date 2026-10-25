@@ -583,8 +583,9 @@ class _SystemsGrid extends ConsumerWidget {
       _Tile(
         icon: Icons.emoji_events_outlined,
         label: 'Competition prep',
-        sub: 'PEAK WEEK',
-        color: AppColors.competition,
+        sub: 'COUNTDOWN · PHASES',
+        // Same gold as the competition screen and Today's countdown.
+        color: AppColors.gold,
         onTap: () => context.push(AppPaths.competition),
       ),
       _Tile(

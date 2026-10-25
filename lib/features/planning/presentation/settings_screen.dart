@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/paths.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/repositories/profile_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
@@ -245,8 +246,8 @@ class _IdentityCard extends ConsumerWidget {
                 Text(
                   p == null
                       ? 'Loading profile…'
-                      : '${p.calorieTarget} kcal · '
-                            '${p.proteinTargetG.round()} g P · '
+                      : '${Fmt.integer(p.calorieTarget)} kcal · '
+                            '${p.proteinTargetG.round()} g protein · '
                             '${(p.stepGoal / 1000).toStringAsFixed(p.stepGoal % 1000 == 0 ? 0 : 1)}k steps',
                   style: hud.mono(size: 10.5),
                 ),
@@ -333,6 +334,7 @@ class SettingsTile extends StatelessWidget {
       button: onTap != null,
       label: subtitle == null ? title : '$title. $subtitle',
       excludeSemantics: trailing == null,
+      onTap: trailing == null ? onTap : null,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.98,

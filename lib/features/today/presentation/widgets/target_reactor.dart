@@ -193,6 +193,8 @@ class _TargetReactorState extends State<TargetReactor>
         color: _burstColor,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          // Ring taps mirror the legend rows, which carry the semantics.
+          excludeFromSemantics: true,
           onTapUp: (d) {
             final i = _ringAt(d.localPosition);
             if (i == null) return;
@@ -209,9 +211,19 @@ class _TargetReactorState extends State<TargetReactor>
                   hud: hud,
                 ),
                 child: Center(
-                  child: _CenterReadout(
-                    selected: selected,
-                    composite: composite,
+                  // Keep the readout inside the core disc (it used to touch
+                  // the innermost ring at larger text sizes).
+                  child: SizedBox(
+                    width:
+                        _ReactorGeometry(widget.size, rings.length).coreRadius *
+                        1.5,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _CenterReadout(
+                        selected: selected,
+                        composite: composite,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -364,7 +376,7 @@ class _CenterReadout extends StatelessWidget {
       small = 'STANDBY';
     } else {
       big = '${(composite! * 100).round()}%';
-      small = 'OF TARGETS';
+      small = 'OVERALL';
       if (composite! >= 0.999) color = AppColors.gold;
     }
     return ExcludeSemantics(
@@ -422,6 +434,7 @@ class _LegendRow extends StatelessWidget {
       selected: selected,
       label: semantics,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.none,
@@ -432,6 +445,9 @@ class _LegendRow extends StatelessWidget {
           child: AnimatedContainer(
             duration: AppMotion.short,
             margin: const EdgeInsets.symmetric(vertical: 1),
+            constraints: const BoxConstraints(
+              minHeight: AppSpacing.touchTarget,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.xs + 2),

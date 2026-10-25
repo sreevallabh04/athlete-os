@@ -43,7 +43,7 @@ void main() {
     expect(find.text('NOT LOGGED'), findsNWidgets(3));
     expect(find.text('Target 2,000'), findsOneWidget);
     expect(find.text('No workouts recorded yet'), findsOneWidget);
-    expect(find.text('No runs since Monday'), findsOneWidget);
+    expect(find.text('No runs this week'), findsOneWidget);
     expect(find.text('No sleep data'), findsOneWidget);
     expect(find.text('No heart-rate data'), findsOneWidget);
     expect(find.text('No priorities set for today.'), findsOneWidget);
@@ -76,7 +76,7 @@ void main() {
       'Calendar (not connected)',
       'Sleep',
     ]) {
-      expect(find.text(chip), findsWidgets, reason: chip);
+      expect(find.text(chip.toUpperCase()), findsWidgets, reason: chip);
     }
     expect(find.textContaining('steps away'), findsNothing);
     expect(find.textContaining('to go'), findsNothing);
