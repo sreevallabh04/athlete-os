@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static launcher shortcuts (long-press the app icon). Each opens an
+     allowlisted athleteos://open/... deep link with an explicit target class,
+     so it never resolves to the OAuth callback activity (docs/SURFACES.md). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="log_water"
+        android:enabled="true"
+        android:icon="@drawable/ic_surf_sc_water"
+        android:shortcutShortLabel="@string/surf_sc_water_short"
+        android:shortcutLongLabel="@string/surf_sc_water_long"
+        android:shortcutDisabledMessage="@string/surf_sc_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.athleteos.athlete_os"
+            android:targetClass="com.athleteos.athlete_os.MainActivity"
+            android:data="athleteos://open/hydration?quickAdd=1" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="log_meal"
+        android:enabled="true"
+        android:icon="@drawable/ic_surf_sc_meal"
+        android:shortcutShortLabel="@string/surf_sc_meal_short"
+        android:shortcutLongLabel="@string/surf_sc_meal_long"
+        android:shortcutDisabledMessage="@string/surf_sc_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.athleteos.athlete_os"
+            android:targetClass="com.athleteos.athlete_os.MainActivity"
+            android:data="athleteos://open/nutrition/add" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="ask_jarvis"
+        android:enabled="true"
+        android:icon="@drawable/ic_surf_sc_mic"
+        android:shortcutShortLabel="@string/surf_sc_coach_short"
+        android:shortcutLongLabel="@string/surf_sc_coach_long"
+        android:shortcutDisabledMessage="@string/surf_sc_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.athleteos.athlete_os"
+            android:targetClass="com.athleteos.athlete_os.MainActivity"
+            android:data="athleteos://open/coach?listen=1" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="start_session"
+        android:enabled="true"
+        android:icon="@drawable/ic_surf_sc_session"
+        android:shortcutShortLabel="@string/surf_sc_session_short"
+        android:shortcutLongLabel="@string/surf_sc_session_long"
+        android:shortcutDisabledMessage="@string/surf_sc_disabled">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.athleteos.athlete_os"
+            android:targetClass="com.athleteos.athlete_os.MainActivity"
+            android:data="athleteos://open/session" />
+    </shortcut>
+</shortcuts>

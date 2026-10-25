@@ -63,6 +63,20 @@
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
+            <!-- ===== Surfaces (docs/SURFACES.md) — begin: deep links + shortcuts =====
+                 athleteos://open/<route>, validated by a Dart allowlist. Scoped to
+                 host "open" so OAuth redirects (athleteos://localhost/...) keep
+                 going to the callback activity. Not BROWSABLE: web pages cannot
+                 launch it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="athleteos" android:host="open" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+            <!-- ===== Surfaces — end ===== -->
         </activity>
 
         <!-- Health Connect privacy policy entry point (Android 14+). -->
@@ -123,6 +137,36 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="personal assistant notification triage" />
         </service>
+
+        <!-- ===== Surfaces (docs/SURFACES.md) — begin: widget, actions, QS tile ===== -->
+        <!-- "JARVIS Today" home-screen widget (exported: the launcher binds it). -->
+        <receiver
+            android:name=".surfaces.JarvisTodayWidget"
+            android:exported="true"
+            android:label="@string/surf_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/surf_jarvis_today_info" />
+        </receiver>
+        <!-- +250 ml water / refresh, reached only via our own PendingIntents. -->
+        <receiver
+            android:name=".surfaces.SurfaceActionReceiver"
+            android:exported="false" />
+        <!-- Quick Settings tile "Water +250 ml". -->
+        <service
+            android:name=".surfaces.WaterTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_surf_water"
+            android:label="@string/surf_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <!-- ===== Surfaces — end ===== -->
 
         <meta-data
             android:name="flutterEmbedding"

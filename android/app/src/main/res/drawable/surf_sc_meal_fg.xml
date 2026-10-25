@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shortcut glyph (Material Icons, Apache 2.0) centred in the 72 dp safe
+     zone. Also used as the monochrome layer (only its alpha is used). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="36"
+        android:translateY="36"
+        android:scaleX="1.5"
+        android:scaleY="1.5">
+        <path android:fillColor="#FF36E2FF" android:pathData="M11,9H9V2H7v7H5V2H3v7c0,2.12 1.66,3.84 3.75,3.97V22h2.5v-9.03C11.34,12.84 13,11.12 13,9V2h-2V9zM16,6v8h2.5v8H21V2C18.24,2 16,4.24 16,6z" />
+    </group>
+</vector>
