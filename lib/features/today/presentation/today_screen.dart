@@ -12,6 +12,7 @@ import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../planning/application/planning_providers.dart';
 import '../../planning/data/planning_repository.dart';
+import '../../onboarding/presentation/persona_cards.dart';
 import '../../planning/presentation/widgets/countdown_hero.dart';
 import '../application/today_providers.dart';
 import '../data/today_repository.dart';
@@ -97,6 +98,7 @@ class _TodayBody extends StatelessWidget {
         else
           CompetitionCta(onTap: () => context.push(AppPaths.competition)),
         const SizedBox(height: AppSpacing.md),
+        const PersonaTodaySection(),
         _SummaryCard(summary: summary),
         ResponsiveColumns(
           left: [

@@ -12,6 +12,7 @@ import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/repositories/profile_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
+import '../../onboarding/presentation/routine_screen.dart';
 import '../application/planning_providers.dart';
 import '../data/planning_repository.dart';
 import '../domain/planner_rules.dart';
@@ -79,6 +80,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           isToday: _date == _today,
           tasks: tasks.value ?? const [],
         ),
+        if (_date == _today) const RoutineSection(),
         const SectionHeader('Reviews'),
         Wrap(
           spacing: AppSpacing.sm,

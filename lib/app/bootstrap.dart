@@ -10,6 +10,7 @@ import '../features/health/bootstrap.dart';
 import '../features/integrations/bootstrap.dart';
 import '../features/life/bootstrap.dart';
 import '../features/nutrition/bootstrap.dart';
+import '../features/onboarding/bootstrap.dart';
 import '../features/planning/bootstrap.dart';
 import '../features/today/bootstrap.dart';
 import '../features/train/bootstrap.dart';
@@ -29,6 +30,7 @@ final List<BootstrapHook> bootstrapHooks = [
   integrationsBootstrap,
   planningBootstrap,
   assistantBootstrap,
+  onboardingBootstrap,
 ];
 
 Future<void> bootstrap(ProviderContainer container) async {

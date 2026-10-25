@@ -25,9 +25,11 @@ class _SetRow {
 }
 
 class _ExerciseRow {
-  _ExerciseRow() : name = TextEditingController();
+  _ExerciseRow({String name = '', int sets = 1})
+    : name = TextEditingController(text: name),
+      sets = [for (var i = 0; i < (sets < 1 ? 1 : sets); i++) _SetRow()];
   final TextEditingController name;
-  final List<_SetRow> sets = [_SetRow()];
+  final List<_SetRow> sets;
   void dispose() {
     name.dispose();
     for (final s in sets) {
@@ -38,10 +40,18 @@ class _ExerciseRow {
 
 /// Manual strength workout logging (source `manual`).
 class LogWorkoutScreen extends ConsumerStatefulWidget {
-  const LogWorkoutScreen({super.key});
+  const LogWorkoutScreen({super.key, this.initial});
 
-  static Future<void> open(BuildContext context) => Navigator.of(context)
-      .push(MaterialPageRoute<void>(builder: (_) => const LogWorkoutScreen()));
+  /// Optional pre-filled draft (e.g. a planned program session): title,
+  /// notes, exercise names and empty set rows.
+  final WorkoutDraft? initial;
+
+  static Future<void> open(BuildContext context, {WorkoutDraft? initial}) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LogWorkoutScreen(initial: initial),
+        ),
+      );
 
   @override
   ConsumerState<LogWorkoutScreen> createState() => _LogWorkoutScreenState();
@@ -59,6 +69,28 @@ class _LogWorkoutScreenState extends ConsumerState<LogWorkoutScreen> {
   void initState() {
     super.initState();
     _start = ref.read(clockProvider).now();
+    final init = widget.initial;
+    if (init != null && init.exercises.isNotEmpty) {
+      _title.text = init.title;
+      _notes.text = init.notes ?? '';
+      _exercises
+        ..clear()
+        ..addAll([
+          for (final e in init.exercises)
+            _ExerciseRow(name: e.name, sets: e.sets.length),
+        ]);
+      if (init.endAt != null) {
+        final m = init.endAt!.difference(init.startAt).inMinutes;
+        _durationMin = [
+          30,
+          45,
+          60,
+          75,
+          90,
+          120,
+        ].firstWhere((d) => d >= m, orElse: () => 120);
+      }
+    }
   }
 
   @override
