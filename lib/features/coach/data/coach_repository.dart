@@ -84,6 +84,20 @@ class CoachRepository {
     return row;
   }
 
+  /// Replaces the content of a local-only message (briefing polish).
+  Future<void> updateMessageContent(
+    String id,
+    List<Map<String, Object?>> blocks, {
+    String? provider,
+    String? model,
+  }) => (_db.update(_db.aiMessages)..where((m) => m.id.equals(id))).write(
+    AiMessagesCompanion(
+      contentJson: Value(jsonEncode(blocks)),
+      provider: Value(provider),
+      model: Value(model),
+    ),
+  );
+
   // -- Memories --------------------------------------------------------------
 
   Stream<List<AiMemory>> watchMemories() => (_db.select(

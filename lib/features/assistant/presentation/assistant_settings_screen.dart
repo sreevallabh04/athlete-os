@@ -22,6 +22,7 @@ class AssistantSettingsScreen extends ConsumerWidget {
     final settings = ref.watch(assistantSettingsProvider);
     return AppPage(
       title: 'Messaging assistant',
+      eyebrow: 'COMMS · RULES OF ENGAGEMENT',
       subtitle:
           'Everything is off until you enable it. Rules are enforced '
           'in code, not by AI.',
@@ -80,36 +81,119 @@ class _ModeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
     return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: RadioGroup<AssistantMode>(
-        groupValue: settings.mode,
-        onChanged: (m) {
-          if (m != null) ref.read(assistantControllerProvider).setMode(m);
-        },
-        child: Column(
-          children: [
-            for (final m in const [
-              AssistantMode.observe,
-              AssistantMode.draft,
-              AssistantMode.approval,
-              AssistantMode.restrictedAuto,
-              AssistantMode.disabled,
-            ])
-              RadioListTile<AssistantMode>(
-                value: m,
-                title: Text(
-                  m == AssistantMode.draft ? '${m.label} (default)' : m.label,
-                ),
-                subtitle: Text(m.description),
-              ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Text(
-                'Each app can be set lower, never higher, than this mode.',
-              ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        children: [
+          for (final m in const [
+            AssistantMode.observe,
+            AssistantMode.draft,
+            AssistantMode.approval,
+            AssistantMode.restrictedAuto,
+            AssistantMode.disabled,
+          ])
+            _ModeOption(
+              mode: m,
+              selected: settings.mode == m,
+              onTap: () {
+                Haptics.selection();
+                ref.read(assistantControllerProvider).setMode(m);
+              },
             ),
-          ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+            child: Text(
+              'Each app can be set lower, never higher, than this mode.',
+              style: t.bodySmall?.copyWith(color: hud.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  const _ModeOption({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+  final AssistantMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
+    final c = mode == AssistantMode.restrictedAuto
+        ? AppColors.warning
+        : mode == AssistantMode.disabled
+        ? hud.textMuted
+        : hud.accent;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: PressableScale(
+        onTap: onTap,
+        haptic: PressHaptic.none,
+        child: AnimatedContainer(
+          duration: AppMotion.short,
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            color: selected ? c.withValues(alpha: 0.10) : Colors.transparent,
+            border: Border.all(
+              color: selected ? c.withValues(alpha: 0.6) : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: AppMotion.short,
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? c : hud.textMuted.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                  color: selected ? c : Colors.transparent,
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: c.withValues(alpha: 0.7 * hud.glowStrength),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mode == AssistantMode.draft
+                          ? '${mode.label} (default)'
+                          : mode.label,
+                      style: t.titleSmall,
+                    ),
+                    Text(
+                      mode.description,
+                      style: t.bodySmall?.copyWith(color: hud.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -221,6 +305,13 @@ class _AppTile extends ConsumerWidget {
         children: [
           Row(
             children: [
+              InitialsAvatar(
+                name: label,
+                seed: packageName,
+                size: 36,
+                halo: enabled ? AppColors.success : null,
+              ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,8 +328,9 @@ class _AppTile extends ConsumerWidget {
                   ],
                 ),
               ),
-              Switch(
+              HudToggle(
                 key: Key('app_enabled_$packageName'),
+                semanticLabel: 'Read $label',
                 value: enabled,
                 onChanged: (v) =>
                     ctl.updateApp(packageName, appLabel: label, enabled: v),

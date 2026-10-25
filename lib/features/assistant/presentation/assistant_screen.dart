@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart' show mergeSort;
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -34,6 +36,7 @@ class AssistantScreen extends ConsumerWidget {
 
     return AppPage(
       title: 'Assistant',
+      eyebrow: 'COMMS · TRIAGE',
       subtitle: 'Your personal assistant phone — you stay in control.',
       onRefresh: () async {
         await ref.read(ingestionServiceProvider).drainAndIngest();
@@ -57,17 +60,13 @@ class AssistantScreen extends ConsumerWidget {
           _SharedTextCard(text: share),
           const SizedBox(height: AppSpacing.md),
         ],
-        const _StatusCard(),
-        const SizedBox(height: AppSpacing.md),
         const KillSwitchCard(),
-        const SectionHeader('Briefing'),
-        const _BriefingCard(),
         const SectionHeader(
           'Needs your reply',
           subtitle: 'Nothing is sent until you tap Send.',
         ),
         drafts.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(height: 140, lines: 0),
           error: (e, _) => const ErrorState(message: 'Could not load drafts.'),
           data: (list) {
             if (list.isEmpty) {
@@ -75,63 +74,91 @@ class AssistantScreen extends ConsumerWidget {
                 child: EmptyState(
                   compact: true,
                   icon: Icons.mark_chat_read_outlined,
-                  title: 'No replies waiting',
+                  title: 'Inbox zero',
                   message:
                       'Drafts appear here for messages from apps you enabled.',
                 ),
               );
             }
             final all = captured.value ?? const <CapturedNotification>[];
+            List<CapturedNotification> msgsFor(ReplyDraft d) => all
+                .where(
+                  (c) =>
+                      c.packageName == d.packageName &&
+                      c.conversationKey == d.conversationKey,
+                )
+                .take(5)
+                .toList()
+                .reversed
+                .toList();
+            int score(ReplyDraft d) {
+              final m = msgsFor(d);
+              final risk = d.risk == 'high' ? 10 : 0;
+              if (m.isEmpty) return risk;
+              final last = m.last;
+              return risk +
+                  priorityOf(
+                    text: last.body,
+                    flags: SensitivityResult.parseCsv(last.sensitivityFlags),
+                    postedAt: last.postedAt,
+                    now: now,
+                  ).score;
+            }
+
+            // Triage: highest priority first (stable for ties).
+            final scores = {for (final d in list) d.id: score(d)};
+            final sorted = [...list];
+            mergeSort(
+              sorted,
+              compare: (a, b) => scores[b.id]!.compareTo(scores[a.id]!),
+            );
             return Column(
               children: spaced([
-                for (final d in list)
-                  DraftCard(
+                for (final d in sorted)
+                  DraftInboxTile(
                     key: ValueKey('draft-${d.id}'),
+                    primary: d == sorted.first,
                     draft: d,
                     appLabel: appLabelFor(d.packageName, labels),
-                    messages: all
-                        .where(
-                          (c) =>
-                              c.packageName == d.packageName &&
-                              c.conversationKey == d.conversationKey,
-                        )
-                        .take(5)
-                        .toList()
-                        .reversed
-                        .toList(),
+                    messages: msgsFor(d),
                   ),
               ]),
             );
           },
         ),
-        ..._priorities(captured.value ?? const [], labels, now),
+        ..._priorities(context, captured.value ?? const [], labels, now),
+        const SectionHeader('System status'),
+        const _StatusCard(),
+        const SectionHeader('Briefing'),
+        const _BriefingCard(),
         const SectionHeader('Recent messages'),
         captured.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(lines: 3),
           error: (e, _) =>
               const ErrorState(message: 'Could not load messages.'),
           data: (list) => _RecentConversations(rows: list, labels: labels),
         ),
-        const SectionHeader('More'),
+        const SectionHeader('Systems'),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(Icons.tune),
-                title: const Text('Assistant settings'),
-                subtitle: const Text('Apps, modes, contacts, tone, limits'),
+              _NavRow(
+                icon: Icons.tune,
+                title: 'Assistant settings',
+                subtitle: 'Apps, modes, contacts, tone, limits',
                 onTap: () => context.push(AppPaths.assistantSettings),
               ),
-              ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text('Automation log'),
-                subtitle: const Text('Every decision, without message text'),
+              _NavRow(
+                icon: Icons.history,
+                title: 'Automation log',
+                subtitle: 'Every decision, without message text',
                 onTap: () => context.push(AppPaths.assistantAudit),
               ),
-              ListTile(
-                leading: const Icon(Icons.verified_user_outlined),
-                title: const Text('Permissions & capabilities'),
+              _NavRow(
+                icon: Icons.verified_user_outlined,
+                title: 'Permissions & capabilities',
+                subtitle: 'Live status matrix',
                 onTap: () => context.push(AppPaths.capabilities),
               ),
             ],
@@ -142,6 +169,7 @@ class AssistantScreen extends ConsumerWidget {
   }
 
   List<Widget> _priorities(
+    BuildContext context,
     List<CapturedNotification> rows,
     Map<String, String> labels,
     DateTime now,
@@ -159,36 +187,78 @@ class AssistantScreen extends ConsumerWidget {
     }
     if (hints.isEmpty) return const [];
     hints.sort((a, b) => b.$2.score.compareTo(a.$2.score));
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
     return [
       const SectionHeader(
         'Priorities',
         subtitle: 'Heuristic: urgent words, questions, time mentions',
+        accent: AppColors.warning,
       ),
       AppCard(
-        padding: EdgeInsets.zero,
+        accent: AppColors.warning,
         child: Column(
-          children: [
+          children: spaced(gap: AppSpacing.md, [
             for (final (c, h) in hints.take(5))
-              ListTile(
-                leading: const Icon(
-                  Icons.priority_high,
-                  color: AppColors.warning,
-                ),
-                title: Text(
-                  '${c.conversationTitle ?? c.sender ?? 'Unknown'} · '
-                  '${appLabelFor(c.packageName, labels)}',
-                ),
-                subtitle: Text(
-                  '${h.reasons.join(' · ')} · ${Fmt.ago(c.postedAt, now)}',
-                ),
+              Row(
+                children: [
+                  InitialsAvatar(
+                    name: c.conversationTitle ?? c.sender ?? '?',
+                    seed: c.packageName,
+                    size: 34,
+                    halo: h.score >= 4 ? AppColors.danger : AppColors.warning,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${c.conversationTitle ?? c.sender ?? 'Unknown'} · '
+                          '${appLabelFor(c.packageName, labels)}',
+                          style: t.titleSmall,
+                        ),
+                        Text(
+                          '${h.reasons.join(' · ')} · '
+                          '${Fmt.ago(c.postedAt, now)}',
+                          style: t.bodySmall?.copyWith(color: hud.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-          ],
+          ]),
         ),
       ),
     ];
   }
 }
 
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: GlowIcon(icon, size: 18, framed: true),
+    title: Text(title),
+    subtitle: Text(subtitle),
+    trailing: const Icon(Icons.chevron_right_rounded),
+    onTap: onTap,
+  );
+}
+
+/// Live status: notification access, enabled apps, global mode and the
+/// keep-alive service, each with a glowing LED pill.
 class _StatusCard extends ConsumerWidget {
   const _StatusCard();
 
@@ -199,6 +269,7 @@ class _StatusCard extends ConsumerWidget {
     final apps = ref.watch(messagingAppsProvider).value ?? const [];
     final enabledApps = apps.where((a) => a.enabled).length;
     final t = Theme.of(context).textTheme;
+    final hud = HudTheme.of(context);
     final listenerOn = status?.listenerEnabled ?? false;
     final serviceOn = status?.serviceRunning ?? false;
 
@@ -208,7 +279,12 @@ class _StatusCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text('Status', style: t.titleMedium)),
+              Expanded(
+                child: Text(
+                  'LIVE · ON THIS PHONE',
+                  style: hud.label(size: 11.5),
+                ),
+              ),
               StatusPill(
                 settings?.mode.label ?? '…',
                 color: AppColors.brand,
@@ -218,6 +294,7 @@ class _StatusCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           _row(
+            context,
             icon: Icons.notifications_active_outlined,
             label: 'Notification access',
             on: listenerOn,
@@ -229,6 +306,7 @@ class _StatusCard extends ConsumerWidget {
             onAction: () => requestNotificationAccess(context, ref),
           ),
           _row(
+            context,
             icon: Icons.apps,
             label: 'Apps enabled',
             on: enabledApps > 0,
@@ -237,26 +315,41 @@ class _StatusCard extends ConsumerWidget {
             action: enabledApps > 0 ? null : 'Choose',
             onAction: () => context.push(AppPaths.assistantSettings),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.bolt_outlined),
-            title: const Text('Assistant mode (keep running)'),
-            subtitle: Text(
-              serviceOn
-                  ? 'Running with a persistent notification'
-                  : 'Off — processing happens while the app is open',
-            ),
-            value: serviceOn,
-            onChanged: (settings?.killSwitch ?? false)
-                ? null
-                : (v) async {
-                    await ref
-                        .read(assistantControllerProvider)
-                        .setServiceEnabled(v);
-                    ref.invalidate(assistantDeviceStatusProvider);
-                  },
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(Icons.bolt_outlined, size: 20, color: hud.textMuted),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Assistant mode (keep running)', style: t.bodyLarge),
+                    Text(
+                      serviceOn
+                          ? 'Running with a persistent notification'
+                          : 'Off — processing happens while the app is open',
+                      style: t.bodySmall?.copyWith(color: hud.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              HudToggle(
+                value: serviceOn,
+                semanticLabel: 'Assistant mode (keep running)',
+                onChanged: (settings?.killSwitch ?? false)
+                    ? null
+                    : (v) async {
+                        await ref
+                            .read(assistantControllerProvider)
+                            .setServiceEnabled(v);
+                        ref.invalidate(assistantDeviceStatusProvider);
+                      },
+              ),
+            ],
           ),
-          if (status != null && !status.batteryUnrestricted)
+          if (status != null && !status.batteryUnrestricted) ...[
+            const SizedBox(height: AppSpacing.sm),
             NoticeBanner(
               message:
                   'Battery optimisation may stop the assistant on ColorOS.',
@@ -265,12 +358,14 @@ class _StatusCard extends ConsumerWidget {
               actionLabel: 'Fix',
               onAction: () => context.push(AppPaths.capabilities),
             ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _row({
+  Widget _row(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required bool on,
@@ -279,19 +374,22 @@ class _StatusCard extends ConsumerWidget {
     String? action,
     VoidCallback? onAction,
   }) {
+    final hud = HudTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(icon, size: 20),
+          Icon(icon, size: 20, color: hud.textMuted),
           const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text(label)),
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+          ),
           StatusPill(
             on ? onText : offText,
             color: on ? AppColors.success : AppColors.warning,
           ),
           if (action != null)
-            TextButton(onPressed: onAction, child: Text(action)),
+            HudButton.ghost(label: action, compact: true, onPressed: onAction),
         ],
       ),
     );
@@ -312,15 +410,26 @@ class _BriefingCard extends ConsumerWidget {
     BriefingKind.habits => Icons.check_circle_outline,
   };
 
+  static Color _color(BriefingKind k) => switch (k) {
+    BriefingKind.steps => AppColors.steps,
+    BriefingKind.calories => AppColors.calories,
+    BriefingKind.protein => AppColors.protein,
+    BriefingKind.water => AppColors.water,
+    BriefingKind.calendar => AppColors.cyan,
+    BriefingKind.drafts => AppColors.gold,
+    BriefingKind.unanswered => AppColors.warning,
+    BriefingKind.habits => AppColors.habit,
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lines = ref.watch(briefingLinesProvider);
-    final scheme = Theme.of(context).colorScheme;
+    final hud = HudTheme.of(context);
     final small = Theme.of(context).textTheme.bodySmall
-        ?.copyWith(color: scheme.onSurfaceVariant);
+        ?.copyWith(color: hud.textMuted);
     return AppCard(
       child: lines.when(
-        loading: () => const LoadingState(),
+        loading: () => const ScanlineLoader(lines: 3),
         error: (e, _) => const Text('Briefing unavailable right now.'),
         data: (list) => list.isEmpty
             ? const Text('Nothing to report yet.')
@@ -329,20 +438,17 @@ class _BriefingCard extends ConsumerWidget {
                 children: [
                   for (final l in list)
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.xs,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
+                          GlowIcon(
                             l.done ? Icons.check_circle : _icon(l.kind),
                             size: 18,
-                            color: l.done
-                                ? AppColors.success
-                                : scheme.onSurfaceVariant,
+                            color: l.done ? AppColors.success : _color(l.kind),
+                            glow: l.done ? 1 : 0.4,
                           ),
-                          const SizedBox(width: AppSpacing.sm),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,31 +568,45 @@ class _ConversationCardState extends ConsumerState<_ConversationCard> {
   Widget build(BuildContext context) {
     final latest = widget.rows.first;
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = HudTheme.of(context);
     final killed =
         ref.watch(assistantSettingsProvider).value?.killSwitch ?? false;
+    final title = latest.conversationTitle ?? latest.sender ?? 'Unknown';
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              InitialsAvatar(
+                name: title,
+                seed: latest.packageName,
+                size: 34,
+                badge: widget.appLabel,
+              ),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  latest.conversationTitle ?? latest.sender ?? 'Unknown',
-                  style: t.titleSmall,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: t.titleSmall),
+                    Text(
+                      '${widget.appLabel} · '
+                              '${Fmt.ago(latest.postedAt, widget.now)}'
+                          .toUpperCase(),
+                      style: hud.mono(size: 10),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '${widget.appLabel} · ${Fmt.ago(latest.postedAt, widget.now)}',
-                style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+              if (latest.status == CaptureStatus.replied)
+                const StatusPill('Replied', color: AppColors.success),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           for (final r in widget.rows.take(3).toList().reversed)
             Padding(
-              padding: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.only(bottom: 3),
               child: Text(
                 '${r.isGroup && r.sender != null ? '${r.sender}: ' : ''}'
                 '${r.body}',
@@ -495,29 +615,39 @@ class _ConversationCardState extends ConsumerState<_ConversationCard> {
               ),
             ),
           if (_summary != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: AppSpacing.xs),
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: hud.accent.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
               child: Text(
                 _summary!,
-                style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                style: t.bodySmall?.copyWith(color: hud.textMuted),
               ),
             ),
+          const SizedBox(height: AppSpacing.xs),
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              if (latest.status == CaptureStatus.replied)
-                const StatusPill('Replied', color: AppColors.success),
-              const Spacer(),
-              TextButton(
+              HudButton.ghost(
+                label: 'Summarize',
+                icon: Icons.short_text_rounded,
+                compact: true,
+                loading: _busy,
                 onPressed: _busy ? null : _summarize,
-                child: const Text('Summarize'),
               ),
-              TextButton(
+              HudButton.secondary(
+                label: 'Draft',
+                icon: Icons.edit_note_rounded,
+                compact: true,
                 onPressed: killed
                     ? null
                     : () => ref
                           .read(replyServiceProvider)
                           .createManualDraft(latest.id),
-                child: const Text('Draft'),
               ),
             ],
           ),

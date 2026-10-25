@@ -46,6 +46,7 @@ class AiMemoryScreen extends ConsumerWidget {
     final repo = ref.read(coachRepositoryProvider);
     return AppPage(
       title: 'Coach memory',
+      eyebrow: 'JARVIS · LONG-TERM MEMORY',
       subtitle:
           'Only approved memories are shared with the coach (most recent '
           '$maxPromptMemories).',
@@ -73,28 +74,53 @@ class AiMemoryScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _categoryLabel(m.category),
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(m.content),
-                        const SizedBox(height: AppSpacing.sm),
-                        Wrap(
-                          spacing: AppSpacing.sm,
+                        Row(
                           children: [
-                            FilledButton(
-                              onPressed: () =>
-                                  repo.setMemoryApproved(m.id, true),
-                              child: const Text('Approve'),
+                            const GlowIcon(
+                              Icons.psychology_alt_outlined,
+                              color: AppColors.warning,
+                              size: 16,
                             ),
-                            OutlinedButton(
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              'PROPOSED · ${_categoryLabel(m.category)}'
+                                  .toUpperCase(),
+                              style: HudTheme.of(context)
+                                  .label(size: 11, color: AppColors.warning),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          m.content,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Row(
+                          children: [
+                            HudButton(
+                              label: 'Approve',
+                              icon: Icons.check_rounded,
+                              compact: true,
+                              onPressed: () {
+                                Haptics.success();
+                                repo.setMemoryApproved(m.id, true);
+                              },
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            HudButton.secondary(
+                              label: 'Edit',
+                              compact: true,
                               onPressed: () => _edit(context, ref, memory: m),
-                              child: const Text('Edit'),
                             ),
-                            TextButton(
-                              onPressed: () => repo.deleteMemory(m.id),
-                              child: const Text('Reject'),
+                            const SizedBox(width: AppSpacing.xs),
+                            HudButton.ghost(
+                              label: 'Reject',
+                              compact: true,
+                              onPressed: () {
+                                Haptics.heavy();
+                                repo.deleteMemory(m.id);
+                              },
                             ),
                           ],
                         ),
@@ -120,6 +146,12 @@ class AiMemoryScreen extends ConsumerWidget {
                     children: [
                       for (final m in approved.where((m) => m.category == c))
                         ListTile(
+                          leading: GlowIcon(
+                            m.origin == 'ai_suggested'
+                                ? Icons.auto_awesome_rounded
+                                : Icons.bookmark_outline_rounded,
+                            size: 18,
+                          ),
                           title: Text(m.content),
                           subtitle: m.origin == 'ai_suggested'
                               ? const Text('Suggested by coach · approved')

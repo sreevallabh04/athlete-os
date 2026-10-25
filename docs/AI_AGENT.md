@@ -9,7 +9,7 @@ a question needs are sent, and only after the user consents.
  ┌──────────────────────── Android app (Flutter) ────────────────────────┐
  │ CoachScreen ─▶ CoachController (Notifier, agent loop, ≤6 tool rounds) │
  │                  │  system prompt (date/tz, profile, ≤20 memories)    │
- │                  │  tool schemas (22+)            ▲ tool_result blocks│
+ │                  │  routed tools (≤8 of 23)       ▲ tool_result blocks│
  │                  ▼                                │                    │
  │        AiBackendClient ──────────────┐   ToolExecutor ── Drift (local) │
  │   (Supabase impl / Unconfigured)     │   validate → consent → confirm  │
@@ -30,8 +30,11 @@ a question needs are sent, and only after the user consents.
 
 1. User sends a message → persisted to `ai_messages` (role `user`).
 2. `CoachController` builds the request: system prompt, the last ≤40 messages
-   (≤150 KB, never starting on an orphaned tool result), all tool schemas,
-   preferences, and a fresh `request_id`.
+   within a **12 000-char history budget** (never starting on an orphaned
+   tool result; large tool results of *earlier* turns are replaced by a
+   stub), the **routed tool subset** (≤ 8 schemas, see *Speed* below),
+   preferences, and a fresh `request_id`. The whole call has a client-side
+   ceiling of `min(timeout_ms, 45 s) + 15 s`.
 3. `ai-chat` returns `{content:[text|tool_call|opaque], stop_reason, usage,
    provider, model, request_id, meta}`. The assistant turn is persisted with
    provider/model/token counts.
@@ -47,12 +50,109 @@ a question needs are sent, and only after the user consents.
 5. Results are sent back as a user turn of `tool_result` blocks; loop until
    the model answers with text, at most **6 tool rounds** and a 3-minute turn
    budget (time spent on cards excluded). Cancel closes unanswered calls.
-6. Errors show a banner; **Retry re-sends the same `request_id`**, so the server
-   returns its cached response (24 h) instead of paying twice.
+6. Errors show a red *link fault* card; **Retry re-sends the same
+   `request_id`**, so the server returns its cached response (24 h) instead
+   of paying twice. For timeouts/upstream faults the card also offers
+   **Try Groq (fast)**: the same turn re-sent with a new request id and
+   `primary_provider: groq` (possible because routed requests fit Groq's
+   free-tier 8 K tokens/minute).
 
 When the build has no `SUPABASE_URL`/`SUPABASE_ANON_KEY`, or the user isn't
 signed in, `UnconfiguredAiBackend`/`AiBackendState.signedOut` is used: the coach
-shows a setup banner and **never fabricates an answer**.
+shows an honest *AI backend not configured* card and `OFFLINE · NO BACKEND`
+status, **never fabricates an answer**, and still runs the local briefings.
+
+## Speed: tool routing and request budget
+
+Sending all 23 tool schemas cost ≈ 4 K tokens per call before any history,
+so a few turns pushed requests past Groq's free-tier 8 K tokens/minute (413
+→ no fallback) and slowed Gemini. `lib/features/coach/agent/tool_router.dart`
+now picks tools deterministically per user message:
+
+* **Core set, always sent:** `get_today_dashboard`, `get_profile_and_goals`.
+* **Categories by keyword** (word-start stems, short words must match
+  whole words): nutrition, hydration, activity, training, schedule, life,
+  competition, review, memory. Matched categories are merged round-robin
+  (most hits first) so every category keeps its primary tool.
+* **Follow-ups** without keywords ("and yesterday?") reuse the tools the
+  conversation called most recently; otherwise a general daily-overview set.
+* **Cap: 8 tools.**
+* **Missing tool:** if the model calls a registered tool it was not given,
+  the call still runs locally and the rest of the turn is widened to the
+  full catalogue; an unknown name becomes a normal `is_error` result.
+* The system prompt was tightened (same safety rules, ≈ 600 tokens incl.
+  the JARVIS persona) and asks for a one-sentence lead so answers can be
+  read aloud.
+
+Measured by `test/features/coach/tool_router_test.dart` (estimate = UTF-8
+bytes ÷ 3.3, conservative for JSON; printed by the test):
+
+| Request ("How much protein do I have left today?") | System | Tools | History | Total |
+|---|---|---|---|---|
+| Before: 23 tools + 5 earlier turns, uncompacted | 594 | 3 975 | 4 773 | **≈ 9 340** |
+| After: 6 routed tools + compacted history | 594 | 1 333 | 965 | **≈ 2 890** (−69 %) |
+| After: first message of a session | 594 | 1 333 | 29 | **≈ 1 960** |
+
+The test asserts ≤ 6 000 tokens for a typical multi-turn request and
+≤ 3 000 for a first message. `CoachState.lastRequest` keeps the estimate of
+the latest call for debugging.
+
+### Perceived latency
+
+Gemini 3.x can take 20–25 s on a first tool call. The Coach makes the wait
+intentional: the orb switches to *thinking* the moment you send (before any
+IO), a live `Consulting Gemini · 00:07` subsystem line counts up, tool calls
+appear as named subsystems ("Scanning nutrition log · Oct 26", "Reading
+Health Connect"), and after 8 s a line explains that deep reasoning is in
+progress. Answers then reveal word by word (tap to skip).
+
+## Coach UI (JARVIS)
+
+`lib/features/coach/presentation/coach_screen.dart`:
+
+* **Status line** (`deriveCoachLink`, unit-tested): `OFFLINE · NO BACKEND`,
+  `STANDBY · SIGNING IN`, `LINKING`, `ONLINE · GEMINI · 2.4 S` (provider of
+  the latest answer + latency), `FALLBACK · GROQ` (`meta.fallback_used`, or
+  ai-status shows the primary unhealthy), `DEGRADED · LINK TIMEOUT` after a
+  fault. While voice is active it shows `LISTENING…` / `SPEAKING…`.
+* **Core orb** (`JarvisCore` = shared `JarvisOrb` + halo): idle reticle,
+  listening ring driven by the real mic level, thinking scanner, speaking
+  arc + per-word ripples. Large and centred on an empty session; glides
+  into the header once a session starts. Tap = talk / stop speaking,
+  hold = push-to-talk.
+* **Transcript**: user lines as right-aligned glass; JARVIS replies on a
+  luminous rule with word-by-word reveal, source tags and a read-aloud
+  button; consecutive tool calls grouped as a subsystem trace; redesigned
+  authorisation (Approve / Edit / Reject) and privacy (Allow / Not now)
+  cards with haptics; red link-fault card with Retry / Try Groq / Settings.
+* **Quick commands** (`quickCommands`, deterministic, unit-tested): time of
+  day picks *Brief me* (04–16 h) or *Review my day*; data-aware entries
+  appear only when the data exists (protein target, steps below goal, water
+  below goal, a planned session, pending drafts, an upcoming competition).
+* **History** slides in from the left (swipe a session to delete).
+* **Systems** sheet: Voice, Coach memory, AI activity log, AI settings.
+* Haptics on every state change (consulting/tools/briefing → selection,
+  approval card → medium, answer → success, fault → warning).
+
+## Briefings ("Brief me", "Review my day")
+
+`lib/features/coach/agent/briefing.dart`. Deterministic text from local
+data — the assistant's `BriefingService` lines (steps vs goal, calories,
+protein, water, calendar, drafts awaiting approval, unanswered messages,
+habits), today's planned session (`plannedSessionProvider`), the routine's
+next blocks, and (evening) tomorrow's session. Unknown data is reported as
+unknown, never as zero. Works offline and without AI consent.
+
+When the backend is ready **and** health data may be shared with AI, the
+text is rephrased once by `AiTextService.complete` (no tools, 700 tokens,
+25 s cap) with a prompt that forbids new facts and requires every number to
+be kept; on any failure the deterministic text stays. Briefing rows are
+stored with role `briefing`, rendered in a HUD frame with *Local data* /
+*AI-polished* tags, and **never sent to a model** (`toWireMessages` skips
+non-`user/assistant/tool` roles). Voice shortcuts: saying "Brief me" or
+"Review my day" runs them without a model call.
+
+Voice input/output is documented in [VOICE.md](VOICE.md).
 
 ### Wire contract (normalised)
 
@@ -146,8 +246,9 @@ cost is an upper bound (what it would cost on a paid tier).
 * Groq free tier: 30 RPM, 1 K requests/day, **8 K tokens/minute** for the
   gpt-oss models. A full coach turn (system prompt + 22 tool schemas +
   history) can exceed 8 K tokens; Groq then answers 413 and the request fails
-  over/out cleanly (`upstream_error`, "too large for groq"). Upgrade the Groq
-  tier if Groq must carry full coach turns.
+  over/out cleanly (`upstream_error`, "too large for groq"). Since tool
+  routing (see *Speed*), typical coach requests are ≈ 2–3 K tokens and fit;
+  upgrade the Groq tier only if it must carry many requests per minute.
 
 ## Tool catalogue
 

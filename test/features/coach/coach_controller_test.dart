@@ -61,7 +61,12 @@ void main() {
 
     expect(backend.requests, hasLength(2));
     final first = backend.requests.first;
-    expect(first.tools.map((t) => t['name']), contains('log_food'));
+    // Tool routing: the competition tool plus the always-on core set.
+    expect(
+      first.tools.map((t) => t['name']),
+      containsAll(['get_competition_countdown', 'get_today_dashboard']),
+    );
+    expect(first.tools.length, lessThanOrEqualTo(8));
     expect(first.messages.last['role'], 'user');
     expect(first.system, contains('2026-10-25'));
     final results = toolResults(backend.requests[1]);

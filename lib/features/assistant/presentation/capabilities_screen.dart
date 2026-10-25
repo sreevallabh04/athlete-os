@@ -39,9 +39,26 @@ class CapabilitiesScreen extends ConsumerWidget {
           'What the app can do on this phone, why, and how to turn it '
           'off.',
       onRefresh: () async => ref.invalidate(assistantDeviceStatusProvider),
+      eyebrow: 'SYSTEMS · STATUS MATRIX',
       children: [
         const KillSwitchCard(),
         const SizedBox(height: AppSpacing.md),
+        _StatusMatrix(
+          loading: status.isLoading,
+          cells: [
+            ('Notification access', s?.listenerEnabled),
+            ('Reply actions', s?.listenerConnected),
+            ('Post notifications', s?.notificationsEnabled),
+            ('Exact alarms', s?.exactAlarms),
+            ('Battery exempt', s?.batteryUnrestricted),
+            ('Keep-alive service', s?.serviceRunning),
+          ],
+          onRun: () {
+            Haptics.medium();
+            ref.invalidate(assistantDeviceStatusProvider);
+          },
+        ),
+        const SectionHeader('Details'),
         ...spaced([
           _CapabilityCard(
             icon: Icons.notifications_active_outlined,
@@ -259,6 +276,135 @@ class CapabilitiesScreen extends ConsumerWidget {
   }
 }
 
+/// Live checks as a grid of LEDs: green = ready, amber = needs action,
+/// dim = unknown on this device.
+class _StatusMatrix extends StatelessWidget {
+  const _StatusMatrix({
+    required this.cells,
+    required this.loading,
+    required this.onRun,
+  });
+
+  final List<(String, bool?)> cells;
+  final bool loading;
+  final VoidCallback onRun;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final ready = cells.where((c) => c.$2 == true).length;
+    return HudFrame(
+      tag: 'LIVE·CHECKS',
+      inset: -3,
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                AnimatedTicker(
+                  '$ready/${cells.length}',
+                  style: hud.number(size: 30),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text('SUBSYSTEMS READY', style: hud.label(size: 11.5)),
+                ),
+                HudButton.secondary(
+                  label: loading ? 'Scanning' : 'Run checks',
+                  icon: Icons.radar_rounded,
+                  compact: true,
+                  loading: loading,
+                  onPressed: loading ? null : onRun,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (loading)
+              const ScanlineLoader(height: 96, lines: 0)
+            else
+              LayoutBuilder(
+                builder: (context, box) {
+                  final w = (box.maxWidth - AppSpacing.sm) / 2;
+                  return Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      for (var i = 0; i < cells.length; i++)
+                        SizedBox(
+                          width: w,
+                          child: Entrance(
+                            delay: Duration(milliseconds: 40 * i),
+                            child: _Led(label: cells[i].$1, ok: cells[i].$2),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Led extends StatelessWidget {
+  const _Led({required this.label, required this.ok});
+  final String label;
+  final bool? ok;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final c = ok == null
+        ? hud.textMuted
+        : ok!
+        ? AppColors.success
+        : AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        color: c.withValues(alpha: ok == null ? 0.04 : 0.08),
+        border: Border.all(color: c.withValues(alpha: ok == null ? 0.15 : 0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: c,
+              boxShadow: ok == null
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: c.withValues(alpha: 0.8 * hud.glowStrength),
+                        blurRadius: 6,
+                      ),
+                    ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: hud.label(
+                size: 10,
+                color: hud.text.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CapabilityCard extends StatelessWidget {
   const _CapabilityCard({
     required this.icon,
@@ -289,8 +435,20 @@ class _CapabilityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final muted = t.bodySmall?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final hud = HudTheme.of(context);
+    final muted = t.bodySmall?.copyWith(color: hud.textMuted, height: 1.4);
+    final c = ok == null
+        ? AppColors.info
+        : (ok! ? AppColors.success : AppColors.warning);
+    Widget labelled(String label, String text) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 64, child: Text(label, style: hud.label(size: 10.5))),
+          Expanded(child: Text(text, style: muted)),
+        ],
+      ),
     );
     return AppCard(
       child: Column(
@@ -298,39 +456,34 @@ class _CapabilityCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon),
-              const SizedBox(width: AppSpacing.sm),
+              GlowIcon(icon, size: 18, framed: true, color: c),
+              const SizedBox(width: AppSpacing.md),
               Expanded(child: Text(title, style: t.titleSmall)),
-              if (status != null)
-                StatusPill(
-                  status!,
-                  color: ok == null
-                      ? AppColors.info
-                      : (ok! ? AppColors.success : AppColors.warning),
-                ),
+              if (status != null) StatusPill(status!, color: c),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(what),
-          const SizedBox(height: AppSpacing.xs),
-          Text('Why: $why', style: muted),
-          const SizedBox(height: AppSpacing.xs),
-          Text('Revoke: $revoke', style: muted),
+          Text(what, style: t.bodyMedium),
+          labelled('WHY', why),
+          labelled('REVOKE', revoke),
           if (actionLabel != null || secondaryLabel != null)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              padding: const EdgeInsets.only(top: AppSpacing.md),
               child: Wrap(
                 spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
                 children: [
                   if (actionLabel != null)
-                    FilledButton.tonal(
+                    HudButton.secondary(
+                      label: actionLabel!,
+                      compact: true,
                       onPressed: onAction,
-                      child: Text(actionLabel!),
                     ),
                   if (secondaryLabel != null)
-                    TextButton(
+                    HudButton.ghost(
+                      label: secondaryLabel!,
+                      compact: true,
                       onPressed: onSecondary,
-                      child: Text(secondaryLabel!),
                     ),
                 ],
               ),

@@ -1,4 +1,5 @@
 import 'package:athlete_os/core/theme/app_theme.dart';
+import 'package:athlete_os/core/widgets/widgets.dart';
 import 'package:athlete_os/data/db/database.dart';
 import 'package:athlete_os/features/assistant/application/providers.dart';
 import 'package:athlete_os/features/assistant/data/fake_assistant_platform.dart';
@@ -63,10 +64,11 @@ void main() {
       tester,
       () => find.text('Allow notification access?').evaluate().isNotEmpty,
     );
+    await tester.pump(const Duration(milliseconds: 700)); // sheet springs in
     expect(fake.openListenerSettingsCalls, 0);
     expect(find.textContaining('ONLY from the messaging'), findsOneWidget);
     await tester.tap(find.text('Not now'));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 600));
     expect(fake.openListenerSettingsCalls, 0);
 
     // Continuing opens it exactly once.
@@ -75,6 +77,7 @@ void main() {
       tester,
       () => find.text('Open settings').evaluate().isNotEmpty,
     );
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.tap(find.text('Open settings'));
     await pumpUntil(tester, () => fake.openListenerSettingsCalls == 1);
     expect(fake.openListenerSettingsCalls, 1);
@@ -102,7 +105,7 @@ void main() {
     expect(find.text('Needs your reply'), findsOneWidget);
     expect(fake.sendCalls, isEmpty);
 
-    final send = find.widgetWithText(FilledButton, 'Send');
+    final send = find.widgetWithText(HudButton, 'Send');
     expect(send, findsOneWidget);
     await tester.tap(send);
     await pumpUntil(tester, () => fake.sendCalls.isNotEmpty);
@@ -181,6 +184,7 @@ void main() {
       tester,
       () => find.text('Stop battery optimisation?').evaluate().isNotEmpty,
     );
+    await tester.pump(const Duration(milliseconds: 700));
     expect(fake.requestBatteryCalls, 0);
     await tester.tap(find.text('Open settings'));
     await pumpUntil(tester, () => fake.requestBatteryCalls == 1);

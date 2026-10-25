@@ -11,11 +11,14 @@ import '../../../data/repositories/integration_status_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
 import '../data/ai_backend.dart';
 import '../data/ai_preferences.dart';
+import '../data/ai_text_service.dart';
 import '../data/coach_repository.dart';
 import '../tools/tool_executor.dart';
 import '../tools/tool_registry.dart';
 import '../tools/tool_spec.dart';
+import 'briefing.dart';
 import 'system_prompt.dart';
+import 'tool_router.dart';
 
 /// Maximum model rounds that may request tools within one user turn.
 const maxToolRounds = 6;
@@ -26,6 +29,19 @@ const turnTimeout = Duration(minutes: 3);
 
 /// Messages of history sent per request (newest kept).
 const maxHistoryMessages = 40;
+
+/// History budget per request (UTF-8 chars of the wire messages). Together
+/// with tool routing this keeps a typical request under ~6 K tokens so
+/// Groq's free tier (8 K tokens/minute) can carry the fallback.
+const historyCharBudget = 12000;
+
+/// Client-side ceiling on top of the server deadline (at most 45 s): the
+/// turn fails with a retryable "timeout" instead of hanging.
+Duration clientTimeoutFor(int timeoutMs) =>
+    Duration(milliseconds: (timeoutMs < 45000 ? timeoutMs : 45000) + 15000);
+
+/// Local-only conversation rows (briefings). Never sent to a model.
+const localRole = 'briefing';
 
 // ---------------------------------------------------------------------------
 // Display model
@@ -47,6 +63,21 @@ class AssistantTextEntry extends ChatEntry {
   /// Provenance sources of the tool results this answer was based on.
   final List<String> sources;
   final String? model;
+}
+
+/// A deterministic briefing (or evening review) rendered locally; optionally
+/// rephrased by AI. Stored with role [localRole], never sent to a model.
+class BriefingEntry extends ChatEntry {
+  const BriefingEntry(
+    this.text, {
+    this.mode = 'morning',
+    this.polished = false,
+  });
+  final String text;
+
+  /// morning | evening
+  final String mode;
+  final bool polished;
 }
 
 enum ToolChipStatus { running, ok, error, pending, rejected, consent }
@@ -88,6 +119,20 @@ class PendingAction {
   bool get isConsent => consent != null;
 }
 
+/// What the agent is doing right now (drives the orb and subsystem chips).
+enum CoachPhase {
+  idle,
+
+  /// Waiting for the model (optimistic "Consulting" UI).
+  consulting,
+
+  /// Running local tools.
+  tools,
+
+  /// Compiling a deterministic briefing.
+  briefing,
+}
+
 class CoachState {
   const CoachState({
     this.conversationId,
@@ -97,6 +142,15 @@ class CoachState {
     this.error,
     this.pending,
     this.notice,
+    this.phase = CoachPhase.idle,
+    this.phaseSince,
+    this.lastProvider,
+    this.lastModel,
+    this.fallbackUsed = false,
+    this.lastLatency,
+    this.lastRequest,
+    this.voiceTurn = false,
+    this.replySerial = 0,
   });
 
   final String? conversationId;
@@ -106,6 +160,26 @@ class CoachState {
   final AiBackendException? error;
   final PendingAction? pending;
   final String? notice;
+  final CoachPhase phase;
+  final DateTime? phaseSince;
+
+  /// Provider/model of the latest model response (null until one arrives).
+  final String? lastProvider;
+  final String? lastModel;
+
+  /// True when the latest response came from a fallback provider.
+  final bool fallbackUsed;
+  final Duration? lastLatency;
+
+  /// Estimated size of the latest request (tool-routing telemetry).
+  final RequestSize? lastRequest;
+
+  /// The current turn was started by voice (its reply is spoken).
+  final bool voiceTurn;
+
+  /// Increments whenever a final answer or briefing lands, so the UI can
+  /// speak/announce it exactly once.
+  final int replySerial;
 
   bool get canRetry => error != null && error!.retryable;
 
@@ -117,6 +191,15 @@ class CoachState {
     AiBackendException? Function()? error,
     PendingAction? Function()? pending,
     String? Function()? notice,
+    CoachPhase? phase,
+    DateTime? phaseSince,
+    String? lastProvider,
+    String? lastModel,
+    bool? fallbackUsed,
+    Duration? lastLatency,
+    RequestSize? lastRequest,
+    bool? voiceTurn,
+    int? replySerial,
   }) => CoachState(
     conversationId: conversationId != null
         ? conversationId()
@@ -127,6 +210,15 @@ class CoachState {
     error: error != null ? error() : this.error,
     pending: pending != null ? pending() : this.pending,
     notice: notice != null ? notice() : this.notice,
+    phase: phase ?? this.phase,
+    phaseSince: phaseSince ?? this.phaseSince,
+    lastProvider: lastProvider ?? this.lastProvider,
+    lastModel: lastModel ?? this.lastModel,
+    fallbackUsed: fallbackUsed ?? this.fallbackUsed,
+    lastLatency: lastLatency ?? this.lastLatency,
+    lastRequest: lastRequest ?? this.lastRequest,
+    voiceTurn: voiceTurn ?? this.voiceTurn,
+    replySerial: replySerial ?? this.replySerial,
   );
 }
 
@@ -161,10 +253,37 @@ List<Map<String, Object?>> toWireMessages(
   List<AiMessage> rows, {
   int maxMessages = maxHistoryMessages,
   int maxChars = 150000,
+  bool compactOldToolResults = false,
 }) {
   final out = <Map<String, Object?>>[];
-  for (final r in rows) {
-    final blocks = decodeBlocks(r.contentJson);
+  // Results of earlier turns were already used by the model; big ones are
+  // replaced with a stub (it can call the tool again for fresh numbers).
+  var lastUserText = -1;
+  if (compactOldToolResults) {
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (rows[i].role == 'user' &&
+          decodeBlocks(rows[i].contentJson).any((b) => b['type'] == 'text')) {
+        lastUserText = i;
+        break;
+      }
+    }
+  }
+  for (var ri = 0; ri < rows.length; ri++) {
+    final r = rows[ri];
+    if (r.role != 'user' && r.role != 'assistant' && r.role != 'tool') {
+      continue; // local-only rows (briefings) never reach a model
+    }
+    var blocks = decodeBlocks(r.contentJson);
+    if (compactOldToolResults && ri < lastUserText && r.role == 'tool') {
+      blocks = [
+        for (final b in blocks)
+          if (b['type'] == 'tool_result' &&
+              (b['content'] as String? ?? '').length > 400)
+            {...b, 'content': trimmedToolResult}
+          else
+            b,
+      ];
+    }
     if (blocks.isEmpty) continue;
     final role = r.role == 'assistant' ? 'assistant' : 'user';
     if (out.isNotEmpty && out.last['role'] == role) {
@@ -222,6 +341,27 @@ List<Map<String, Object?>> toWireMessages(
   return cleaned;
 }
 
+/// Stub that replaces large tool results of earlier turns on the wire.
+const trimmedToolResult =
+    '{"note":"Earlier result trimmed to save tokens; call the tool again '
+    'if you need these numbers."}';
+
+/// Tool names called in [rows], newest first, without duplicates.
+List<String> recentToolNames(List<AiMessage> rows, {int max = 4}) {
+  final out = <String>[];
+  for (final r in rows.reversed) {
+    if (r.role != 'assistant') continue;
+    for (final b in decodeBlocks(r.contentJson).reversed) {
+      final n = b['name'];
+      if (b['type'] == 'tool_call' && n is String && !out.contains(n)) {
+        out.add(n);
+        if (out.length >= max) return out;
+      }
+    }
+  }
+  return out;
+}
+
 /// Builds the display list from persisted messages.
 List<ChatEntry> buildEntries(
   List<AiMessage> rows,
@@ -241,6 +381,20 @@ List<ChatEntry> buildEntries(
   for (final r in rows) {
     final blocks = decodeBlocks(r.contentJson);
     switch (r.role) {
+      case localRole:
+        for (final b in blocks) {
+          final text = (b['text'] as String? ?? '').trim();
+          if (text.isEmpty) continue;
+          entries.add(
+            b['from'] == 'user'
+                ? UserTextEntry(text)
+                : BriefingEntry(
+                    text,
+                    mode: b['mode'] as String? ?? 'morning',
+                    polished: b['polished'] == true,
+                  ),
+          );
+        }
       case 'user':
         sources = <String>{};
         final text = blocks
@@ -336,6 +490,16 @@ class CoachController extends Notifier<CoachState> {
   DateTime? _deadline;
   bool _reportedConnected = false;
 
+  /// Tools routed for the current turn (null = not routed yet).
+  ToolRoute? _route;
+
+  /// The model asked for a tool it was not given: send the full catalogue
+  /// for the rest of this turn.
+  bool _widened = false;
+
+  /// One-shot provider override for a "fast retry" (Groq).
+  String? _primaryOverride;
+
   @override
   CoachState build() => const CoachState();
 
@@ -343,20 +507,39 @@ class CoachController extends Notifier<CoachState> {
   ToolExecutor get _executor => ref.read(toolExecutorProvider);
   Clock get _clock => ref.read(clockProvider);
 
+  /// Fresh state that keeps the link telemetry (provider, latency).
+  CoachState _blank({String? conversationId, List<ChatEntry>? entries}) =>
+      CoachState(
+        conversationId: conversationId,
+        entries: entries ?? const [],
+        lastProvider: state.lastProvider,
+        lastModel: state.lastModel,
+        fallbackUsed: state.fallbackUsed,
+        lastLatency: state.lastLatency,
+        lastRequest: state.lastRequest,
+        replySerial: state.replySerial,
+      );
+
+  void _resetTurn() {
+    _batch = null;
+    _requestId = null;
+    _route = null;
+    _widened = false;
+    _primaryOverride = null;
+  }
+
   /// Starts a fresh chat (the conversation row is created on first send).
   void newConversation() {
     _generation++;
-    _batch = null;
-    _requestId = null;
-    state = const CoachState();
+    _resetTurn();
+    state = _blank();
   }
 
   Future<void> openConversation(String id) async {
     _generation++;
-    _batch = null;
-    _requestId = null;
+    _resetTurn();
     final rows = await _repo.messages(id);
-    state = CoachState(
+    state = _blank(
       conversationId: id,
       entries: buildEntries(rows, _clock.now()),
     );
@@ -402,7 +585,29 @@ class CoachController extends Notifier<CoachState> {
     );
   }
 
-  Future<void> send(String text) async {
+  void _setPhase(CoachPhase phase, {String? status}) {
+    state = state.copyWith(
+      phase: phase,
+      phaseSince: _clock.now(),
+      busy: phase != CoachPhase.idle,
+      statusText: () => status,
+    );
+  }
+
+  Future<String> _ensureConversation(String title) async {
+    var id = state.conversationId;
+    if (id == null) {
+      id = await _repo.createConversation(
+        title: title.length > 60 ? '${title.substring(0, 60)}…' : title,
+      );
+      state = state.copyWith(conversationId: () => id);
+    }
+    return id;
+  }
+
+  /// Sends a user message and runs the agent loop. [viaVoice] marks the
+  /// turn as spoken so the UI can read the answer aloud.
+  Future<void> send(String text, {bool viaVoice = false}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy || state.pending != null) return;
     final backend = ref.read(aiBackendClientProvider);
@@ -418,31 +623,40 @@ class CoachController extends Notifier<CoachState> {
     final message = trimmed.length > 4000
         ? trimmed.substring(0, 4000)
         : trimmed;
-    var id = state.conversationId;
-    if (id == null) {
-      id = await _repo.createConversation(
-        title: message.length > 60 ? '${message.substring(0, 60)}…' : message,
-      );
-      state = state.copyWith(conversationId: () => id);
-    }
+    // Optimistic: the orb starts thinking before any IO.
+    _resetTurn();
+    state = state.copyWith(
+      error: () => null,
+      notice: () => null,
+      voiceTurn: viaVoice,
+    );
+    _setPhase(CoachPhase.consulting, status: 'Consulting…');
+    final id = await _ensureConversation(message);
     await _repo.addMessage(id, 'user', [
       {'type': 'text', 'text': message},
     ]);
+    final rows = await _repo.messages(id);
+    _route = routeTools(message, recentTools: recentToolNames(rows));
     _rounds = 0;
-    _requestId = null;
     _deadline = _clock.now().add(turnTimeout);
-    state = state.copyWith(error: () => null, notice: () => null);
     await _reload();
     await _callModel(_generation);
   }
 
   /// Retries the failed model call with the SAME request id, so the server
   /// can return its cached response rather than charging twice.
-  Future<void> retry() async {
+  ///
+  /// With [fast], the call is re-sent (new request id) with Groq as the
+  /// primary provider — the routed request is small enough for its tier.
+  Future<void> retry({bool fast = false}) async {
     if (state.busy || state.error == null || state.conversationId == null) {
       return;
     }
     _deadline = _clock.now().add(turnTimeout);
+    if (fast) {
+      _primaryOverride = 'groq';
+      _requestId = null;
+    }
     state = state.copyWith(error: () => null);
     if (_batch != null) {
       await _processBatch(_generation);
@@ -476,6 +690,7 @@ class CoachController extends Notifier<CoachState> {
     }
     state = state.copyWith(
       busy: false,
+      phase: CoachPhase.idle,
       statusText: () => null,
       pending: () => null,
       notice: () => 'Stopped.',
@@ -483,49 +698,81 @@ class CoachController extends Notifier<CoachState> {
     await _reload();
   }
 
+  List<ToolSpec> get _turnTools =>
+      _widened || _route == null ? coachTools : _route!.specs;
+
   Future<void> _callModel(int gen) async {
     final id = state.conversationId!;
     final backend = ref.read(aiBackendClientProvider);
     final settings = ref.read(settingsRepositoryProvider);
     final db = ref.read(databaseProvider);
     _requestId ??= newId();
-    state = state.copyWith(busy: true, statusText: () => 'Thinking…');
+    _setPhase(CoachPhase.consulting, status: 'Consulting…');
+    final started = DateTime.now();
     AiChatResponse resp;
     try {
-      final prefs = await ref.read(aiPreferencesRepositoryProvider).load();
+      var prefs = await ref.read(aiPreferencesRepositoryProvider).load();
+      if (_primaryOverride != null) {
+        prefs = prefs.copyWith(
+          primaryProvider: () => _primaryOverride,
+          model: () => null,
+        );
+      }
       final inputs = await loadSystemPromptInputs(db, settings, _clock.now());
       final rows = await _repo.messages(id);
-      resp = await backend.chat(
-        AiChatRequest(
-          requestId: _requestId!,
-          conversationId: id,
-          system: buildSystemPrompt(inputs),
-          messages: toWireMessages(rows),
-          tools: [for (final t in coachTools) t.toWire()],
-          preferences: prefs,
+      final system = buildSystemPrompt(inputs);
+      final messages = toWireMessages(
+        rows,
+        maxChars: historyCharBudget,
+        compactOldToolResults: true,
+      );
+      final tools = [for (final t in _turnTools) t.toWire()];
+      state = state.copyWith(
+        lastRequest: RequestSize.of(
+          system: system,
+          tools: tools,
+          messages: messages,
         ),
       );
+      resp = await backend
+          .chat(
+            AiChatRequest(
+              requestId: _requestId!,
+              conversationId: id,
+              system: system,
+              messages: messages,
+              tools: tools,
+              preferences: prefs,
+            ),
+          )
+          .timeout(clientTimeoutFor(prefs.timeoutMs));
     } on AiBackendException catch (e) {
       if (gen != _generation || !ref.mounted) return;
-      state = state.copyWith(
-        busy: false,
-        statusText: () => null,
-        error: () => e,
+      _fail(e);
+      return;
+    } on TimeoutException {
+      if (gen != _generation || !ref.mounted) return;
+      _fail(
+        const AiBackendException(
+          'timeout',
+          'The AI link timed out. Retry, or switch to the fast provider.',
+        ),
       );
       return;
     } catch (e) {
       if (gen != _generation || !ref.mounted) return;
-      state = state.copyWith(
-        busy: false,
-        statusText: () => null,
-        error: () =>
-            AiBackendException('internal', ToolExecutor.safeErrorMessage(e)),
-      );
+      _fail(AiBackendException('internal', ToolExecutor.safeErrorMessage(e)));
       return;
     }
     if (gen != _generation || !ref.mounted) return;
     _requestId = null;
     _markConnected();
+    state = state.copyWith(
+      lastProvider: resp.provider,
+      lastModel: resp.model,
+      fallbackUsed: resp.meta['fallback_used'] == true,
+      lastLatency: DateTime.now().difference(started),
+    );
     await _repo.addMessage(
       id,
       'assistant',
@@ -539,6 +786,7 @@ class CoachController extends Notifier<CoachState> {
     if (calls.isEmpty) {
       state = state.copyWith(
         busy: false,
+        phase: CoachPhase.idle,
         statusText: () => null,
         notice: () => switch (resp.stopReason) {
           'max_tokens' => 'The answer was cut off (max tokens reached).',
@@ -546,9 +794,18 @@ class CoachController extends Notifier<CoachState> {
           _ => null,
         },
       );
+      _primaryOverride = null;
       await _reload();
+      // Announce only once the answer is in `entries` (auto-speak reads it).
+      if (ref.mounted) {
+        state = state.copyWith(replySerial: state.replySerial + 1);
+      }
       return;
     }
+    // Asked for a tool outside the routed subset: it still runs (it is
+    // registered locally); the rest of the turn gets the full catalogue.
+    final sent = {for (final t in _turnTools) t.name};
+    if (calls.any((c) => !sent.contains(c['name']))) _widened = true;
     _rounds++;
     final overRounds = _rounds > maxToolRounds;
     final overTime = _deadline != null && _clock.now().isAfter(_deadline!);
@@ -570,6 +827,7 @@ class CoachController extends Notifier<CoachState> {
       ]);
       state = state.copyWith(
         busy: false,
+        phase: CoachPhase.idle,
         statusText: () => null,
         notice: () => overRounds
             ? 'Stopped after $maxToolRounds tool steps. Ask a narrower '
@@ -583,11 +841,20 @@ class CoachController extends Notifier<CoachState> {
     await _processBatch(gen);
   }
 
+  void _fail(AiBackendException e) {
+    state = state.copyWith(
+      busy: false,
+      phase: CoachPhase.idle,
+      statusText: () => null,
+      error: () => e,
+    );
+  }
+
   Future<void> _processBatch(int gen) async {
     final id = state.conversationId!;
     final batch = _batch;
     if (batch == null) return;
-    state = state.copyWith(busy: true, statusText: () => 'Checking your data…');
+    _setPhase(CoachPhase.tools, status: 'Checking your data…');
     while (!batch.done) {
       final c = batch.current;
       final callId = c['id'] as String;
@@ -615,6 +882,7 @@ class CoachController extends Notifier<CoachState> {
           }
           state = state.copyWith(
             busy: false,
+            phase: CoachPhase.idle,
             statusText: () => null,
             pending: () => PendingAction(
               toolCallId: callId,
@@ -630,6 +898,7 @@ class CoachController extends Notifier<CoachState> {
           final consent = outcome.consent!;
           state = state.copyWith(
             busy: false,
+            phase: CoachPhase.idle,
             statusText: () => null,
             pending: () => PendingAction(
               toolCallId: callId,
@@ -721,6 +990,94 @@ class CoachController extends Notifier<CoachState> {
     batch.index++;
     _deadline = _clock.now().add(turnTimeout);
     await _processBatch(gen);
+  }
+
+  // -------------------------------------------------------------------------
+  // Briefings
+  // -------------------------------------------------------------------------
+
+  /// "Brief me" / "Review my day": a deterministic briefing from local data
+  /// (works offline, no AI). When the backend is ready and the user allowed
+  /// health data for AI, the text is then rephrased in the persona's voice
+  /// by one small, tool-less call; any failure keeps the deterministic text.
+  Future<void> brief(BriefingMode mode, {bool viaVoice = false}) async {
+    if (state.busy || state.pending != null) return;
+    final gen = _generation;
+    _resetTurn();
+    state = state.copyWith(
+      error: () => null,
+      notice: () => null,
+      voiceTurn: viaVoice,
+    );
+    _setPhase(CoachPhase.briefing, status: 'Compiling briefing…');
+    final id = await _ensureConversation(
+      mode == BriefingMode.morning ? 'Morning briefing' : 'Evening review',
+    );
+    await _repo.addMessage(id, localRole, [
+      {'type': 'text', 'from': 'user', 'text': mode.command},
+    ]);
+    final inputs = await gatherBriefingInputs(ref);
+    if (gen != _generation || !ref.mounted) return;
+    final text = composeBriefing(mode, inputs);
+    final row = await _repo.addMessage(id, localRole, [
+      {'type': 'text', 'mode': mode.name, 'text': text},
+    ]);
+    await _reload();
+    final settings = ref.read(settingsRepositoryProvider);
+    final consent =
+        (await settings.get<bool>(SettingKeys.aiHealthConsent)) ?? false;
+    final backend = ref.read(aiBackendClientProvider);
+    if (!consent || backend.state != AiBackendState.ready) {
+      _finishBriefing();
+      return;
+    }
+    state = state.copyWith(statusText: () => 'Polishing…');
+    try {
+      final persona = resolvePersona(
+        await settings.get<String>(AiSettingKeys.persona),
+      );
+      final r = await ref
+          .read(aiTextServiceProvider)
+          .complete(
+            system: briefingPolishPrompt(persona),
+            user: text,
+            maxTokens: 700,
+          )
+          .timeout(const Duration(seconds: 25));
+      if (gen != _generation || !ref.mounted) return;
+      final polished = r.text.trim();
+      if (polished.isNotEmpty && !r.truncated) {
+        await _repo.updateMessageContent(
+          row.id,
+          [
+            {
+              'type': 'text',
+              'mode': mode.name,
+              'text': polished,
+              'polished': true,
+              'facts': text,
+            },
+          ],
+          provider: r.provider,
+          model: r.model,
+        );
+        state = state.copyWith(lastProvider: r.provider, lastModel: r.model);
+      }
+    } catch (_) {
+      // Keep the deterministic briefing; it is already on screen.
+    }
+    if (gen != _generation || !ref.mounted) return;
+    await _reload();
+    _finishBriefing();
+  }
+
+  void _finishBriefing() {
+    state = state.copyWith(
+      busy: false,
+      phase: CoachPhase.idle,
+      statusText: () => null,
+      replySerial: state.replySerial + 1,
+    );
   }
 
   void dismissNotice() => state = state.copyWith(

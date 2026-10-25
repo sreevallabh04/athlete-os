@@ -1,6 +1,7 @@
 import 'package:athlete_os/features/coach/data/ai_backend.dart';
 import 'package:athlete_os/features/coach/presentation/ai_provider_settings_screen.dart';
 import 'package:athlete_os/features/coach/presentation/coach_screen.dart';
+import 'package:athlete_os/features/coach/presentation/widgets/composer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,11 +33,13 @@ void main() {
     expect(find.text('Set up'), findsOneWidget);
     // Prefilled from ?prompt=, but sending is disabled.
     expect(find.text('How many steps left?'), findsWidgets);
-    final send = tester.widget<IconButton>(
-      find.widgetWithIcon(IconButton, Icons.arrow_upward),
+    final send = tester.widget<HudIconAction>(
+      find.byKey(const Key('coach_send')),
     );
-    expect(send.onPressed, isNull);
-    expect(find.text('Plan a 45-min workout slot today'), findsOneWidget);
+    expect(send.onTap, isNull);
+    // Context-aware quick commands (09:00 → morning briefing first).
+    expect(find.text('Brief me'), findsOneWidget);
+    expect(find.text('Find a workout slot'), findsOneWidget);
     await _settle(tester);
   });
 
@@ -59,7 +62,7 @@ void main() {
     expect(find.textContaining('AI backend not configured'), findsNothing);
     await tester.enterText(find.byType(TextField), 'hello coach');
     await tester.pump();
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.arrow_upward));
+    await tester.tap(find.byKey(const Key('coach_send')));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
     expect(backend.requests, hasLength(1));

@@ -7,16 +7,10 @@ import '../../../core/widgets/widgets.dart';
 import '../../../data/repositories/settings_repository.dart';
 import '../data/ai_backend.dart';
 import '../data/ai_preferences.dart';
+import '../data/ai_status.dart';
 import '../data/coach_auth.dart';
-
-/// Live `ai-status` result (null when the backend is not ready).
-final aiStatusProvider = FutureProvider.autoDispose<Map<String, Object?>?>((
-  ref,
-) async {
-  final backend = ref.watch(aiBackendClientProvider);
-  if (backend.state != AiBackendState.ready) return null;
-  return backend.status();
-});
+import '../voice/voice_settings.dart';
+import 'voice_settings_sheet.dart';
 
 final _consentProvider = StreamProvider.autoDispose.family<bool, String>(
   (ref, key) => ref
@@ -33,6 +27,7 @@ class AiProviderSettingsScreen extends ConsumerWidget {
     final backendState = ref.watch(aiBackendStateProvider);
     return AppPage(
       title: 'AI providers',
+      eyebrow: 'JARVIS · AI CORE',
       subtitle:
           'Provider keys live only on your Supabase backend. This device '
           'sends requests through the ai-chat edge function.',
@@ -48,6 +43,11 @@ class AiProviderSettingsScreen extends ConsumerWidget {
         ],
         const SectionHeader('Preferences', subtitle: 'Sent with each request'),
         const _PreferencesSection(),
+        const SectionHeader(
+          'Voice',
+          subtitle: 'Push-to-talk and spoken replies',
+        ),
+        const _VoiceCard(),
         const SectionHeader('Persona', subtitle: 'How the assistant speaks'),
         const _PersonaSection(),
         const SectionHeader('Privacy & consent'),
@@ -314,27 +314,29 @@ class _ProvidersSection extends ConsumerStatefulWidget {
 
 class _ProvidersSectionState extends ConsumerState<_ProvidersSection> {
   final _testing = <String>{};
-  final _results = <String, String>{};
+  final _errors = <String, String>{};
 
   Future<void> _test(String provider) async {
-    setState(() => _testing.add(provider));
+    Haptics.medium();
+    setState(() {
+      _testing.add(provider);
+      _errors.remove(provider);
+    });
     try {
       final res = await ref
           .read(aiBackendClientProvider)
           .testProviders(provider: provider);
-      final lines = <String>[];
-      for (final r in (res['results'] as List? ?? const [])) {
-        if (r is! Map) continue;
-        lines.add(
-          '${r['alias']}: ${r['ok'] == true ? 'OK' : 'failed'}'
-          '${r['latency_ms'] != null ? ' · ${r['latency_ms']} ms' : ''}'
-          '${r['error'] != null ? ' · ${r['error']}' : ''}',
-        );
+      final probes = ProviderProbe.parse(res);
+      ref.read(providerProbesProvider.notifier).record(provider, probes);
+      if (probes.every((p) => p.ok)) {
+        Haptics.success();
+      } else {
+        Haptics.warning();
       }
-      _results[provider] = lines.isEmpty ? 'No keys tested.' : lines.join('\n');
       ref.invalidate(aiStatusProvider);
     } on AiBackendException catch (e) {
-      _results[provider] = e.message;
+      _errors[provider] = e.message;
+      Haptics.warning();
     } finally {
       if (mounted) setState(() => _testing.remove(provider));
     }
@@ -343,9 +345,9 @@ class _ProvidersSectionState extends ConsumerState<_ProvidersSection> {
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(aiStatusProvider);
-    final t = Theme.of(context).textTheme;
+    final probes = ref.watch(providerProbesProvider);
     return status.when(
-      loading: () => const LoadingState(),
+      loading: () => const ScanlineLoader(height: 120, lines: 0),
       error: (e, _) => ErrorState(
         message: e is AiBackendException
             ? e.message
@@ -366,79 +368,33 @@ class _ProvidersSectionState extends ConsumerState<_ProvidersSection> {
             compact: true,
           );
         }
+        final order = (s?['provider_order'] as List? ?? const [])
+            .map((e) => '$e')
+            .toList();
+        // Configured providers first, in routing order.
+        providers.sort((a, b) {
+          int rank(Map p) {
+            if (p['configured'] != true) return 100;
+            final i = order.indexOf('${p['provider']}');
+            return i < 0 ? 50 : i;
+          }
+
+          return rank(a).compareTo(rank(b));
+        });
         return Column(
           children: spaced([
             for (final p in providers)
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            aiProviderLabels[p['provider']] ??
-                                '${p['provider']}',
-                            style: t.titleSmall,
-                          ),
-                        ),
-                        _StatusPill(
-                          p['configured'] == true
-                              ? (p['circuit'] == 'open'
-                                    ? 'circuit open'
-                                    : 'configured')
-                              : 'not configured',
-                          ok: p['configured'] == true && p['circuit'] != 'open',
-                        ),
-                      ],
-                    ),
-                    if (p['default_model'] != null)
-                      Text(
-                        'Default model: ${p['default_model']}',
-                        style: t.bodySmall,
-                      ),
-                    for (final a
-                        in (p['aliases'] as List? ?? const []).whereType<Map>())
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            Text('Key "${a['alias']}"', style: t.bodySmall),
-                            const SizedBox(width: AppSpacing.sm),
-                            _StatusPill(
-                              '${a['status']}',
-                              ok: a['status'] == 'ok',
-                            ),
-                            if (a['cooldown_until'] != null)
-                              Flexible(
-                                child: Text(
-                                  ' until ${a['cooldown_until']}',
-                                  style: t.labelSmall,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    if (p['configured'] == true)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: _testing.contains(p['provider'])
-                              ? null
-                              : () => _test(p['provider'] as String),
-                          icon: const Icon(Icons.network_check, size: 18),
-                          label: Text(
-                            _testing.contains(p['provider'])
-                                ? 'Testing…'
-                                : 'Test connection',
-                          ),
-                        ),
-                      ),
-                    if (_results[p['provider']] != null)
-                      Text(_results[p['provider']]!, style: t.bodySmall),
-                  ],
-                ),
+              _ProviderCard(
+                provider: p,
+                role: p['configured'] != true
+                    ? null
+                    : order.indexOf('${p['provider']}') == 0
+                    ? 'PRIMARY'
+                    : 'FALLBACK',
+                probes: probes['${p['provider']}'],
+                testing: _testing.contains(p['provider']),
+                error: _errors['${p['provider']}'],
+                onTest: () => _test('${p['provider']}'),
               ),
           ]),
         );
@@ -447,23 +403,247 @@ class _ProvidersSectionState extends ConsumerState<_ProvidersSection> {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill(this.label, {required this.ok});
-  final String label;
-  final bool ok;
+class _ProviderCard extends StatelessWidget {
+  const _ProviderCard({
+    required this.provider,
+    required this.role,
+    required this.probes,
+    required this.testing,
+    required this.error,
+    required this.onTest,
+  });
+
+  final Map provider;
+  final String? role;
+  final List<ProviderProbe>? probes;
+  final bool testing;
+  final String? error;
+  final VoidCallback onTest;
 
   @override
   Widget build(BuildContext context) {
-    final color = ok ? AppColors.success : AppColors.warning;
+    final hud = HudTheme.of(context);
+    final t = Theme.of(context).textTheme;
+    final configured = provider['configured'] == true;
+    final open = provider['circuit'] == 'open';
+    final aliases = (provider['aliases'] as List? ?? const [])
+        .whereType<Map>()
+        .toList();
+    final healthy =
+        configured && !open && aliases.any((a) => a['status'] == 'ok');
+    final c = !configured
+        ? hud.textMuted
+        : healthy
+        ? AppColors.success
+        : AppColors.warning;
+    final id = '${provider['provider']}';
+    return AppCard(
+      accent: configured ? c : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GlowIcon(
+                configured ? Icons.hub_rounded : Icons.hub_outlined,
+                color: c,
+                size: 18,
+                framed: true,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (role != null)
+                      Text(role!, style: hud.label(size: 10.5, color: c)),
+                    Text(aiProviderLabels[id] ?? id, style: t.titleSmall),
+                  ],
+                ),
+              ),
+              _StatusPill(
+                !configured
+                    ? 'not configured'
+                    : open
+                    ? 'circuit open'
+                    : healthy
+                    ? 'online'
+                    : 'degraded',
+                ok: healthy,
+                neutral: !configured,
+              ),
+            ],
+          ),
+          if (provider['default_model'] != null && configured)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
+                'MODEL · ${provider['default_model']}'.toUpperCase(),
+                style: hud.mono(size: 10.5),
+              ),
+            ),
+          if (configured) ...[
+            const SizedBox(height: AppSpacing.sm),
+            for (final a in aliases)
+              _KeyRow(
+                alias: '${a['alias']}',
+                status: '${a['status']}',
+                cooldown: a['cooldown_until']?.toString(),
+                probe: probes
+                    ?.where((p) => p.alias == '${a['alias']}')
+                    .firstOrNull,
+              ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    probes == null
+                        ? 'Latency appears after a test.'
+                        : 'Live latency · last test',
+                    style: hud.mono(size: 10),
+                  ),
+                ),
+                HudButton.secondary(
+                  label: testing ? 'Testing' : 'Test connection',
+                  icon: Icons.network_check_rounded,
+                  compact: true,
+                  loading: testing,
+                  onPressed: testing ? null : onTest,
+                ),
+              ],
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  error!,
+                  style: t.bodySmall?.copyWith(color: AppColors.danger),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One key alias with its health and (after a test) a latency bar scaled to
+/// 0–5 s.
+class _KeyRow extends StatelessWidget {
+  const _KeyRow({
+    required this.alias,
+    required this.status,
+    this.cooldown,
+    this.probe,
+  });
+
+  final String alias;
+  final String status;
+  final String? cooldown;
+  final ProviderProbe? probe;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final ok = probe?.ok ?? status == 'ok';
+    final ms = probe?.latencyMs;
+    final c = ok ? AppColors.success : AppColors.warning;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: c,
+              boxShadow: [
+                BoxShadow(
+                  color: c.withValues(alpha: 0.7 * hud.glowStrength),
+                  blurRadius: 5,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 82,
+            child: Text(
+              alias.toUpperCase(),
+              style: hud.label(size: 10.5),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Expanded(
+            child: ms == null
+                ? Text(
+                    cooldown != null ? '$status until $cooldown' : status,
+                    style: hud.mono(size: 10.5),
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : TweenAnimationBuilder<double>(
+                    tween: Tween(end: (ms / 5000).clamp(0.04, 1.0)),
+                    duration: AppMotion.data,
+                    curve: AppMotion.emphasizedDecelerate,
+                    builder: (context, v, _) => ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: v,
+                        minHeight: 4,
+                        color: ms < 2500
+                            ? AppColors.success
+                            : ms < 8000
+                            ? AppColors.warning
+                            : AppColors.danger,
+                        backgroundColor: hud.text.withValues(alpha: 0.06),
+                      ),
+                    ),
+                  ),
+          ),
+          if (ms != null) ...[
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 58,
+              child: Text(
+                ok ? '${(ms / 1000).toStringAsFixed(2)} s' : 'failed',
+                textAlign: TextAlign.right,
+                style: hud.mono(size: 10.5, color: hud.text),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill(this.label, {required this.ok, this.neutral = false});
+  final String label;
+  final bool ok;
+
+  /// Not a problem, just not set up (muted).
+  final bool neutral;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = neutral
+        ? HudTheme.of(context).textMuted
+        : ok
+        ? AppColors.success
+        : AppColors.warning;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: AppRadii.chip,
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+        label.toUpperCase(),
+        style: AppTypography.hudLabel(color, size: 11),
       ),
     );
   }
@@ -478,43 +658,63 @@ class _UsageSection extends ConsumerWidget {
     final usage = (status.value?['usage'] as Map?)?.cast<String, Object?>();
     if (usage == null) {
       return status.isLoading
-          ? const LoadingState()
+          ? const ScanlineLoader(height: 120, lines: 0)
           : const EmptyState(
               icon: Icons.query_stats,
               title: 'Usage unavailable',
               compact: true,
             );
     }
+    final hud = HudTheme.of(context);
     final spend = (usage['cost_usd'] as num?)?.toDouble() ?? 0;
     final budget = (usage['monthly_budget_usd'] as num?)?.toDouble() ?? 0;
     final alerts = (usage['alerts'] as List? ?? const []).join('%, ');
+    final frac = budget <= 0 ? 0.0 : (spend / budget).clamp(0.0, 1.0);
+    final color = frac >= 1
+        ? AppColors.danger
+        : frac >= 0.8
+        ? AppColors.warning
+        : hud.accent;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MetricBar(
-            label: 'Spend since ${usage['month_start'] ?? 'month start'}',
-            value: spend,
-            target: budget,
-            color: spend >= budget ? AppColors.danger : AppColors.brand,
-            formatter: (v) => '\$${v.toStringAsFixed(2)}',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.xl,
-            runSpacing: AppSpacing.sm,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              StatTile(
-                label: 'Requests',
-                value: Fmt.integer((usage['requests'] as num?) ?? 0),
+              ArcGauge(
+                value: frac,
+                valueText: '\$${spend.toStringAsFixed(2)}',
+                label: 'OF \$${budget.toStringAsFixed(0)}',
+                color: color,
+                width: 150,
+                semanticLabel:
+                    'Spent \$${spend.toStringAsFixed(2)} of '
+                    '\$${budget.toStringAsFixed(0)} this month',
               ),
-              StatTile(
-                label: 'Input tokens',
-                value: Fmt.integer((usage['input_tokens'] as num?) ?? 0),
-              ),
-              StatTile(
-                label: 'Output tokens',
-                value: Fmt.integer((usage['output_tokens'] as num?) ?? 0),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SINCE ${usage['month_start'] ?? 'MONTH START'}',
+                      style: hud.label(size: 10.5),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    StatTile(
+                      label: 'Requests',
+                      value: Fmt.integer((usage['requests'] as num?) ?? 0),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    StatTile(
+                      label: 'Tokens in / out',
+                      value:
+                          '${_compact((usage['input_tokens'] as num?) ?? 0)} / '
+                          '${_compact((usage['output_tokens'] as num?) ?? 0)}',
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -526,6 +726,50 @@ class _UsageSection extends ConsumerWidget {
                 color: AppColors.warning,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  static String _compact(num v) => v >= 1e6
+      ? '${(v / 1e6).toStringAsFixed(1)}M'
+      : v >= 1e3
+      ? '${(v / 1e3).toStringAsFixed(1)}K'
+      : Fmt.integer(v);
+}
+
+class _VoiceCard extends ConsumerWidget {
+  const _VoiceCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final v = ref.watch(voiceSettingsProvider).value ?? const VoiceSettings();
+    final t = Theme.of(context).textTheme;
+    final hud = HudTheme.of(context);
+    return AppCard(
+      onTap: () => showVoiceSettingsSheet(context),
+      child: Row(
+        children: [
+          const GlowIcon(Icons.graphic_eq_rounded, size: 18, framed: true),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.enabled ? 'Voice control on' : 'Voice control off',
+                  style: t.titleSmall,
+                ),
+                Text(
+                  'Speak replies: ${v.autoSpeak.label} · '
+                  '${v.voiceName == null ? 'Auto British voice' : v.voiceName!}'
+                  '${v.wakeOnOpen ? ' · wake on open' : ''}',
+                  style: t.bodySmall?.copyWith(color: hud.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded),
         ],
       ),
     );
