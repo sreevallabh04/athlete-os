@@ -21685,6 +21685,3548 @@ class ReportsCompanion extends UpdateCompanion<Report> {
   }
 }
 
+class $MessagingAppSettingsTable extends MessagingAppSettings
+    with TableInfo<$MessagingAppSettingsTable, MessagingAppSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MessagingAppSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _packageNameMeta = const VerificationMeta(
+    'packageName',
+  );
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+    'package_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _appLabelMeta = const VerificationMeta(
+    'appLabel',
+  );
+  @override
+  late final GeneratedColumn<String> appLabel = GeneratedColumn<String>(
+    'app_label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _enabledMeta = const VerificationMeta(
+    'enabled',
+  );
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _allowAiMeta = const VerificationMeta(
+    'allowAi',
+  );
+  @override
+  late final GeneratedColumn<bool> allowAi = GeneratedColumn<bool>(
+    'allow_ai',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("allow_ai" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _autoSendBlockedMeta = const VerificationMeta(
+    'autoSendBlocked',
+  );
+  @override
+  late final GeneratedColumn<bool> autoSendBlocked = GeneratedColumn<bool>(
+    'auto_send_blocked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_send_blocked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _retentionDaysMeta = const VerificationMeta(
+    'retentionDays',
+  );
+  @override
+  late final GeneratedColumn<int> retentionDays = GeneratedColumn<int>(
+    'retention_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(7),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    packageName,
+    appLabel,
+    enabled,
+    mode,
+    allowAi,
+    autoSendBlocked,
+    retentionDays,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'messaging_app_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MessagingAppSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('package_name')) {
+      context.handle(
+        _packageNameMeta,
+        packageName.isAcceptableOrUnknown(
+          data['package_name']!,
+          _packageNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('app_label')) {
+      context.handle(
+        _appLabelMeta,
+        appLabel.isAcceptableOrUnknown(data['app_label']!, _appLabelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_appLabelMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(
+        _enabledMeta,
+        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
+      );
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    }
+    if (data.containsKey('allow_ai')) {
+      context.handle(
+        _allowAiMeta,
+        allowAi.isAcceptableOrUnknown(data['allow_ai']!, _allowAiMeta),
+      );
+    }
+    if (data.containsKey('auto_send_blocked')) {
+      context.handle(
+        _autoSendBlockedMeta,
+        autoSendBlocked.isAcceptableOrUnknown(
+          data['auto_send_blocked']!,
+          _autoSendBlockedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('retention_days')) {
+      context.handle(
+        _retentionDaysMeta,
+        retentionDays.isAcceptableOrUnknown(
+          data['retention_days']!,
+          _retentionDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {packageName};
+  @override
+  MessagingAppSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MessagingAppSetting(
+      packageName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_name'],
+      )!,
+      appLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}app_label'],
+      )!,
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enabled'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      allowAi: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}allow_ai'],
+      )!,
+      autoSendBlocked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_send_blocked'],
+      )!,
+      retentionDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retention_days'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MessagingAppSettingsTable createAlias(String alias) {
+    return $MessagingAppSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class MessagingAppSetting extends DataClass
+    implements Insertable<MessagingAppSetting> {
+  final String packageName;
+  final String appLabel;
+  final bool enabled;
+
+  /// observe | draft | approval | restricted_auto | disabled
+  final String mode;
+
+  /// Whether message text from this app may be sent to the AI backend.
+  final bool allowAi;
+
+  /// Hard platform/terms block on auto-send for this app (e.g. WhatsApp).
+  final bool autoSendBlocked;
+  final int retentionDays;
+  final DateTime updatedAt;
+  const MessagingAppSetting({
+    required this.packageName,
+    required this.appLabel,
+    required this.enabled,
+    required this.mode,
+    required this.allowAi,
+    required this.autoSendBlocked,
+    required this.retentionDays,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['package_name'] = Variable<String>(packageName);
+    map['app_label'] = Variable<String>(appLabel);
+    map['enabled'] = Variable<bool>(enabled);
+    map['mode'] = Variable<String>(mode);
+    map['allow_ai'] = Variable<bool>(allowAi);
+    map['auto_send_blocked'] = Variable<bool>(autoSendBlocked);
+    map['retention_days'] = Variable<int>(retentionDays);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MessagingAppSettingsCompanion toCompanion(bool nullToAbsent) {
+    return MessagingAppSettingsCompanion(
+      packageName: Value(packageName),
+      appLabel: Value(appLabel),
+      enabled: Value(enabled),
+      mode: Value(mode),
+      allowAi: Value(allowAi),
+      autoSendBlocked: Value(autoSendBlocked),
+      retentionDays: Value(retentionDays),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MessagingAppSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MessagingAppSetting(
+      packageName: serializer.fromJson<String>(json['packageName']),
+      appLabel: serializer.fromJson<String>(json['appLabel']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      mode: serializer.fromJson<String>(json['mode']),
+      allowAi: serializer.fromJson<bool>(json['allowAi']),
+      autoSendBlocked: serializer.fromJson<bool>(json['autoSendBlocked']),
+      retentionDays: serializer.fromJson<int>(json['retentionDays']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'packageName': serializer.toJson<String>(packageName),
+      'appLabel': serializer.toJson<String>(appLabel),
+      'enabled': serializer.toJson<bool>(enabled),
+      'mode': serializer.toJson<String>(mode),
+      'allowAi': serializer.toJson<bool>(allowAi),
+      'autoSendBlocked': serializer.toJson<bool>(autoSendBlocked),
+      'retentionDays': serializer.toJson<int>(retentionDays),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MessagingAppSetting copyWith({
+    String? packageName,
+    String? appLabel,
+    bool? enabled,
+    String? mode,
+    bool? allowAi,
+    bool? autoSendBlocked,
+    int? retentionDays,
+    DateTime? updatedAt,
+  }) => MessagingAppSetting(
+    packageName: packageName ?? this.packageName,
+    appLabel: appLabel ?? this.appLabel,
+    enabled: enabled ?? this.enabled,
+    mode: mode ?? this.mode,
+    allowAi: allowAi ?? this.allowAi,
+    autoSendBlocked: autoSendBlocked ?? this.autoSendBlocked,
+    retentionDays: retentionDays ?? this.retentionDays,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  MessagingAppSetting copyWithCompanion(MessagingAppSettingsCompanion data) {
+    return MessagingAppSetting(
+      packageName: data.packageName.present
+          ? data.packageName.value
+          : this.packageName,
+      appLabel: data.appLabel.present ? data.appLabel.value : this.appLabel,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      allowAi: data.allowAi.present ? data.allowAi.value : this.allowAi,
+      autoSendBlocked: data.autoSendBlocked.present
+          ? data.autoSendBlocked.value
+          : this.autoSendBlocked,
+      retentionDays: data.retentionDays.present
+          ? data.retentionDays.value
+          : this.retentionDays,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessagingAppSetting(')
+          ..write('packageName: $packageName, ')
+          ..write('appLabel: $appLabel, ')
+          ..write('enabled: $enabled, ')
+          ..write('mode: $mode, ')
+          ..write('allowAi: $allowAi, ')
+          ..write('autoSendBlocked: $autoSendBlocked, ')
+          ..write('retentionDays: $retentionDays, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    packageName,
+    appLabel,
+    enabled,
+    mode,
+    allowAi,
+    autoSendBlocked,
+    retentionDays,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MessagingAppSetting &&
+          other.packageName == this.packageName &&
+          other.appLabel == this.appLabel &&
+          other.enabled == this.enabled &&
+          other.mode == this.mode &&
+          other.allowAi == this.allowAi &&
+          other.autoSendBlocked == this.autoSendBlocked &&
+          other.retentionDays == this.retentionDays &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MessagingAppSettingsCompanion
+    extends UpdateCompanion<MessagingAppSetting> {
+  final Value<String> packageName;
+  final Value<String> appLabel;
+  final Value<bool> enabled;
+  final Value<String> mode;
+  final Value<bool> allowAi;
+  final Value<bool> autoSendBlocked;
+  final Value<int> retentionDays;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MessagingAppSettingsCompanion({
+    this.packageName = const Value.absent(),
+    this.appLabel = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.allowAi = const Value.absent(),
+    this.autoSendBlocked = const Value.absent(),
+    this.retentionDays = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MessagingAppSettingsCompanion.insert({
+    required String packageName,
+    required String appLabel,
+    this.enabled = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.allowAi = const Value.absent(),
+    this.autoSendBlocked = const Value.absent(),
+    this.retentionDays = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : packageName = Value(packageName),
+       appLabel = Value(appLabel);
+  static Insertable<MessagingAppSetting> custom({
+    Expression<String>? packageName,
+    Expression<String>? appLabel,
+    Expression<bool>? enabled,
+    Expression<String>? mode,
+    Expression<bool>? allowAi,
+    Expression<bool>? autoSendBlocked,
+    Expression<int>? retentionDays,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (packageName != null) 'package_name': packageName,
+      if (appLabel != null) 'app_label': appLabel,
+      if (enabled != null) 'enabled': enabled,
+      if (mode != null) 'mode': mode,
+      if (allowAi != null) 'allow_ai': allowAi,
+      if (autoSendBlocked != null) 'auto_send_blocked': autoSendBlocked,
+      if (retentionDays != null) 'retention_days': retentionDays,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MessagingAppSettingsCompanion copyWith({
+    Value<String>? packageName,
+    Value<String>? appLabel,
+    Value<bool>? enabled,
+    Value<String>? mode,
+    Value<bool>? allowAi,
+    Value<bool>? autoSendBlocked,
+    Value<int>? retentionDays,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return MessagingAppSettingsCompanion(
+      packageName: packageName ?? this.packageName,
+      appLabel: appLabel ?? this.appLabel,
+      enabled: enabled ?? this.enabled,
+      mode: mode ?? this.mode,
+      allowAi: allowAi ?? this.allowAi,
+      autoSendBlocked: autoSendBlocked ?? this.autoSendBlocked,
+      retentionDays: retentionDays ?? this.retentionDays,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (appLabel.present) {
+      map['app_label'] = Variable<String>(appLabel.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (allowAi.present) {
+      map['allow_ai'] = Variable<bool>(allowAi.value);
+    }
+    if (autoSendBlocked.present) {
+      map['auto_send_blocked'] = Variable<bool>(autoSendBlocked.value);
+    }
+    if (retentionDays.present) {
+      map['retention_days'] = Variable<int>(retentionDays.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessagingAppSettingsCompanion(')
+          ..write('packageName: $packageName, ')
+          ..write('appLabel: $appLabel, ')
+          ..write('enabled: $enabled, ')
+          ..write('mode: $mode, ')
+          ..write('allowAi: $allowAi, ')
+          ..write('autoSendBlocked: $autoSendBlocked, ')
+          ..write('retentionDays: $retentionDays, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MessagingContactRulesTable extends MessagingContactRules
+    with TableInfo<$MessagingContactRulesTable, MessagingContactRule> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MessagingContactRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _packageNameMeta = const VerificationMeta(
+    'packageName',
+  );
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+    'package_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _conversationKeyMeta = const VerificationMeta(
+    'conversationKey',
+  );
+  @override
+  late final GeneratedColumn<String> conversationKey = GeneratedColumn<String>(
+    'conversation_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isGroupMeta = const VerificationMeta(
+    'isGroup',
+  );
+  @override
+  late final GeneratedColumn<bool> isGroup = GeneratedColumn<bool>(
+    'is_group',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_group" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _ruleMeta = const VerificationMeta('rule');
+  @override
+  late final GeneratedColumn<String> rule = GeneratedColumn<String>(
+    'rule',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('neutral'),
+  );
+  static const VerificationMeta _identityConfidenceMeta =
+      const VerificationMeta('identityConfidence');
+  @override
+  late final GeneratedColumn<String> identityConfidence =
+      GeneratedColumn<String>(
+        'identity_confidence',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('low'),
+      );
+  static const VerificationMeta _toneJsonMeta = const VerificationMeta(
+    'toneJson',
+  );
+  @override
+  late final GeneratedColumn<String> toneJson = GeneratedColumn<String>(
+    'tone_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _maxAutoRepliesPerDayMeta =
+      const VerificationMeta('maxAutoRepliesPerDay');
+  @override
+  late final GeneratedColumn<int> maxAutoRepliesPerDay = GeneratedColumn<int>(
+    'max_auto_replies_per_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    createdAt,
+    updatedAt,
+    id,
+    packageName,
+    conversationKey,
+    displayName,
+    isGroup,
+    rule,
+    identityConfidence,
+    toneJson,
+    maxAutoRepliesPerDay,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'messaging_contact_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MessagingContactRule> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+        _packageNameMeta,
+        packageName.isAcceptableOrUnknown(
+          data['package_name']!,
+          _packageNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('conversation_key')) {
+      context.handle(
+        _conversationKeyMeta,
+        conversationKey.isAcceptableOrUnknown(
+          data['conversation_key']!,
+          _conversationKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_conversationKeyMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('is_group')) {
+      context.handle(
+        _isGroupMeta,
+        isGroup.isAcceptableOrUnknown(data['is_group']!, _isGroupMeta),
+      );
+    }
+    if (data.containsKey('rule')) {
+      context.handle(
+        _ruleMeta,
+        rule.isAcceptableOrUnknown(data['rule']!, _ruleMeta),
+      );
+    }
+    if (data.containsKey('identity_confidence')) {
+      context.handle(
+        _identityConfidenceMeta,
+        identityConfidence.isAcceptableOrUnknown(
+          data['identity_confidence']!,
+          _identityConfidenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tone_json')) {
+      context.handle(
+        _toneJsonMeta,
+        toneJson.isAcceptableOrUnknown(data['tone_json']!, _toneJsonMeta),
+      );
+    }
+    if (data.containsKey('max_auto_replies_per_day')) {
+      context.handle(
+        _maxAutoRepliesPerDayMeta,
+        maxAutoRepliesPerDay.isAcceptableOrUnknown(
+          data['max_auto_replies_per_day']!,
+          _maxAutoRepliesPerDayMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {packageName, conversationKey},
+  ];
+  @override
+  MessagingContactRule map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MessagingContactRule(
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      packageName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_name'],
+      )!,
+      conversationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_key'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      isGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_group'],
+      )!,
+      rule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule'],
+      )!,
+      identityConfidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}identity_confidence'],
+      )!,
+      toneJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tone_json'],
+      ),
+      maxAutoRepliesPerDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_auto_replies_per_day'],
+      )!,
+    );
+  }
+
+  @override
+  $MessagingContactRulesTable createAlias(String alias) {
+    return $MessagingContactRulesTable(attachedDatabase, alias);
+  }
+}
+
+class MessagingContactRule extends DataClass
+    implements Insertable<MessagingContactRule> {
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String id;
+  final String packageName;
+
+  /// Stable key derived from the notification (shortcut id / conversation
+  /// title). Identification reliability is stored in [identityConfidence].
+  final String conversationKey;
+  final String displayName;
+  final bool isGroup;
+
+  /// approved | blocked | neutral
+  final String rule;
+
+  /// high (shortcut/locus id) | low (title only)
+  final String identityConfidence;
+
+  /// JSON tone overrides: {"formality":..,"emoji":..,"notes":..}
+  final String? toneJson;
+  final int maxAutoRepliesPerDay;
+  const MessagingContactRule({
+    required this.createdAt,
+    required this.updatedAt,
+    required this.id,
+    required this.packageName,
+    required this.conversationKey,
+    required this.displayName,
+    required this.isGroup,
+    required this.rule,
+    required this.identityConfidence,
+    this.toneJson,
+    required this.maxAutoRepliesPerDay,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['id'] = Variable<String>(id);
+    map['package_name'] = Variable<String>(packageName);
+    map['conversation_key'] = Variable<String>(conversationKey);
+    map['display_name'] = Variable<String>(displayName);
+    map['is_group'] = Variable<bool>(isGroup);
+    map['rule'] = Variable<String>(rule);
+    map['identity_confidence'] = Variable<String>(identityConfidence);
+    if (!nullToAbsent || toneJson != null) {
+      map['tone_json'] = Variable<String>(toneJson);
+    }
+    map['max_auto_replies_per_day'] = Variable<int>(maxAutoRepliesPerDay);
+    return map;
+  }
+
+  MessagingContactRulesCompanion toCompanion(bool nullToAbsent) {
+    return MessagingContactRulesCompanion(
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      id: Value(id),
+      packageName: Value(packageName),
+      conversationKey: Value(conversationKey),
+      displayName: Value(displayName),
+      isGroup: Value(isGroup),
+      rule: Value(rule),
+      identityConfidence: Value(identityConfidence),
+      toneJson: toneJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toneJson),
+      maxAutoRepliesPerDay: Value(maxAutoRepliesPerDay),
+    );
+  }
+
+  factory MessagingContactRule.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MessagingContactRule(
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      id: serializer.fromJson<String>(json['id']),
+      packageName: serializer.fromJson<String>(json['packageName']),
+      conversationKey: serializer.fromJson<String>(json['conversationKey']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      isGroup: serializer.fromJson<bool>(json['isGroup']),
+      rule: serializer.fromJson<String>(json['rule']),
+      identityConfidence: serializer.fromJson<String>(
+        json['identityConfidence'],
+      ),
+      toneJson: serializer.fromJson<String?>(json['toneJson']),
+      maxAutoRepliesPerDay: serializer.fromJson<int>(
+        json['maxAutoRepliesPerDay'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'id': serializer.toJson<String>(id),
+      'packageName': serializer.toJson<String>(packageName),
+      'conversationKey': serializer.toJson<String>(conversationKey),
+      'displayName': serializer.toJson<String>(displayName),
+      'isGroup': serializer.toJson<bool>(isGroup),
+      'rule': serializer.toJson<String>(rule),
+      'identityConfidence': serializer.toJson<String>(identityConfidence),
+      'toneJson': serializer.toJson<String?>(toneJson),
+      'maxAutoRepliesPerDay': serializer.toJson<int>(maxAutoRepliesPerDay),
+    };
+  }
+
+  MessagingContactRule copyWith({
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? id,
+    String? packageName,
+    String? conversationKey,
+    String? displayName,
+    bool? isGroup,
+    String? rule,
+    String? identityConfidence,
+    Value<String?> toneJson = const Value.absent(),
+    int? maxAutoRepliesPerDay,
+  }) => MessagingContactRule(
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    id: id ?? this.id,
+    packageName: packageName ?? this.packageName,
+    conversationKey: conversationKey ?? this.conversationKey,
+    displayName: displayName ?? this.displayName,
+    isGroup: isGroup ?? this.isGroup,
+    rule: rule ?? this.rule,
+    identityConfidence: identityConfidence ?? this.identityConfidence,
+    toneJson: toneJson.present ? toneJson.value : this.toneJson,
+    maxAutoRepliesPerDay: maxAutoRepliesPerDay ?? this.maxAutoRepliesPerDay,
+  );
+  MessagingContactRule copyWithCompanion(MessagingContactRulesCompanion data) {
+    return MessagingContactRule(
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      id: data.id.present ? data.id.value : this.id,
+      packageName: data.packageName.present
+          ? data.packageName.value
+          : this.packageName,
+      conversationKey: data.conversationKey.present
+          ? data.conversationKey.value
+          : this.conversationKey,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      isGroup: data.isGroup.present ? data.isGroup.value : this.isGroup,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      identityConfidence: data.identityConfidence.present
+          ? data.identityConfidence.value
+          : this.identityConfidence,
+      toneJson: data.toneJson.present ? data.toneJson.value : this.toneJson,
+      maxAutoRepliesPerDay: data.maxAutoRepliesPerDay.present
+          ? data.maxAutoRepliesPerDay.value
+          : this.maxAutoRepliesPerDay,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessagingContactRule(')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('displayName: $displayName, ')
+          ..write('isGroup: $isGroup, ')
+          ..write('rule: $rule, ')
+          ..write('identityConfidence: $identityConfidence, ')
+          ..write('toneJson: $toneJson, ')
+          ..write('maxAutoRepliesPerDay: $maxAutoRepliesPerDay')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    createdAt,
+    updatedAt,
+    id,
+    packageName,
+    conversationKey,
+    displayName,
+    isGroup,
+    rule,
+    identityConfidence,
+    toneJson,
+    maxAutoRepliesPerDay,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MessagingContactRule &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.id == this.id &&
+          other.packageName == this.packageName &&
+          other.conversationKey == this.conversationKey &&
+          other.displayName == this.displayName &&
+          other.isGroup == this.isGroup &&
+          other.rule == this.rule &&
+          other.identityConfidence == this.identityConfidence &&
+          other.toneJson == this.toneJson &&
+          other.maxAutoRepliesPerDay == this.maxAutoRepliesPerDay);
+}
+
+class MessagingContactRulesCompanion
+    extends UpdateCompanion<MessagingContactRule> {
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String> id;
+  final Value<String> packageName;
+  final Value<String> conversationKey;
+  final Value<String> displayName;
+  final Value<bool> isGroup;
+  final Value<String> rule;
+  final Value<String> identityConfidence;
+  final Value<String?> toneJson;
+  final Value<int> maxAutoRepliesPerDay;
+  final Value<int> rowid;
+  const MessagingContactRulesCompanion({
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.id = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.conversationKey = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.isGroup = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.identityConfidence = const Value.absent(),
+    this.toneJson = const Value.absent(),
+    this.maxAutoRepliesPerDay = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MessagingContactRulesCompanion.insert({
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    required String id,
+    required String packageName,
+    required String conversationKey,
+    required String displayName,
+    this.isGroup = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.identityConfidence = const Value.absent(),
+    this.toneJson = const Value.absent(),
+    this.maxAutoRepliesPerDay = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       packageName = Value(packageName),
+       conversationKey = Value(conversationKey),
+       displayName = Value(displayName);
+  static Insertable<MessagingContactRule> custom({
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? id,
+    Expression<String>? packageName,
+    Expression<String>? conversationKey,
+    Expression<String>? displayName,
+    Expression<bool>? isGroup,
+    Expression<String>? rule,
+    Expression<String>? identityConfidence,
+    Expression<String>? toneJson,
+    Expression<int>? maxAutoRepliesPerDay,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (id != null) 'id': id,
+      if (packageName != null) 'package_name': packageName,
+      if (conversationKey != null) 'conversation_key': conversationKey,
+      if (displayName != null) 'display_name': displayName,
+      if (isGroup != null) 'is_group': isGroup,
+      if (rule != null) 'rule': rule,
+      if (identityConfidence != null) 'identity_confidence': identityConfidence,
+      if (toneJson != null) 'tone_json': toneJson,
+      if (maxAutoRepliesPerDay != null)
+        'max_auto_replies_per_day': maxAutoRepliesPerDay,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MessagingContactRulesCompanion copyWith({
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String>? id,
+    Value<String>? packageName,
+    Value<String>? conversationKey,
+    Value<String>? displayName,
+    Value<bool>? isGroup,
+    Value<String>? rule,
+    Value<String>? identityConfidence,
+    Value<String?>? toneJson,
+    Value<int>? maxAutoRepliesPerDay,
+    Value<int>? rowid,
+  }) {
+    return MessagingContactRulesCompanion(
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      id: id ?? this.id,
+      packageName: packageName ?? this.packageName,
+      conversationKey: conversationKey ?? this.conversationKey,
+      displayName: displayName ?? this.displayName,
+      isGroup: isGroup ?? this.isGroup,
+      rule: rule ?? this.rule,
+      identityConfidence: identityConfidence ?? this.identityConfidence,
+      toneJson: toneJson ?? this.toneJson,
+      maxAutoRepliesPerDay: maxAutoRepliesPerDay ?? this.maxAutoRepliesPerDay,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (conversationKey.present) {
+      map['conversation_key'] = Variable<String>(conversationKey.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (isGroup.present) {
+      map['is_group'] = Variable<bool>(isGroup.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(rule.value);
+    }
+    if (identityConfidence.present) {
+      map['identity_confidence'] = Variable<String>(identityConfidence.value);
+    }
+    if (toneJson.present) {
+      map['tone_json'] = Variable<String>(toneJson.value);
+    }
+    if (maxAutoRepliesPerDay.present) {
+      map['max_auto_replies_per_day'] = Variable<int>(
+        maxAutoRepliesPerDay.value,
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessagingContactRulesCompanion(')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('id: $id, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('displayName: $displayName, ')
+          ..write('isGroup: $isGroup, ')
+          ..write('rule: $rule, ')
+          ..write('identityConfidence: $identityConfidence, ')
+          ..write('toneJson: $toneJson, ')
+          ..write('maxAutoRepliesPerDay: $maxAutoRepliesPerDay, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CapturedNotificationsTable extends CapturedNotifications
+    with TableInfo<$CapturedNotificationsTable, CapturedNotification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CapturedNotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dedupeHashMeta = const VerificationMeta(
+    'dedupeHash',
+  );
+  @override
+  late final GeneratedColumn<String> dedupeHash = GeneratedColumn<String>(
+    'dedupe_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _notificationKeyMeta = const VerificationMeta(
+    'notificationKey',
+  );
+  @override
+  late final GeneratedColumn<String> notificationKey = GeneratedColumn<String>(
+    'notification_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _packageNameMeta = const VerificationMeta(
+    'packageName',
+  );
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+    'package_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _conversationKeyMeta = const VerificationMeta(
+    'conversationKey',
+  );
+  @override
+  late final GeneratedColumn<String> conversationKey = GeneratedColumn<String>(
+    'conversation_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversationTitleMeta = const VerificationMeta(
+    'conversationTitle',
+  );
+  @override
+  late final GeneratedColumn<String> conversationTitle =
+      GeneratedColumn<String>(
+        'conversation_title',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _senderMeta = const VerificationMeta('sender');
+  @override
+  late final GeneratedColumn<String> sender = GeneratedColumn<String>(
+    'sender',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isGroupMeta = const VerificationMeta(
+    'isGroup',
+  );
+  @override
+  late final GeneratedColumn<bool> isGroup = GeneratedColumn<bool>(
+    'is_group',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_group" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _postedAtMeta = const VerificationMeta(
+    'postedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> postedAt = GeneratedColumn<DateTime>(
+    'posted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hasReplyActionMeta = const VerificationMeta(
+    'hasReplyAction',
+  );
+  @override
+  late final GeneratedColumn<bool> hasReplyAction = GeneratedColumn<bool>(
+    'has_reply_action',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_reply_action" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('new'),
+  );
+  static const VerificationMeta _sensitivityFlagsMeta = const VerificationMeta(
+    'sensitivityFlags',
+  );
+  @override
+  late final GeneratedColumn<String> sensitivityFlags = GeneratedColumn<String>(
+    'sensitivity_flags',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+    'expires_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dedupeHash,
+    notificationKey,
+    packageName,
+    conversationKey,
+    conversationTitle,
+    sender,
+    isGroup,
+    body,
+    postedAt,
+    hasReplyAction,
+    status,
+    sensitivityFlags,
+    expiresAt,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'captured_notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CapturedNotification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('dedupe_hash')) {
+      context.handle(
+        _dedupeHashMeta,
+        dedupeHash.isAcceptableOrUnknown(data['dedupe_hash']!, _dedupeHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dedupeHashMeta);
+    }
+    if (data.containsKey('notification_key')) {
+      context.handle(
+        _notificationKeyMeta,
+        notificationKey.isAcceptableOrUnknown(
+          data['notification_key']!,
+          _notificationKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_notificationKeyMeta);
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+        _packageNameMeta,
+        packageName.isAcceptableOrUnknown(
+          data['package_name']!,
+          _packageNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('conversation_key')) {
+      context.handle(
+        _conversationKeyMeta,
+        conversationKey.isAcceptableOrUnknown(
+          data['conversation_key']!,
+          _conversationKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('conversation_title')) {
+      context.handle(
+        _conversationTitleMeta,
+        conversationTitle.isAcceptableOrUnknown(
+          data['conversation_title']!,
+          _conversationTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sender')) {
+      context.handle(
+        _senderMeta,
+        sender.isAcceptableOrUnknown(data['sender']!, _senderMeta),
+      );
+    }
+    if (data.containsKey('is_group')) {
+      context.handle(
+        _isGroupMeta,
+        isGroup.isAcceptableOrUnknown(data['is_group']!, _isGroupMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('posted_at')) {
+      context.handle(
+        _postedAtMeta,
+        postedAt.isAcceptableOrUnknown(data['posted_at']!, _postedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_postedAtMeta);
+    }
+    if (data.containsKey('has_reply_action')) {
+      context.handle(
+        _hasReplyActionMeta,
+        hasReplyAction.isAcceptableOrUnknown(
+          data['has_reply_action']!,
+          _hasReplyActionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('sensitivity_flags')) {
+      context.handle(
+        _sensitivityFlagsMeta,
+        sensitivityFlags.isAcceptableOrUnknown(
+          data['sensitivity_flags']!,
+          _sensitivityFlagsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_expiresAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CapturedNotification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CapturedNotification(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      dedupeHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dedupe_hash'],
+      )!,
+      notificationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_key'],
+      )!,
+      packageName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_name'],
+      )!,
+      conversationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_key'],
+      ),
+      conversationTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_title'],
+      ),
+      sender: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sender'],
+      ),
+      isGroup: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_group'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      postedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}posted_at'],
+      )!,
+      hasReplyAction: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_reply_action'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      sensitivityFlags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sensitivity_flags'],
+      ),
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expires_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CapturedNotificationsTable createAlias(String alias) {
+    return $CapturedNotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class CapturedNotification extends DataClass
+    implements Insertable<CapturedNotification> {
+  final String id;
+
+  /// Hash of package + conversation + text + post time bucket; dedupes
+  /// re-posted / updated notifications.
+  final String dedupeHash;
+  final String notificationKey;
+  final String packageName;
+  final String? conversationKey;
+  final String? conversationTitle;
+  final String? sender;
+  final bool isGroup;
+
+  /// Message text as shown in the notification (may be truncated).
+  final String body;
+  final DateTime postedAt;
+  final bool hasReplyAction;
+
+  /// new | ignored | summarized | drafted | replied | dismissed
+  final String status;
+
+  /// Comma-separated sensitivity flags from the local classifier.
+  final String? sensitivityFlags;
+  final DateTime expiresAt;
+  final DateTime createdAt;
+  const CapturedNotification({
+    required this.id,
+    required this.dedupeHash,
+    required this.notificationKey,
+    required this.packageName,
+    this.conversationKey,
+    this.conversationTitle,
+    this.sender,
+    required this.isGroup,
+    required this.body,
+    required this.postedAt,
+    required this.hasReplyAction,
+    required this.status,
+    this.sensitivityFlags,
+    required this.expiresAt,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['dedupe_hash'] = Variable<String>(dedupeHash);
+    map['notification_key'] = Variable<String>(notificationKey);
+    map['package_name'] = Variable<String>(packageName);
+    if (!nullToAbsent || conversationKey != null) {
+      map['conversation_key'] = Variable<String>(conversationKey);
+    }
+    if (!nullToAbsent || conversationTitle != null) {
+      map['conversation_title'] = Variable<String>(conversationTitle);
+    }
+    if (!nullToAbsent || sender != null) {
+      map['sender'] = Variable<String>(sender);
+    }
+    map['is_group'] = Variable<bool>(isGroup);
+    map['body'] = Variable<String>(body);
+    map['posted_at'] = Variable<DateTime>(postedAt);
+    map['has_reply_action'] = Variable<bool>(hasReplyAction);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || sensitivityFlags != null) {
+      map['sensitivity_flags'] = Variable<String>(sensitivityFlags);
+    }
+    map['expires_at'] = Variable<DateTime>(expiresAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  CapturedNotificationsCompanion toCompanion(bool nullToAbsent) {
+    return CapturedNotificationsCompanion(
+      id: Value(id),
+      dedupeHash: Value(dedupeHash),
+      notificationKey: Value(notificationKey),
+      packageName: Value(packageName),
+      conversationKey: conversationKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationKey),
+      conversationTitle: conversationTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationTitle),
+      sender: sender == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sender),
+      isGroup: Value(isGroup),
+      body: Value(body),
+      postedAt: Value(postedAt),
+      hasReplyAction: Value(hasReplyAction),
+      status: Value(status),
+      sensitivityFlags: sensitivityFlags == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sensitivityFlags),
+      expiresAt: Value(expiresAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CapturedNotification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CapturedNotification(
+      id: serializer.fromJson<String>(json['id']),
+      dedupeHash: serializer.fromJson<String>(json['dedupeHash']),
+      notificationKey: serializer.fromJson<String>(json['notificationKey']),
+      packageName: serializer.fromJson<String>(json['packageName']),
+      conversationKey: serializer.fromJson<String?>(json['conversationKey']),
+      conversationTitle: serializer.fromJson<String?>(
+        json['conversationTitle'],
+      ),
+      sender: serializer.fromJson<String?>(json['sender']),
+      isGroup: serializer.fromJson<bool>(json['isGroup']),
+      body: serializer.fromJson<String>(json['body']),
+      postedAt: serializer.fromJson<DateTime>(json['postedAt']),
+      hasReplyAction: serializer.fromJson<bool>(json['hasReplyAction']),
+      status: serializer.fromJson<String>(json['status']),
+      sensitivityFlags: serializer.fromJson<String?>(json['sensitivityFlags']),
+      expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'dedupeHash': serializer.toJson<String>(dedupeHash),
+      'notificationKey': serializer.toJson<String>(notificationKey),
+      'packageName': serializer.toJson<String>(packageName),
+      'conversationKey': serializer.toJson<String?>(conversationKey),
+      'conversationTitle': serializer.toJson<String?>(conversationTitle),
+      'sender': serializer.toJson<String?>(sender),
+      'isGroup': serializer.toJson<bool>(isGroup),
+      'body': serializer.toJson<String>(body),
+      'postedAt': serializer.toJson<DateTime>(postedAt),
+      'hasReplyAction': serializer.toJson<bool>(hasReplyAction),
+      'status': serializer.toJson<String>(status),
+      'sensitivityFlags': serializer.toJson<String?>(sensitivityFlags),
+      'expiresAt': serializer.toJson<DateTime>(expiresAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  CapturedNotification copyWith({
+    String? id,
+    String? dedupeHash,
+    String? notificationKey,
+    String? packageName,
+    Value<String?> conversationKey = const Value.absent(),
+    Value<String?> conversationTitle = const Value.absent(),
+    Value<String?> sender = const Value.absent(),
+    bool? isGroup,
+    String? body,
+    DateTime? postedAt,
+    bool? hasReplyAction,
+    String? status,
+    Value<String?> sensitivityFlags = const Value.absent(),
+    DateTime? expiresAt,
+    DateTime? createdAt,
+  }) => CapturedNotification(
+    id: id ?? this.id,
+    dedupeHash: dedupeHash ?? this.dedupeHash,
+    notificationKey: notificationKey ?? this.notificationKey,
+    packageName: packageName ?? this.packageName,
+    conversationKey: conversationKey.present
+        ? conversationKey.value
+        : this.conversationKey,
+    conversationTitle: conversationTitle.present
+        ? conversationTitle.value
+        : this.conversationTitle,
+    sender: sender.present ? sender.value : this.sender,
+    isGroup: isGroup ?? this.isGroup,
+    body: body ?? this.body,
+    postedAt: postedAt ?? this.postedAt,
+    hasReplyAction: hasReplyAction ?? this.hasReplyAction,
+    status: status ?? this.status,
+    sensitivityFlags: sensitivityFlags.present
+        ? sensitivityFlags.value
+        : this.sensitivityFlags,
+    expiresAt: expiresAt ?? this.expiresAt,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  CapturedNotification copyWithCompanion(CapturedNotificationsCompanion data) {
+    return CapturedNotification(
+      id: data.id.present ? data.id.value : this.id,
+      dedupeHash: data.dedupeHash.present
+          ? data.dedupeHash.value
+          : this.dedupeHash,
+      notificationKey: data.notificationKey.present
+          ? data.notificationKey.value
+          : this.notificationKey,
+      packageName: data.packageName.present
+          ? data.packageName.value
+          : this.packageName,
+      conversationKey: data.conversationKey.present
+          ? data.conversationKey.value
+          : this.conversationKey,
+      conversationTitle: data.conversationTitle.present
+          ? data.conversationTitle.value
+          : this.conversationTitle,
+      sender: data.sender.present ? data.sender.value : this.sender,
+      isGroup: data.isGroup.present ? data.isGroup.value : this.isGroup,
+      body: data.body.present ? data.body.value : this.body,
+      postedAt: data.postedAt.present ? data.postedAt.value : this.postedAt,
+      hasReplyAction: data.hasReplyAction.present
+          ? data.hasReplyAction.value
+          : this.hasReplyAction,
+      status: data.status.present ? data.status.value : this.status,
+      sensitivityFlags: data.sensitivityFlags.present
+          ? data.sensitivityFlags.value
+          : this.sensitivityFlags,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CapturedNotification(')
+          ..write('id: $id, ')
+          ..write('dedupeHash: $dedupeHash, ')
+          ..write('notificationKey: $notificationKey, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('conversationTitle: $conversationTitle, ')
+          ..write('sender: $sender, ')
+          ..write('isGroup: $isGroup, ')
+          ..write('body: $body, ')
+          ..write('postedAt: $postedAt, ')
+          ..write('hasReplyAction: $hasReplyAction, ')
+          ..write('status: $status, ')
+          ..write('sensitivityFlags: $sensitivityFlags, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    dedupeHash,
+    notificationKey,
+    packageName,
+    conversationKey,
+    conversationTitle,
+    sender,
+    isGroup,
+    body,
+    postedAt,
+    hasReplyAction,
+    status,
+    sensitivityFlags,
+    expiresAt,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CapturedNotification &&
+          other.id == this.id &&
+          other.dedupeHash == this.dedupeHash &&
+          other.notificationKey == this.notificationKey &&
+          other.packageName == this.packageName &&
+          other.conversationKey == this.conversationKey &&
+          other.conversationTitle == this.conversationTitle &&
+          other.sender == this.sender &&
+          other.isGroup == this.isGroup &&
+          other.body == this.body &&
+          other.postedAt == this.postedAt &&
+          other.hasReplyAction == this.hasReplyAction &&
+          other.status == this.status &&
+          other.sensitivityFlags == this.sensitivityFlags &&
+          other.expiresAt == this.expiresAt &&
+          other.createdAt == this.createdAt);
+}
+
+class CapturedNotificationsCompanion
+    extends UpdateCompanion<CapturedNotification> {
+  final Value<String> id;
+  final Value<String> dedupeHash;
+  final Value<String> notificationKey;
+  final Value<String> packageName;
+  final Value<String?> conversationKey;
+  final Value<String?> conversationTitle;
+  final Value<String?> sender;
+  final Value<bool> isGroup;
+  final Value<String> body;
+  final Value<DateTime> postedAt;
+  final Value<bool> hasReplyAction;
+  final Value<String> status;
+  final Value<String?> sensitivityFlags;
+  final Value<DateTime> expiresAt;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const CapturedNotificationsCompanion({
+    this.id = const Value.absent(),
+    this.dedupeHash = const Value.absent(),
+    this.notificationKey = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.conversationKey = const Value.absent(),
+    this.conversationTitle = const Value.absent(),
+    this.sender = const Value.absent(),
+    this.isGroup = const Value.absent(),
+    this.body = const Value.absent(),
+    this.postedAt = const Value.absent(),
+    this.hasReplyAction = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sensitivityFlags = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CapturedNotificationsCompanion.insert({
+    required String id,
+    required String dedupeHash,
+    required String notificationKey,
+    required String packageName,
+    this.conversationKey = const Value.absent(),
+    this.conversationTitle = const Value.absent(),
+    this.sender = const Value.absent(),
+    this.isGroup = const Value.absent(),
+    required String body,
+    required DateTime postedAt,
+    this.hasReplyAction = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sensitivityFlags = const Value.absent(),
+    required DateTime expiresAt,
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       dedupeHash = Value(dedupeHash),
+       notificationKey = Value(notificationKey),
+       packageName = Value(packageName),
+       body = Value(body),
+       postedAt = Value(postedAt),
+       expiresAt = Value(expiresAt);
+  static Insertable<CapturedNotification> custom({
+    Expression<String>? id,
+    Expression<String>? dedupeHash,
+    Expression<String>? notificationKey,
+    Expression<String>? packageName,
+    Expression<String>? conversationKey,
+    Expression<String>? conversationTitle,
+    Expression<String>? sender,
+    Expression<bool>? isGroup,
+    Expression<String>? body,
+    Expression<DateTime>? postedAt,
+    Expression<bool>? hasReplyAction,
+    Expression<String>? status,
+    Expression<String>? sensitivityFlags,
+    Expression<DateTime>? expiresAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dedupeHash != null) 'dedupe_hash': dedupeHash,
+      if (notificationKey != null) 'notification_key': notificationKey,
+      if (packageName != null) 'package_name': packageName,
+      if (conversationKey != null) 'conversation_key': conversationKey,
+      if (conversationTitle != null) 'conversation_title': conversationTitle,
+      if (sender != null) 'sender': sender,
+      if (isGroup != null) 'is_group': isGroup,
+      if (body != null) 'body': body,
+      if (postedAt != null) 'posted_at': postedAt,
+      if (hasReplyAction != null) 'has_reply_action': hasReplyAction,
+      if (status != null) 'status': status,
+      if (sensitivityFlags != null) 'sensitivity_flags': sensitivityFlags,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CapturedNotificationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? dedupeHash,
+    Value<String>? notificationKey,
+    Value<String>? packageName,
+    Value<String?>? conversationKey,
+    Value<String?>? conversationTitle,
+    Value<String?>? sender,
+    Value<bool>? isGroup,
+    Value<String>? body,
+    Value<DateTime>? postedAt,
+    Value<bool>? hasReplyAction,
+    Value<String>? status,
+    Value<String?>? sensitivityFlags,
+    Value<DateTime>? expiresAt,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return CapturedNotificationsCompanion(
+      id: id ?? this.id,
+      dedupeHash: dedupeHash ?? this.dedupeHash,
+      notificationKey: notificationKey ?? this.notificationKey,
+      packageName: packageName ?? this.packageName,
+      conversationKey: conversationKey ?? this.conversationKey,
+      conversationTitle: conversationTitle ?? this.conversationTitle,
+      sender: sender ?? this.sender,
+      isGroup: isGroup ?? this.isGroup,
+      body: body ?? this.body,
+      postedAt: postedAt ?? this.postedAt,
+      hasReplyAction: hasReplyAction ?? this.hasReplyAction,
+      status: status ?? this.status,
+      sensitivityFlags: sensitivityFlags ?? this.sensitivityFlags,
+      expiresAt: expiresAt ?? this.expiresAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (dedupeHash.present) {
+      map['dedupe_hash'] = Variable<String>(dedupeHash.value);
+    }
+    if (notificationKey.present) {
+      map['notification_key'] = Variable<String>(notificationKey.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (conversationKey.present) {
+      map['conversation_key'] = Variable<String>(conversationKey.value);
+    }
+    if (conversationTitle.present) {
+      map['conversation_title'] = Variable<String>(conversationTitle.value);
+    }
+    if (sender.present) {
+      map['sender'] = Variable<String>(sender.value);
+    }
+    if (isGroup.present) {
+      map['is_group'] = Variable<bool>(isGroup.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (postedAt.present) {
+      map['posted_at'] = Variable<DateTime>(postedAt.value);
+    }
+    if (hasReplyAction.present) {
+      map['has_reply_action'] = Variable<bool>(hasReplyAction.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (sensitivityFlags.present) {
+      map['sensitivity_flags'] = Variable<String>(sensitivityFlags.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CapturedNotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('dedupeHash: $dedupeHash, ')
+          ..write('notificationKey: $notificationKey, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('conversationTitle: $conversationTitle, ')
+          ..write('sender: $sender, ')
+          ..write('isGroup: $isGroup, ')
+          ..write('body: $body, ')
+          ..write('postedAt: $postedAt, ')
+          ..write('hasReplyAction: $hasReplyAction, ')
+          ..write('status: $status, ')
+          ..write('sensitivityFlags: $sensitivityFlags, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReplyDraftsTable extends ReplyDrafts
+    with TableInfo<$ReplyDraftsTable, ReplyDraft> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReplyDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<String> notificationId = GeneratedColumn<String>(
+    'notification_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _packageNameMeta = const VerificationMeta(
+    'packageName',
+  );
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+    'package_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _conversationKeyMeta = const VerificationMeta(
+    'conversationKey',
+  );
+  @override
+  late final GeneratedColumn<String> conversationKey = GeneratedColumn<String>(
+    'conversation_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _draftTextMeta = const VerificationMeta(
+    'draftText',
+  );
+  @override
+  late final GeneratedColumn<String> draftText = GeneratedColumn<String>(
+    'draft_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _confidenceMeta = const VerificationMeta(
+    'confidence',
+  );
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+    'confidence',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _riskMeta = const VerificationMeta('risk');
+  @override
+  late final GeneratedColumn<String> risk = GeneratedColumn<String>(
+    'risk',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('high'),
+  );
+  static const VerificationMeta _riskFlagsMeta = const VerificationMeta(
+    'riskFlags',
+  );
+  @override
+  late final GeneratedColumn<String> riskFlags = GeneratedColumn<String>(
+    'risk_flags',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _sendPolicyMeta = const VerificationMeta(
+    'sendPolicy',
+  );
+  @override
+  late final GeneratedColumn<String> sendPolicy = GeneratedColumn<String>(
+    'send_policy',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deliveryDetailMeta = const VerificationMeta(
+    'deliveryDetail',
+  );
+  @override
+  late final GeneratedColumn<String> deliveryDetail = GeneratedColumn<String>(
+    'delivery_detail',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _decidedAtMeta = const VerificationMeta(
+    'decidedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> decidedAt = GeneratedColumn<DateTime>(
+    'decided_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sentAtMeta = const VerificationMeta('sentAt');
+  @override
+  late final GeneratedColumn<DateTime> sentAt = GeneratedColumn<DateTime>(
+    'sent_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    notificationId,
+    packageName,
+    conversationKey,
+    draftText,
+    category,
+    confidence,
+    risk,
+    riskFlags,
+    status,
+    sendPolicy,
+    deliveryDetail,
+    idempotencyKey,
+    createdAt,
+    decidedAt,
+    sentAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reply_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReplyDraft> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+        _packageNameMeta,
+        packageName.isAcceptableOrUnknown(
+          data['package_name']!,
+          _packageNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_packageNameMeta);
+    }
+    if (data.containsKey('conversation_key')) {
+      context.handle(
+        _conversationKeyMeta,
+        conversationKey.isAcceptableOrUnknown(
+          data['conversation_key']!,
+          _conversationKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('draft_text')) {
+      context.handle(
+        _draftTextMeta,
+        draftText.isAcceptableOrUnknown(data['draft_text']!, _draftTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_draftTextMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+        _confidenceMeta,
+        confidence.isAcceptableOrUnknown(data['confidence']!, _confidenceMeta),
+      );
+    }
+    if (data.containsKey('risk')) {
+      context.handle(
+        _riskMeta,
+        risk.isAcceptableOrUnknown(data['risk']!, _riskMeta),
+      );
+    }
+    if (data.containsKey('risk_flags')) {
+      context.handle(
+        _riskFlagsMeta,
+        riskFlags.isAcceptableOrUnknown(data['risk_flags']!, _riskFlagsMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('send_policy')) {
+      context.handle(
+        _sendPolicyMeta,
+        sendPolicy.isAcceptableOrUnknown(data['send_policy']!, _sendPolicyMeta),
+      );
+    }
+    if (data.containsKey('delivery_detail')) {
+      context.handle(
+        _deliveryDetailMeta,
+        deliveryDetail.isAcceptableOrUnknown(
+          data['delivery_detail']!,
+          _deliveryDetailMeta,
+        ),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_idempotencyKeyMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('decided_at')) {
+      context.handle(
+        _decidedAtMeta,
+        decidedAt.isAcceptableOrUnknown(data['decided_at']!, _decidedAtMeta),
+      );
+    }
+    if (data.containsKey('sent_at')) {
+      context.handle(
+        _sentAtMeta,
+        sentAt.isAcceptableOrUnknown(data['sent_at']!, _sentAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReplyDraft map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReplyDraft(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notification_id'],
+      ),
+      packageName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_name'],
+      )!,
+      conversationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_key'],
+      ),
+      draftText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}draft_text'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      confidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}confidence'],
+      ),
+      risk: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}risk'],
+      )!,
+      riskFlags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}risk_flags'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      sendPolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}send_policy'],
+      ),
+      deliveryDetail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}delivery_detail'],
+      ),
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      decidedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}decided_at'],
+      ),
+      sentAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}sent_at'],
+      ),
+    );
+  }
+
+  @override
+  $ReplyDraftsTable createAlias(String alias) {
+    return $ReplyDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class ReplyDraft extends DataClass implements Insertable<ReplyDraft> {
+  final String id;
+  final String? notificationId;
+  final String packageName;
+  final String? conversationKey;
+  final String draftText;
+
+  /// e.g. acknowledgement | scheduling | availability | other
+  final String? category;
+  final double? confidence;
+
+  /// low | medium | high
+  final String risk;
+  final String? riskFlags;
+
+  /// draft | pending_approval | approved | sending | handed_off | failed |
+  /// rejected | expired | unsupported
+  final String status;
+
+  /// manual | approval | restricted_auto
+  final String? sendPolicy;
+
+  /// Human-readable transport result, never containing message content.
+  final String? deliveryDetail;
+  final String idempotencyKey;
+  final DateTime createdAt;
+  final DateTime? decidedAt;
+  final DateTime? sentAt;
+  const ReplyDraft({
+    required this.id,
+    this.notificationId,
+    required this.packageName,
+    this.conversationKey,
+    required this.draftText,
+    this.category,
+    this.confidence,
+    required this.risk,
+    this.riskFlags,
+    required this.status,
+    this.sendPolicy,
+    this.deliveryDetail,
+    required this.idempotencyKey,
+    required this.createdAt,
+    this.decidedAt,
+    this.sentAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || notificationId != null) {
+      map['notification_id'] = Variable<String>(notificationId);
+    }
+    map['package_name'] = Variable<String>(packageName);
+    if (!nullToAbsent || conversationKey != null) {
+      map['conversation_key'] = Variable<String>(conversationKey);
+    }
+    map['draft_text'] = Variable<String>(draftText);
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    if (!nullToAbsent || confidence != null) {
+      map['confidence'] = Variable<double>(confidence);
+    }
+    map['risk'] = Variable<String>(risk);
+    if (!nullToAbsent || riskFlags != null) {
+      map['risk_flags'] = Variable<String>(riskFlags);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || sendPolicy != null) {
+      map['send_policy'] = Variable<String>(sendPolicy);
+    }
+    if (!nullToAbsent || deliveryDetail != null) {
+      map['delivery_detail'] = Variable<String>(deliveryDetail);
+    }
+    map['idempotency_key'] = Variable<String>(idempotencyKey);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || decidedAt != null) {
+      map['decided_at'] = Variable<DateTime>(decidedAt);
+    }
+    if (!nullToAbsent || sentAt != null) {
+      map['sent_at'] = Variable<DateTime>(sentAt);
+    }
+    return map;
+  }
+
+  ReplyDraftsCompanion toCompanion(bool nullToAbsent) {
+    return ReplyDraftsCompanion(
+      id: Value(id),
+      notificationId: notificationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notificationId),
+      packageName: Value(packageName),
+      conversationKey: conversationKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationKey),
+      draftText: Value(draftText),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      confidence: confidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confidence),
+      risk: Value(risk),
+      riskFlags: riskFlags == null && nullToAbsent
+          ? const Value.absent()
+          : Value(riskFlags),
+      status: Value(status),
+      sendPolicy: sendPolicy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sendPolicy),
+      deliveryDetail: deliveryDetail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deliveryDetail),
+      idempotencyKey: Value(idempotencyKey),
+      createdAt: Value(createdAt),
+      decidedAt: decidedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(decidedAt),
+      sentAt: sentAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sentAt),
+    );
+  }
+
+  factory ReplyDraft.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReplyDraft(
+      id: serializer.fromJson<String>(json['id']),
+      notificationId: serializer.fromJson<String?>(json['notificationId']),
+      packageName: serializer.fromJson<String>(json['packageName']),
+      conversationKey: serializer.fromJson<String?>(json['conversationKey']),
+      draftText: serializer.fromJson<String>(json['draftText']),
+      category: serializer.fromJson<String?>(json['category']),
+      confidence: serializer.fromJson<double?>(json['confidence']),
+      risk: serializer.fromJson<String>(json['risk']),
+      riskFlags: serializer.fromJson<String?>(json['riskFlags']),
+      status: serializer.fromJson<String>(json['status']),
+      sendPolicy: serializer.fromJson<String?>(json['sendPolicy']),
+      deliveryDetail: serializer.fromJson<String?>(json['deliveryDetail']),
+      idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      decidedAt: serializer.fromJson<DateTime?>(json['decidedAt']),
+      sentAt: serializer.fromJson<DateTime?>(json['sentAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'notificationId': serializer.toJson<String?>(notificationId),
+      'packageName': serializer.toJson<String>(packageName),
+      'conversationKey': serializer.toJson<String?>(conversationKey),
+      'draftText': serializer.toJson<String>(draftText),
+      'category': serializer.toJson<String?>(category),
+      'confidence': serializer.toJson<double?>(confidence),
+      'risk': serializer.toJson<String>(risk),
+      'riskFlags': serializer.toJson<String?>(riskFlags),
+      'status': serializer.toJson<String>(status),
+      'sendPolicy': serializer.toJson<String?>(sendPolicy),
+      'deliveryDetail': serializer.toJson<String?>(deliveryDetail),
+      'idempotencyKey': serializer.toJson<String>(idempotencyKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'decidedAt': serializer.toJson<DateTime?>(decidedAt),
+      'sentAt': serializer.toJson<DateTime?>(sentAt),
+    };
+  }
+
+  ReplyDraft copyWith({
+    String? id,
+    Value<String?> notificationId = const Value.absent(),
+    String? packageName,
+    Value<String?> conversationKey = const Value.absent(),
+    String? draftText,
+    Value<String?> category = const Value.absent(),
+    Value<double?> confidence = const Value.absent(),
+    String? risk,
+    Value<String?> riskFlags = const Value.absent(),
+    String? status,
+    Value<String?> sendPolicy = const Value.absent(),
+    Value<String?> deliveryDetail = const Value.absent(),
+    String? idempotencyKey,
+    DateTime? createdAt,
+    Value<DateTime?> decidedAt = const Value.absent(),
+    Value<DateTime?> sentAt = const Value.absent(),
+  }) => ReplyDraft(
+    id: id ?? this.id,
+    notificationId: notificationId.present
+        ? notificationId.value
+        : this.notificationId,
+    packageName: packageName ?? this.packageName,
+    conversationKey: conversationKey.present
+        ? conversationKey.value
+        : this.conversationKey,
+    draftText: draftText ?? this.draftText,
+    category: category.present ? category.value : this.category,
+    confidence: confidence.present ? confidence.value : this.confidence,
+    risk: risk ?? this.risk,
+    riskFlags: riskFlags.present ? riskFlags.value : this.riskFlags,
+    status: status ?? this.status,
+    sendPolicy: sendPolicy.present ? sendPolicy.value : this.sendPolicy,
+    deliveryDetail: deliveryDetail.present
+        ? deliveryDetail.value
+        : this.deliveryDetail,
+    idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    createdAt: createdAt ?? this.createdAt,
+    decidedAt: decidedAt.present ? decidedAt.value : this.decidedAt,
+    sentAt: sentAt.present ? sentAt.value : this.sentAt,
+  );
+  ReplyDraft copyWithCompanion(ReplyDraftsCompanion data) {
+    return ReplyDraft(
+      id: data.id.present ? data.id.value : this.id,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
+      packageName: data.packageName.present
+          ? data.packageName.value
+          : this.packageName,
+      conversationKey: data.conversationKey.present
+          ? data.conversationKey.value
+          : this.conversationKey,
+      draftText: data.draftText.present ? data.draftText.value : this.draftText,
+      category: data.category.present ? data.category.value : this.category,
+      confidence: data.confidence.present
+          ? data.confidence.value
+          : this.confidence,
+      risk: data.risk.present ? data.risk.value : this.risk,
+      riskFlags: data.riskFlags.present ? data.riskFlags.value : this.riskFlags,
+      status: data.status.present ? data.status.value : this.status,
+      sendPolicy: data.sendPolicy.present
+          ? data.sendPolicy.value
+          : this.sendPolicy,
+      deliveryDetail: data.deliveryDetail.present
+          ? data.deliveryDetail.value
+          : this.deliveryDetail,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      decidedAt: data.decidedAt.present ? data.decidedAt.value : this.decidedAt,
+      sentAt: data.sentAt.present ? data.sentAt.value : this.sentAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReplyDraft(')
+          ..write('id: $id, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('draftText: $draftText, ')
+          ..write('category: $category, ')
+          ..write('confidence: $confidence, ')
+          ..write('risk: $risk, ')
+          ..write('riskFlags: $riskFlags, ')
+          ..write('status: $status, ')
+          ..write('sendPolicy: $sendPolicy, ')
+          ..write('deliveryDetail: $deliveryDetail, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('decidedAt: $decidedAt, ')
+          ..write('sentAt: $sentAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    notificationId,
+    packageName,
+    conversationKey,
+    draftText,
+    category,
+    confidence,
+    risk,
+    riskFlags,
+    status,
+    sendPolicy,
+    deliveryDetail,
+    idempotencyKey,
+    createdAt,
+    decidedAt,
+    sentAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReplyDraft &&
+          other.id == this.id &&
+          other.notificationId == this.notificationId &&
+          other.packageName == this.packageName &&
+          other.conversationKey == this.conversationKey &&
+          other.draftText == this.draftText &&
+          other.category == this.category &&
+          other.confidence == this.confidence &&
+          other.risk == this.risk &&
+          other.riskFlags == this.riskFlags &&
+          other.status == this.status &&
+          other.sendPolicy == this.sendPolicy &&
+          other.deliveryDetail == this.deliveryDetail &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.createdAt == this.createdAt &&
+          other.decidedAt == this.decidedAt &&
+          other.sentAt == this.sentAt);
+}
+
+class ReplyDraftsCompanion extends UpdateCompanion<ReplyDraft> {
+  final Value<String> id;
+  final Value<String?> notificationId;
+  final Value<String> packageName;
+  final Value<String?> conversationKey;
+  final Value<String> draftText;
+  final Value<String?> category;
+  final Value<double?> confidence;
+  final Value<String> risk;
+  final Value<String?> riskFlags;
+  final Value<String> status;
+  final Value<String?> sendPolicy;
+  final Value<String?> deliveryDetail;
+  final Value<String> idempotencyKey;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> decidedAt;
+  final Value<DateTime?> sentAt;
+  final Value<int> rowid;
+  const ReplyDraftsCompanion({
+    this.id = const Value.absent(),
+    this.notificationId = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.conversationKey = const Value.absent(),
+    this.draftText = const Value.absent(),
+    this.category = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.risk = const Value.absent(),
+    this.riskFlags = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sendPolicy = const Value.absent(),
+    this.deliveryDetail = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.decidedAt = const Value.absent(),
+    this.sentAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReplyDraftsCompanion.insert({
+    required String id,
+    this.notificationId = const Value.absent(),
+    required String packageName,
+    this.conversationKey = const Value.absent(),
+    required String draftText,
+    this.category = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.risk = const Value.absent(),
+    this.riskFlags = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sendPolicy = const Value.absent(),
+    this.deliveryDetail = const Value.absent(),
+    required String idempotencyKey,
+    this.createdAt = const Value.absent(),
+    this.decidedAt = const Value.absent(),
+    this.sentAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       packageName = Value(packageName),
+       draftText = Value(draftText),
+       idempotencyKey = Value(idempotencyKey);
+  static Insertable<ReplyDraft> custom({
+    Expression<String>? id,
+    Expression<String>? notificationId,
+    Expression<String>? packageName,
+    Expression<String>? conversationKey,
+    Expression<String>? draftText,
+    Expression<String>? category,
+    Expression<double>? confidence,
+    Expression<String>? risk,
+    Expression<String>? riskFlags,
+    Expression<String>? status,
+    Expression<String>? sendPolicy,
+    Expression<String>? deliveryDetail,
+    Expression<String>? idempotencyKey,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? decidedAt,
+    Expression<DateTime>? sentAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (notificationId != null) 'notification_id': notificationId,
+      if (packageName != null) 'package_name': packageName,
+      if (conversationKey != null) 'conversation_key': conversationKey,
+      if (draftText != null) 'draft_text': draftText,
+      if (category != null) 'category': category,
+      if (confidence != null) 'confidence': confidence,
+      if (risk != null) 'risk': risk,
+      if (riskFlags != null) 'risk_flags': riskFlags,
+      if (status != null) 'status': status,
+      if (sendPolicy != null) 'send_policy': sendPolicy,
+      if (deliveryDetail != null) 'delivery_detail': deliveryDetail,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (decidedAt != null) 'decided_at': decidedAt,
+      if (sentAt != null) 'sent_at': sentAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReplyDraftsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? notificationId,
+    Value<String>? packageName,
+    Value<String?>? conversationKey,
+    Value<String>? draftText,
+    Value<String?>? category,
+    Value<double?>? confidence,
+    Value<String>? risk,
+    Value<String?>? riskFlags,
+    Value<String>? status,
+    Value<String?>? sendPolicy,
+    Value<String?>? deliveryDetail,
+    Value<String>? idempotencyKey,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? decidedAt,
+    Value<DateTime?>? sentAt,
+    Value<int>? rowid,
+  }) {
+    return ReplyDraftsCompanion(
+      id: id ?? this.id,
+      notificationId: notificationId ?? this.notificationId,
+      packageName: packageName ?? this.packageName,
+      conversationKey: conversationKey ?? this.conversationKey,
+      draftText: draftText ?? this.draftText,
+      category: category ?? this.category,
+      confidence: confidence ?? this.confidence,
+      risk: risk ?? this.risk,
+      riskFlags: riskFlags ?? this.riskFlags,
+      status: status ?? this.status,
+      sendPolicy: sendPolicy ?? this.sendPolicy,
+      deliveryDetail: deliveryDetail ?? this.deliveryDetail,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      createdAt: createdAt ?? this.createdAt,
+      decidedAt: decidedAt ?? this.decidedAt,
+      sentAt: sentAt ?? this.sentAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<String>(notificationId.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (conversationKey.present) {
+      map['conversation_key'] = Variable<String>(conversationKey.value);
+    }
+    if (draftText.present) {
+      map['draft_text'] = Variable<String>(draftText.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (risk.present) {
+      map['risk'] = Variable<String>(risk.value);
+    }
+    if (riskFlags.present) {
+      map['risk_flags'] = Variable<String>(riskFlags.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (sendPolicy.present) {
+      map['send_policy'] = Variable<String>(sendPolicy.value);
+    }
+    if (deliveryDetail.present) {
+      map['delivery_detail'] = Variable<String>(deliveryDetail.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (decidedAt.present) {
+      map['decided_at'] = Variable<DateTime>(decidedAt.value);
+    }
+    if (sentAt.present) {
+      map['sent_at'] = Variable<DateTime>(sentAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReplyDraftsCompanion(')
+          ..write('id: $id, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('draftText: $draftText, ')
+          ..write('category: $category, ')
+          ..write('confidence: $confidence, ')
+          ..write('risk: $risk, ')
+          ..write('riskFlags: $riskFlags, ')
+          ..write('status: $status, ')
+          ..write('sendPolicy: $sendPolicy, ')
+          ..write('deliveryDetail: $deliveryDetail, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('decidedAt: $decidedAt, ')
+          ..write('sentAt: $sentAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AutomationAuditTable extends AutomationAudit
+    with TableInfo<$AutomationAuditTable, AutomationAuditData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AutomationAuditTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _packageNameMeta = const VerificationMeta(
+    'packageName',
+  );
+  @override
+  late final GeneratedColumn<String> packageName = GeneratedColumn<String>(
+    'package_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversationKeyMeta = const VerificationMeta(
+    'conversationKey',
+  );
+  @override
+  late final GeneratedColumn<String> conversationKey = GeneratedColumn<String>(
+    'conversation_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _refIdMeta = const VerificationMeta('refId');
+  @override
+  late final GeneratedColumn<String> refId = GeneratedColumn<String>(
+    'ref_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    action,
+    packageName,
+    conversationKey,
+    refId,
+    detail,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'automation_audit';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AutomationAuditData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('package_name')) {
+      context.handle(
+        _packageNameMeta,
+        packageName.isAcceptableOrUnknown(
+          data['package_name']!,
+          _packageNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('conversation_key')) {
+      context.handle(
+        _conversationKeyMeta,
+        conversationKey.isAcceptableOrUnknown(
+          data['conversation_key']!,
+          _conversationKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('ref_id')) {
+      context.handle(
+        _refIdMeta,
+        refId.isAcceptableOrUnknown(data['ref_id']!, _refIdMeta),
+      );
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AutomationAuditData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AutomationAuditData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      )!,
+      packageName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_name'],
+      ),
+      conversationKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_key'],
+      ),
+      refId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ref_id'],
+      ),
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AutomationAuditTable createAlias(String alias) {
+    return $AutomationAuditTable(attachedDatabase, alias);
+  }
+}
+
+class AutomationAuditData extends DataClass
+    implements Insertable<AutomationAuditData> {
+  final String id;
+
+  /// capture | ignore | classify | draft | approve | reject | send |
+  /// send_failed | kill_switch | settings
+  final String action;
+  final String? packageName;
+  final String? conversationKey;
+  final String? refId;
+
+  /// Metadata only — never message text or credentials.
+  final String? detail;
+  final DateTime createdAt;
+  const AutomationAuditData({
+    required this.id,
+    required this.action,
+    this.packageName,
+    this.conversationKey,
+    this.refId,
+    this.detail,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['action'] = Variable<String>(action);
+    if (!nullToAbsent || packageName != null) {
+      map['package_name'] = Variable<String>(packageName);
+    }
+    if (!nullToAbsent || conversationKey != null) {
+      map['conversation_key'] = Variable<String>(conversationKey);
+    }
+    if (!nullToAbsent || refId != null) {
+      map['ref_id'] = Variable<String>(refId);
+    }
+    if (!nullToAbsent || detail != null) {
+      map['detail'] = Variable<String>(detail);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AutomationAuditCompanion toCompanion(bool nullToAbsent) {
+    return AutomationAuditCompanion(
+      id: Value(id),
+      action: Value(action),
+      packageName: packageName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(packageName),
+      conversationKey: conversationKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationKey),
+      refId: refId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(refId),
+      detail: detail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(detail),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AutomationAuditData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AutomationAuditData(
+      id: serializer.fromJson<String>(json['id']),
+      action: serializer.fromJson<String>(json['action']),
+      packageName: serializer.fromJson<String?>(json['packageName']),
+      conversationKey: serializer.fromJson<String?>(json['conversationKey']),
+      refId: serializer.fromJson<String?>(json['refId']),
+      detail: serializer.fromJson<String?>(json['detail']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'action': serializer.toJson<String>(action),
+      'packageName': serializer.toJson<String?>(packageName),
+      'conversationKey': serializer.toJson<String?>(conversationKey),
+      'refId': serializer.toJson<String?>(refId),
+      'detail': serializer.toJson<String?>(detail),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AutomationAuditData copyWith({
+    String? id,
+    String? action,
+    Value<String?> packageName = const Value.absent(),
+    Value<String?> conversationKey = const Value.absent(),
+    Value<String?> refId = const Value.absent(),
+    Value<String?> detail = const Value.absent(),
+    DateTime? createdAt,
+  }) => AutomationAuditData(
+    id: id ?? this.id,
+    action: action ?? this.action,
+    packageName: packageName.present ? packageName.value : this.packageName,
+    conversationKey: conversationKey.present
+        ? conversationKey.value
+        : this.conversationKey,
+    refId: refId.present ? refId.value : this.refId,
+    detail: detail.present ? detail.value : this.detail,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AutomationAuditData copyWithCompanion(AutomationAuditCompanion data) {
+    return AutomationAuditData(
+      id: data.id.present ? data.id.value : this.id,
+      action: data.action.present ? data.action.value : this.action,
+      packageName: data.packageName.present
+          ? data.packageName.value
+          : this.packageName,
+      conversationKey: data.conversationKey.present
+          ? data.conversationKey.value
+          : this.conversationKey,
+      refId: data.refId.present ? data.refId.value : this.refId,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutomationAuditData(')
+          ..write('id: $id, ')
+          ..write('action: $action, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('refId: $refId, ')
+          ..write('detail: $detail, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    action,
+    packageName,
+    conversationKey,
+    refId,
+    detail,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AutomationAuditData &&
+          other.id == this.id &&
+          other.action == this.action &&
+          other.packageName == this.packageName &&
+          other.conversationKey == this.conversationKey &&
+          other.refId == this.refId &&
+          other.detail == this.detail &&
+          other.createdAt == this.createdAt);
+}
+
+class AutomationAuditCompanion extends UpdateCompanion<AutomationAuditData> {
+  final Value<String> id;
+  final Value<String> action;
+  final Value<String?> packageName;
+  final Value<String?> conversationKey;
+  final Value<String?> refId;
+  final Value<String?> detail;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AutomationAuditCompanion({
+    this.id = const Value.absent(),
+    this.action = const Value.absent(),
+    this.packageName = const Value.absent(),
+    this.conversationKey = const Value.absent(),
+    this.refId = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AutomationAuditCompanion.insert({
+    required String id,
+    required String action,
+    this.packageName = const Value.absent(),
+    this.conversationKey = const Value.absent(),
+    this.refId = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       action = Value(action);
+  static Insertable<AutomationAuditData> custom({
+    Expression<String>? id,
+    Expression<String>? action,
+    Expression<String>? packageName,
+    Expression<String>? conversationKey,
+    Expression<String>? refId,
+    Expression<String>? detail,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (action != null) 'action': action,
+      if (packageName != null) 'package_name': packageName,
+      if (conversationKey != null) 'conversation_key': conversationKey,
+      if (refId != null) 'ref_id': refId,
+      if (detail != null) 'detail': detail,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AutomationAuditCompanion copyWith({
+    Value<String>? id,
+    Value<String>? action,
+    Value<String?>? packageName,
+    Value<String?>? conversationKey,
+    Value<String?>? refId,
+    Value<String?>? detail,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AutomationAuditCompanion(
+      id: id ?? this.id,
+      action: action ?? this.action,
+      packageName: packageName ?? this.packageName,
+      conversationKey: conversationKey ?? this.conversationKey,
+      refId: refId ?? this.refId,
+      detail: detail ?? this.detail,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (packageName.present) {
+      map['package_name'] = Variable<String>(packageName.value);
+    }
+    if (conversationKey.present) {
+      map['conversation_key'] = Variable<String>(conversationKey.value);
+    }
+    if (refId.present) {
+      map['ref_id'] = Variable<String>(refId.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutomationAuditCompanion(')
+          ..write('id: $id, ')
+          ..write('action: $action, ')
+          ..write('packageName: $packageName, ')
+          ..write('conversationKey: $conversationKey, ')
+          ..write('refId: $refId, ')
+          ..write('detail: $detail, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -21739,6 +25281,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotificationPrefsTable notificationPrefs =
       $NotificationPrefsTable(this);
   late final $ReportsTable reports = $ReportsTable(this);
+  late final $MessagingAppSettingsTable messagingAppSettings =
+      $MessagingAppSettingsTable(this);
+  late final $MessagingContactRulesTable messagingContactRules =
+      $MessagingContactRulesTable(this);
+  late final $CapturedNotificationsTable capturedNotifications =
+      $CapturedNotificationsTable(this);
+  late final $ReplyDraftsTable replyDrafts = $ReplyDraftsTable(this);
+  late final $AutomationAuditTable automationAudit = $AutomationAuditTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -21779,6 +25331,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncQueue,
     notificationPrefs,
     reports,
+    messagingAppSettings,
+    messagingContactRules,
+    capturedNotifications,
+    replyDrafts,
+    automationAudit,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -34802,6 +38359,1781 @@ typedef $$ReportsTableProcessedTableManager =
       Report,
       PrefetchHooks Function()
     >;
+typedef $$MessagingAppSettingsTableCreateCompanionBuilder =
+    MessagingAppSettingsCompanion Function({
+      required String packageName,
+      required String appLabel,
+      Value<bool> enabled,
+      Value<String> mode,
+      Value<bool> allowAi,
+      Value<bool> autoSendBlocked,
+      Value<int> retentionDays,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$MessagingAppSettingsTableUpdateCompanionBuilder =
+    MessagingAppSettingsCompanion Function({
+      Value<String> packageName,
+      Value<String> appLabel,
+      Value<bool> enabled,
+      Value<String> mode,
+      Value<bool> allowAi,
+      Value<bool> autoSendBlocked,
+      Value<int> retentionDays,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$MessagingAppSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $MessagingAppSettingsTable> {
+  $$MessagingAppSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appLabel => $composableBuilder(
+    column: $table.appLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allowAi => $composableBuilder(
+    column: $table.allowAi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoSendBlocked => $composableBuilder(
+    column: $table.autoSendBlocked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MessagingAppSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MessagingAppSettingsTable> {
+  $$MessagingAppSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appLabel => $composableBuilder(
+    column: $table.appLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allowAi => $composableBuilder(
+    column: $table.allowAi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoSendBlocked => $composableBuilder(
+    column: $table.autoSendBlocked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MessagingAppSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MessagingAppSettingsTable> {
+  $$MessagingAppSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get appLabel =>
+      $composableBuilder(column: $table.appLabel, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<bool> get allowAi =>
+      $composableBuilder(column: $table.allowAi, builder: (column) => column);
+
+  GeneratedColumn<bool> get autoSendBlocked => $composableBuilder(
+    column: $table.autoSendBlocked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MessagingAppSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MessagingAppSettingsTable,
+          MessagingAppSetting,
+          $$MessagingAppSettingsTableFilterComposer,
+          $$MessagingAppSettingsTableOrderingComposer,
+          $$MessagingAppSettingsTableAnnotationComposer,
+          $$MessagingAppSettingsTableCreateCompanionBuilder,
+          $$MessagingAppSettingsTableUpdateCompanionBuilder,
+          (
+            MessagingAppSetting,
+            BaseReferences<
+              _$AppDatabase,
+              $MessagingAppSettingsTable,
+              MessagingAppSetting
+            >,
+          ),
+          MessagingAppSetting,
+          PrefetchHooks Function()
+        > {
+  $$MessagingAppSettingsTableTableManager(
+    _$AppDatabase db,
+    $MessagingAppSettingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MessagingAppSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MessagingAppSettingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MessagingAppSettingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> packageName = const Value.absent(),
+                Value<String> appLabel = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<bool> allowAi = const Value.absent(),
+                Value<bool> autoSendBlocked = const Value.absent(),
+                Value<int> retentionDays = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessagingAppSettingsCompanion(
+                packageName: packageName,
+                appLabel: appLabel,
+                enabled: enabled,
+                mode: mode,
+                allowAi: allowAi,
+                autoSendBlocked: autoSendBlocked,
+                retentionDays: retentionDays,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String packageName,
+                required String appLabel,
+                Value<bool> enabled = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<bool> allowAi = const Value.absent(),
+                Value<bool> autoSendBlocked = const Value.absent(),
+                Value<int> retentionDays = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessagingAppSettingsCompanion.insert(
+                packageName: packageName,
+                appLabel: appLabel,
+                enabled: enabled,
+                mode: mode,
+                allowAi: allowAi,
+                autoSendBlocked: autoSendBlocked,
+                retentionDays: retentionDays,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MessagingAppSettingsTable, MessagingAppSetting>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $MessagingAppSettingsTable,
+                    MessagingAppSetting
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MessagingAppSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MessagingAppSettingsTable,
+      MessagingAppSetting,
+      $$MessagingAppSettingsTableFilterComposer,
+      $$MessagingAppSettingsTableOrderingComposer,
+      $$MessagingAppSettingsTableAnnotationComposer,
+      $$MessagingAppSettingsTableCreateCompanionBuilder,
+      $$MessagingAppSettingsTableUpdateCompanionBuilder,
+      (
+        MessagingAppSetting,
+        BaseReferences<
+          _$AppDatabase,
+          $MessagingAppSettingsTable,
+          MessagingAppSetting
+        >,
+      ),
+      MessagingAppSetting,
+      PrefetchHooks Function()
+    >;
+typedef $$MessagingContactRulesTableCreateCompanionBuilder =
+    MessagingContactRulesCompanion Function({
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      required String id,
+      required String packageName,
+      required String conversationKey,
+      required String displayName,
+      Value<bool> isGroup,
+      Value<String> rule,
+      Value<String> identityConfidence,
+      Value<String?> toneJson,
+      Value<int> maxAutoRepliesPerDay,
+      Value<int> rowid,
+    });
+typedef $$MessagingContactRulesTableUpdateCompanionBuilder =
+    MessagingContactRulesCompanion Function({
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String> id,
+      Value<String> packageName,
+      Value<String> conversationKey,
+      Value<String> displayName,
+      Value<bool> isGroup,
+      Value<String> rule,
+      Value<String> identityConfidence,
+      Value<String?> toneJson,
+      Value<int> maxAutoRepliesPerDay,
+      Value<int> rowid,
+    });
+
+class $$MessagingContactRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $MessagingContactRulesTable> {
+  $$MessagingContactRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isGroup => $composableBuilder(
+    column: $table.isGroup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get identityConfidence => $composableBuilder(
+    column: $table.identityConfidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toneJson => $composableBuilder(
+    column: $table.toneJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxAutoRepliesPerDay => $composableBuilder(
+    column: $table.maxAutoRepliesPerDay,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MessagingContactRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MessagingContactRulesTable> {
+  $$MessagingContactRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isGroup => $composableBuilder(
+    column: $table.isGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get identityConfidence => $composableBuilder(
+    column: $table.identityConfidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toneJson => $composableBuilder(
+    column: $table.toneJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxAutoRepliesPerDay => $composableBuilder(
+    column: $table.maxAutoRepliesPerDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MessagingContactRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MessagingContactRulesTable> {
+  $$MessagingContactRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isGroup =>
+      $composableBuilder(column: $table.isGroup, builder: (column) => column);
+
+  GeneratedColumn<String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<String> get identityConfidence => $composableBuilder(
+    column: $table.identityConfidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toneJson =>
+      $composableBuilder(column: $table.toneJson, builder: (column) => column);
+
+  GeneratedColumn<int> get maxAutoRepliesPerDay => $composableBuilder(
+    column: $table.maxAutoRepliesPerDay,
+    builder: (column) => column,
+  );
+}
+
+class $$MessagingContactRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MessagingContactRulesTable,
+          MessagingContactRule,
+          $$MessagingContactRulesTableFilterComposer,
+          $$MessagingContactRulesTableOrderingComposer,
+          $$MessagingContactRulesTableAnnotationComposer,
+          $$MessagingContactRulesTableCreateCompanionBuilder,
+          $$MessagingContactRulesTableUpdateCompanionBuilder,
+          (
+            MessagingContactRule,
+            BaseReferences<
+              _$AppDatabase,
+              $MessagingContactRulesTable,
+              MessagingContactRule
+            >,
+          ),
+          MessagingContactRule,
+          PrefetchHooks Function()
+        > {
+  $$MessagingContactRulesTableTableManager(
+    _$AppDatabase db,
+    $MessagingContactRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MessagingContactRulesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$MessagingContactRulesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$MessagingContactRulesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<String> packageName = const Value.absent(),
+                Value<String> conversationKey = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<bool> isGroup = const Value.absent(),
+                Value<String> rule = const Value.absent(),
+                Value<String> identityConfidence = const Value.absent(),
+                Value<String?> toneJson = const Value.absent(),
+                Value<int> maxAutoRepliesPerDay = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessagingContactRulesCompanion(
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                id: id,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                displayName: displayName,
+                isGroup: isGroup,
+                rule: rule,
+                identityConfidence: identityConfidence,
+                toneJson: toneJson,
+                maxAutoRepliesPerDay: maxAutoRepliesPerDay,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                required String id,
+                required String packageName,
+                required String conversationKey,
+                required String displayName,
+                Value<bool> isGroup = const Value.absent(),
+                Value<String> rule = const Value.absent(),
+                Value<String> identityConfidence = const Value.absent(),
+                Value<String?> toneJson = const Value.absent(),
+                Value<int> maxAutoRepliesPerDay = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessagingContactRulesCompanion.insert(
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                id: id,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                displayName: displayName,
+                isGroup: isGroup,
+                rule: rule,
+                identityConfidence: identityConfidence,
+                toneJson: toneJson,
+                maxAutoRepliesPerDay: maxAutoRepliesPerDay,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $MessagingContactRulesTable,
+                    MessagingContactRule
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $MessagingContactRulesTable,
+                    MessagingContactRule
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MessagingContactRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MessagingContactRulesTable,
+      MessagingContactRule,
+      $$MessagingContactRulesTableFilterComposer,
+      $$MessagingContactRulesTableOrderingComposer,
+      $$MessagingContactRulesTableAnnotationComposer,
+      $$MessagingContactRulesTableCreateCompanionBuilder,
+      $$MessagingContactRulesTableUpdateCompanionBuilder,
+      (
+        MessagingContactRule,
+        BaseReferences<
+          _$AppDatabase,
+          $MessagingContactRulesTable,
+          MessagingContactRule
+        >,
+      ),
+      MessagingContactRule,
+      PrefetchHooks Function()
+    >;
+typedef $$CapturedNotificationsTableCreateCompanionBuilder =
+    CapturedNotificationsCompanion Function({
+      required String id,
+      required String dedupeHash,
+      required String notificationKey,
+      required String packageName,
+      Value<String?> conversationKey,
+      Value<String?> conversationTitle,
+      Value<String?> sender,
+      Value<bool> isGroup,
+      required String body,
+      required DateTime postedAt,
+      Value<bool> hasReplyAction,
+      Value<String> status,
+      Value<String?> sensitivityFlags,
+      required DateTime expiresAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$CapturedNotificationsTableUpdateCompanionBuilder =
+    CapturedNotificationsCompanion Function({
+      Value<String> id,
+      Value<String> dedupeHash,
+      Value<String> notificationKey,
+      Value<String> packageName,
+      Value<String?> conversationKey,
+      Value<String?> conversationTitle,
+      Value<String?> sender,
+      Value<bool> isGroup,
+      Value<String> body,
+      Value<DateTime> postedAt,
+      Value<bool> hasReplyAction,
+      Value<String> status,
+      Value<String?> sensitivityFlags,
+      Value<DateTime> expiresAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$CapturedNotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $CapturedNotificationsTable> {
+  $$CapturedNotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dedupeHash => $composableBuilder(
+    column: $table.dedupeHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationKey => $composableBuilder(
+    column: $table.notificationKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationTitle => $composableBuilder(
+    column: $table.conversationTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sender => $composableBuilder(
+    column: $table.sender,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isGroup => $composableBuilder(
+    column: $table.isGroup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get postedAt => $composableBuilder(
+    column: $table.postedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasReplyAction => $composableBuilder(
+    column: $table.hasReplyAction,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sensitivityFlags => $composableBuilder(
+    column: $table.sensitivityFlags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CapturedNotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CapturedNotificationsTable> {
+  $$CapturedNotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dedupeHash => $composableBuilder(
+    column: $table.dedupeHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notificationKey => $composableBuilder(
+    column: $table.notificationKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationTitle => $composableBuilder(
+    column: $table.conversationTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sender => $composableBuilder(
+    column: $table.sender,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isGroup => $composableBuilder(
+    column: $table.isGroup,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get postedAt => $composableBuilder(
+    column: $table.postedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasReplyAction => $composableBuilder(
+    column: $table.hasReplyAction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sensitivityFlags => $composableBuilder(
+    column: $table.sensitivityFlags,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CapturedNotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CapturedNotificationsTable> {
+  $$CapturedNotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dedupeHash => $composableBuilder(
+    column: $table.dedupeHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notificationKey => $composableBuilder(
+    column: $table.notificationKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversationTitle => $composableBuilder(
+    column: $table.conversationTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sender =>
+      $composableBuilder(column: $table.sender, builder: (column) => column);
+
+  GeneratedColumn<bool> get isGroup =>
+      $composableBuilder(column: $table.isGroup, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get postedAt =>
+      $composableBuilder(column: $table.postedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasReplyAction => $composableBuilder(
+    column: $table.hasReplyAction,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get sensitivityFlags => $composableBuilder(
+    column: $table.sensitivityFlags,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CapturedNotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CapturedNotificationsTable,
+          CapturedNotification,
+          $$CapturedNotificationsTableFilterComposer,
+          $$CapturedNotificationsTableOrderingComposer,
+          $$CapturedNotificationsTableAnnotationComposer,
+          $$CapturedNotificationsTableCreateCompanionBuilder,
+          $$CapturedNotificationsTableUpdateCompanionBuilder,
+          (
+            CapturedNotification,
+            BaseReferences<
+              _$AppDatabase,
+              $CapturedNotificationsTable,
+              CapturedNotification
+            >,
+          ),
+          CapturedNotification,
+          PrefetchHooks Function()
+        > {
+  $$CapturedNotificationsTableTableManager(
+    _$AppDatabase db,
+    $CapturedNotificationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CapturedNotificationsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CapturedNotificationsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CapturedNotificationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> dedupeHash = const Value.absent(),
+                Value<String> notificationKey = const Value.absent(),
+                Value<String> packageName = const Value.absent(),
+                Value<String?> conversationKey = const Value.absent(),
+                Value<String?> conversationTitle = const Value.absent(),
+                Value<String?> sender = const Value.absent(),
+                Value<bool> isGroup = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<DateTime> postedAt = const Value.absent(),
+                Value<bool> hasReplyAction = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> sensitivityFlags = const Value.absent(),
+                Value<DateTime> expiresAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CapturedNotificationsCompanion(
+                id: id,
+                dedupeHash: dedupeHash,
+                notificationKey: notificationKey,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                conversationTitle: conversationTitle,
+                sender: sender,
+                isGroup: isGroup,
+                body: body,
+                postedAt: postedAt,
+                hasReplyAction: hasReplyAction,
+                status: status,
+                sensitivityFlags: sensitivityFlags,
+                expiresAt: expiresAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String dedupeHash,
+                required String notificationKey,
+                required String packageName,
+                Value<String?> conversationKey = const Value.absent(),
+                Value<String?> conversationTitle = const Value.absent(),
+                Value<String?> sender = const Value.absent(),
+                Value<bool> isGroup = const Value.absent(),
+                required String body,
+                required DateTime postedAt,
+                Value<bool> hasReplyAction = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> sensitivityFlags = const Value.absent(),
+                required DateTime expiresAt,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CapturedNotificationsCompanion.insert(
+                id: id,
+                dedupeHash: dedupeHash,
+                notificationKey: notificationKey,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                conversationTitle: conversationTitle,
+                sender: sender,
+                isGroup: isGroup,
+                body: body,
+                postedAt: postedAt,
+                hasReplyAction: hasReplyAction,
+                status: status,
+                sensitivityFlags: sensitivityFlags,
+                expiresAt: expiresAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $CapturedNotificationsTable,
+                    CapturedNotification
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $CapturedNotificationsTable,
+                    CapturedNotification
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CapturedNotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CapturedNotificationsTable,
+      CapturedNotification,
+      $$CapturedNotificationsTableFilterComposer,
+      $$CapturedNotificationsTableOrderingComposer,
+      $$CapturedNotificationsTableAnnotationComposer,
+      $$CapturedNotificationsTableCreateCompanionBuilder,
+      $$CapturedNotificationsTableUpdateCompanionBuilder,
+      (
+        CapturedNotification,
+        BaseReferences<
+          _$AppDatabase,
+          $CapturedNotificationsTable,
+          CapturedNotification
+        >,
+      ),
+      CapturedNotification,
+      PrefetchHooks Function()
+    >;
+typedef $$ReplyDraftsTableCreateCompanionBuilder =
+    ReplyDraftsCompanion Function({
+      required String id,
+      Value<String?> notificationId,
+      required String packageName,
+      Value<String?> conversationKey,
+      required String draftText,
+      Value<String?> category,
+      Value<double?> confidence,
+      Value<String> risk,
+      Value<String?> riskFlags,
+      Value<String> status,
+      Value<String?> sendPolicy,
+      Value<String?> deliveryDetail,
+      required String idempotencyKey,
+      Value<DateTime> createdAt,
+      Value<DateTime?> decidedAt,
+      Value<DateTime?> sentAt,
+      Value<int> rowid,
+    });
+typedef $$ReplyDraftsTableUpdateCompanionBuilder =
+    ReplyDraftsCompanion Function({
+      Value<String> id,
+      Value<String?> notificationId,
+      Value<String> packageName,
+      Value<String?> conversationKey,
+      Value<String> draftText,
+      Value<String?> category,
+      Value<double?> confidence,
+      Value<String> risk,
+      Value<String?> riskFlags,
+      Value<String> status,
+      Value<String?> sendPolicy,
+      Value<String?> deliveryDetail,
+      Value<String> idempotencyKey,
+      Value<DateTime> createdAt,
+      Value<DateTime?> decidedAt,
+      Value<DateTime?> sentAt,
+      Value<int> rowid,
+    });
+
+class $$ReplyDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReplyDraftsTable> {
+  $$ReplyDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get draftText => $composableBuilder(
+    column: $table.draftText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get risk => $composableBuilder(
+    column: $table.risk,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get riskFlags => $composableBuilder(
+    column: $table.riskFlags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sendPolicy => $composableBuilder(
+    column: $table.sendPolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deliveryDetail => $composableBuilder(
+    column: $table.deliveryDetail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get decidedAt => $composableBuilder(
+    column: $table.decidedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReplyDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReplyDraftsTable> {
+  $$ReplyDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get draftText => $composableBuilder(
+    column: $table.draftText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get risk => $composableBuilder(
+    column: $table.risk,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get riskFlags => $composableBuilder(
+    column: $table.riskFlags,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sendPolicy => $composableBuilder(
+    column: $table.sendPolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deliveryDetail => $composableBuilder(
+    column: $table.deliveryDetail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get decidedAt => $composableBuilder(
+    column: $table.decidedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get sentAt => $composableBuilder(
+    column: $table.sentAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReplyDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReplyDraftsTable> {
+  $$ReplyDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get draftText =>
+      $composableBuilder(column: $table.draftText, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get risk =>
+      $composableBuilder(column: $table.risk, builder: (column) => column);
+
+  GeneratedColumn<String> get riskFlags =>
+      $composableBuilder(column: $table.riskFlags, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get sendPolicy => $composableBuilder(
+    column: $table.sendPolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deliveryDetail => $composableBuilder(
+    column: $table.deliveryDetail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get decidedAt =>
+      $composableBuilder(column: $table.decidedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get sentAt =>
+      $composableBuilder(column: $table.sentAt, builder: (column) => column);
+}
+
+class $$ReplyDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReplyDraftsTable,
+          ReplyDraft,
+          $$ReplyDraftsTableFilterComposer,
+          $$ReplyDraftsTableOrderingComposer,
+          $$ReplyDraftsTableAnnotationComposer,
+          $$ReplyDraftsTableCreateCompanionBuilder,
+          $$ReplyDraftsTableUpdateCompanionBuilder,
+          (
+            ReplyDraft,
+            BaseReferences<_$AppDatabase, $ReplyDraftsTable, ReplyDraft>,
+          ),
+          ReplyDraft,
+          PrefetchHooks Function()
+        > {
+  $$ReplyDraftsTableTableManager(_$AppDatabase db, $ReplyDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReplyDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReplyDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReplyDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> notificationId = const Value.absent(),
+                Value<String> packageName = const Value.absent(),
+                Value<String?> conversationKey = const Value.absent(),
+                Value<String> draftText = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<double?> confidence = const Value.absent(),
+                Value<String> risk = const Value.absent(),
+                Value<String?> riskFlags = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> sendPolicy = const Value.absent(),
+                Value<String?> deliveryDetail = const Value.absent(),
+                Value<String> idempotencyKey = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> decidedAt = const Value.absent(),
+                Value<DateTime?> sentAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReplyDraftsCompanion(
+                id: id,
+                notificationId: notificationId,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                draftText: draftText,
+                category: category,
+                confidence: confidence,
+                risk: risk,
+                riskFlags: riskFlags,
+                status: status,
+                sendPolicy: sendPolicy,
+                deliveryDetail: deliveryDetail,
+                idempotencyKey: idempotencyKey,
+                createdAt: createdAt,
+                decidedAt: decidedAt,
+                sentAt: sentAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> notificationId = const Value.absent(),
+                required String packageName,
+                Value<String?> conversationKey = const Value.absent(),
+                required String draftText,
+                Value<String?> category = const Value.absent(),
+                Value<double?> confidence = const Value.absent(),
+                Value<String> risk = const Value.absent(),
+                Value<String?> riskFlags = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> sendPolicy = const Value.absent(),
+                Value<String?> deliveryDetail = const Value.absent(),
+                required String idempotencyKey,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> decidedAt = const Value.absent(),
+                Value<DateTime?> sentAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReplyDraftsCompanion.insert(
+                id: id,
+                notificationId: notificationId,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                draftText: draftText,
+                category: category,
+                confidence: confidence,
+                risk: risk,
+                riskFlags: riskFlags,
+                status: status,
+                sendPolicy: sendPolicy,
+                deliveryDetail: deliveryDetail,
+                idempotencyKey: idempotencyKey,
+                createdAt: createdAt,
+                decidedAt: decidedAt,
+                sentAt: sentAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReplyDraftsTable, ReplyDraft>(table),
+                  BaseReferences<_$AppDatabase, $ReplyDraftsTable, ReplyDraft>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReplyDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReplyDraftsTable,
+      ReplyDraft,
+      $$ReplyDraftsTableFilterComposer,
+      $$ReplyDraftsTableOrderingComposer,
+      $$ReplyDraftsTableAnnotationComposer,
+      $$ReplyDraftsTableCreateCompanionBuilder,
+      $$ReplyDraftsTableUpdateCompanionBuilder,
+      (
+        ReplyDraft,
+        BaseReferences<_$AppDatabase, $ReplyDraftsTable, ReplyDraft>,
+      ),
+      ReplyDraft,
+      PrefetchHooks Function()
+    >;
+typedef $$AutomationAuditTableCreateCompanionBuilder =
+    AutomationAuditCompanion Function({
+      required String id,
+      required String action,
+      Value<String?> packageName,
+      Value<String?> conversationKey,
+      Value<String?> refId,
+      Value<String?> detail,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$AutomationAuditTableUpdateCompanionBuilder =
+    AutomationAuditCompanion Function({
+      Value<String> id,
+      Value<String> action,
+      Value<String?> packageName,
+      Value<String?> conversationKey,
+      Value<String?> refId,
+      Value<String?> detail,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AutomationAuditTableFilterComposer
+    extends Composer<_$AppDatabase, $AutomationAuditTable> {
+  $$AutomationAuditTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refId => $composableBuilder(
+    column: $table.refId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AutomationAuditTableOrderingComposer
+    extends Composer<_$AppDatabase, $AutomationAuditTable> {
+  $$AutomationAuditTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get refId => $composableBuilder(
+    column: $table.refId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AutomationAuditTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AutomationAuditTable> {
+  $$AutomationAuditTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get packageName => $composableBuilder(
+    column: $table.packageName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversationKey => $composableBuilder(
+    column: $table.conversationKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get refId =>
+      $composableBuilder(column: $table.refId, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AutomationAuditTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AutomationAuditTable,
+          AutomationAuditData,
+          $$AutomationAuditTableFilterComposer,
+          $$AutomationAuditTableOrderingComposer,
+          $$AutomationAuditTableAnnotationComposer,
+          $$AutomationAuditTableCreateCompanionBuilder,
+          $$AutomationAuditTableUpdateCompanionBuilder,
+          (
+            AutomationAuditData,
+            BaseReferences<
+              _$AppDatabase,
+              $AutomationAuditTable,
+              AutomationAuditData
+            >,
+          ),
+          AutomationAuditData,
+          PrefetchHooks Function()
+        > {
+  $$AutomationAuditTableTableManager(
+    _$AppDatabase db,
+    $AutomationAuditTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AutomationAuditTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AutomationAuditTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AutomationAuditTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> action = const Value.absent(),
+                Value<String?> packageName = const Value.absent(),
+                Value<String?> conversationKey = const Value.absent(),
+                Value<String?> refId = const Value.absent(),
+                Value<String?> detail = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AutomationAuditCompanion(
+                id: id,
+                action: action,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                refId: refId,
+                detail: detail,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String action,
+                Value<String?> packageName = const Value.absent(),
+                Value<String?> conversationKey = const Value.absent(),
+                Value<String?> refId = const Value.absent(),
+                Value<String?> detail = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AutomationAuditCompanion.insert(
+                id: id,
+                action: action,
+                packageName: packageName,
+                conversationKey: conversationKey,
+                refId: refId,
+                detail: detail,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AutomationAuditTable, AutomationAuditData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AutomationAuditTable,
+                    AutomationAuditData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AutomationAuditTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AutomationAuditTable,
+      AutomationAuditData,
+      $$AutomationAuditTableFilterComposer,
+      $$AutomationAuditTableOrderingComposer,
+      $$AutomationAuditTableAnnotationComposer,
+      $$AutomationAuditTableCreateCompanionBuilder,
+      $$AutomationAuditTableUpdateCompanionBuilder,
+      (
+        AutomationAuditData,
+        BaseReferences<
+          _$AppDatabase,
+          $AutomationAuditTable,
+          AutomationAuditData
+        >,
+      ),
+      AutomationAuditData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -34879,4 +40211,14 @@ class $AppDatabaseManager {
       $$NotificationPrefsTableTableManager(_db, _db.notificationPrefs);
   $$ReportsTableTableManager get reports =>
       $$ReportsTableTableManager(_db, _db.reports);
+  $$MessagingAppSettingsTableTableManager get messagingAppSettings =>
+      $$MessagingAppSettingsTableTableManager(_db, _db.messagingAppSettings);
+  $$MessagingContactRulesTableTableManager get messagingContactRules =>
+      $$MessagingContactRulesTableTableManager(_db, _db.messagingContactRules);
+  $$CapturedNotificationsTableTableManager get capturedNotifications =>
+      $$CapturedNotificationsTableTableManager(_db, _db.capturedNotifications);
+  $$ReplyDraftsTableTableManager get replyDrafts =>
+      $$ReplyDraftsTableTableManager(_db, _db.replyDrafts);
+  $$AutomationAuditTableTableManager get automationAudit =>
+      $$AutomationAuditTableTableManager(_db, _db.automationAudit);
 }

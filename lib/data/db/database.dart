@@ -44,6 +44,11 @@ part 'database.g.dart';
     SyncQueue,
     NotificationPrefs,
     Reports,
+    MessagingAppSettings,
+    MessagingContactRules,
+    CapturedNotifications,
+    ReplyDrafts,
+    AutomationAudit,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -54,15 +59,26 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await _createIndexes();
+      await _createAssistantIndexes();
       // Seed the single profile row with editable example targets.
       await into(userProfiles).insert(const UserProfilesCompanion());
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(messagingAppSettings);
+        await m.createTable(messagingContactRules);
+        await m.createTable(capturedNotifications);
+        await m.createTable(replyDrafts);
+        await m.createTable(automationAudit);
+        await _createAssistantIndexes();
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -84,6 +100,18 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(local_date)',
       'CREATE INDEX IF NOT EXISTS idx_sync_next ON sync_queue(next_attempt_at)',
       'CREATE INDEX IF NOT EXISTS idx_ai_messages_conv ON ai_messages(conversation_id, created_at)',
+    ];
+    for (final s in statements) {
+      await customStatement(s);
+    }
+  }
+
+  Future<void> _createAssistantIndexes() async {
+    const statements = [
+      'CREATE INDEX IF NOT EXISTS idx_captured_pkg_time ON captured_notifications(package_name, posted_at)',
+      'CREATE INDEX IF NOT EXISTS idx_captured_expires ON captured_notifications(expires_at)',
+      'CREATE INDEX IF NOT EXISTS idx_drafts_status ON reply_drafts(status, created_at)',
+      'CREATE INDEX IF NOT EXISTS idx_audit_time ON automation_audit(created_at)',
     ];
     for (final s in statements) {
       await customStatement(s);

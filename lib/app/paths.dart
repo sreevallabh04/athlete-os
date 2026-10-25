@@ -35,4 +35,8 @@ abstract final class AppPaths {
   static const settings = '/settings';
   static const profile = '/settings/profile';
   static const privacy = '/settings/privacy';
+  static const assistant = '/assistant';
+  static const assistantSettings = '/assistant/settings';
+  static const assistantAudit = '/assistant/audit';
+  static const capabilities = '/settings/capabilities';
 }

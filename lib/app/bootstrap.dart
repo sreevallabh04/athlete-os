@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/util/redact.dart';
+import '../features/assistant/bootstrap.dart';
 import '../features/coach/bootstrap.dart';
 import '../features/health/bootstrap.dart';
 import '../features/integrations/bootstrap.dart';
@@ -27,6 +28,7 @@ final List<BootstrapHook> bootstrapHooks = [
   healthBootstrap,
   integrationsBootstrap,
   planningBootstrap,
+  assistantBootstrap,
 ];
 
 Future<void> bootstrap(ProviderContainer container) async {

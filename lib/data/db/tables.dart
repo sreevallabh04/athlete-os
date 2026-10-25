@@ -749,3 +749,148 @@ class Reports extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+// ---------------------------------------------------------------------------
+// Personal assistant: notification capture, reply drafts, automation audit
+// (schema v2)
+// ---------------------------------------------------------------------------
+
+/// Per-app messaging assistant configuration. Apps not present here are
+/// ignored entirely by the notification listener.
+class MessagingAppSettings extends Table {
+  TextColumn get packageName => text()();
+  TextColumn get appLabel => text()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(false))();
+
+  /// observe | draft | approval | restricted_auto | disabled
+  TextColumn get mode => text().withDefault(const Constant('draft'))();
+
+  /// Whether message text from this app may be sent to the AI backend.
+  BoolColumn get allowAi => boolean().withDefault(const Constant(false))();
+
+  /// Hard platform/terms block on auto-send for this app (e.g. WhatsApp).
+  BoolColumn get autoSendBlocked =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get retentionDays => integer().withDefault(const Constant(7))();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {packageName};
+}
+
+/// Per-conversation rules (approved / blocked) and tone overrides.
+class MessagingContactRules extends Table with Timestamps {
+  TextColumn get id => text()();
+  TextColumn get packageName => text()();
+
+  /// Stable key derived from the notification (shortcut id / conversation
+  /// title). Identification reliability is stored in [identityConfidence].
+  TextColumn get conversationKey => text()();
+  TextColumn get displayName => text()();
+  BoolColumn get isGroup => boolean().withDefault(const Constant(false))();
+
+  /// approved | blocked | neutral
+  TextColumn get rule => text().withDefault(const Constant('neutral'))();
+
+  /// high (shortcut/locus id) | low (title only)
+  TextColumn get identityConfidence =>
+      text().withDefault(const Constant('low'))();
+
+  /// JSON tone overrides: {"formality":..,"emoji":..,"notes":..}
+  TextColumn get toneJson => text().nullable()();
+  IntColumn get maxAutoRepliesPerDay =>
+      integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {packageName, conversationKey},
+  ];
+}
+
+/// Notifications captured from allowed apps (content subject to retention).
+class CapturedNotifications extends Table {
+  TextColumn get id => text()();
+
+  /// Hash of package + conversation + text + post time bucket; dedupes
+  /// re-posted / updated notifications.
+  TextColumn get dedupeHash => text().unique()();
+  TextColumn get notificationKey => text()();
+  TextColumn get packageName => text()();
+  TextColumn get conversationKey => text().nullable()();
+  TextColumn get conversationTitle => text().nullable()();
+  TextColumn get sender => text().nullable()();
+  BoolColumn get isGroup => boolean().withDefault(const Constant(false))();
+
+  /// Message text as shown in the notification (may be truncated).
+  TextColumn get body => text()();
+  DateTimeColumn get postedAt => dateTime()();
+  BoolColumn get hasReplyAction =>
+      boolean().withDefault(const Constant(false))();
+
+  /// new | ignored | summarized | drafted | replied | dismissed
+  TextColumn get status => text().withDefault(const Constant('new'))();
+
+  /// Comma-separated sensitivity flags from the local classifier.
+  TextColumn get sensitivityFlags => text().nullable()();
+  DateTimeColumn get expiresAt => dateTime()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Proposed / approved / sent replies with explicit delivery status.
+class ReplyDrafts extends Table {
+  TextColumn get id => text()();
+  TextColumn get notificationId => text().nullable()();
+  TextColumn get packageName => text()();
+  TextColumn get conversationKey => text().nullable()();
+  TextColumn get draftText => text()();
+
+  /// e.g. acknowledgement | scheduling | availability | other
+  TextColumn get category => text().nullable()();
+  RealColumn get confidence => real().nullable()();
+
+  /// low | medium | high
+  TextColumn get risk => text().withDefault(const Constant('high'))();
+  TextColumn get riskFlags => text().nullable()();
+
+  /// draft | pending_approval | approved | sending | handed_off | failed |
+  /// rejected | expired | unsupported
+  TextColumn get status => text().withDefault(const Constant('draft'))();
+
+  /// manual | approval | restricted_auto
+  TextColumn get sendPolicy => text().nullable()();
+
+  /// Human-readable transport result, never containing message content.
+  TextColumn get deliveryDetail => text().nullable()();
+  TextColumn get idempotencyKey => text().unique()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get decidedAt => dateTime().nullable()();
+  DateTimeColumn get sentAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Content-free audit trail of every automation decision.
+class AutomationAudit extends Table {
+  TextColumn get id => text()();
+
+  /// capture | ignore | classify | draft | approve | reject | send |
+  /// send_failed | kill_switch | settings
+  TextColumn get action => text()();
+  TextColumn get packageName => text().nullable()();
+  TextColumn get conversationKey => text().nullable()();
+  TextColumn get refId => text().nullable()();
+
+  /// Metadata only — never message text or credentials.
+  TextColumn get detail => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
