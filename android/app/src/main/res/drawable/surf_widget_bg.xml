@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark glass slab with a cyan hairline and HUD corner brackets. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="22dp" />
+            <gradient
+                android:angle="270"
+                android:startColor="#F20B1220"
+                android:endColor="#F204060B" />
+            <stroke android:width="1dp" android:color="#4D36E2FF" />
+        </shape>
+    </item>
+    <item
+        android:width="14dp"
+        android:height="14dp"
+        android:gravity="top|start"
+        android:left="7dp"
+        android:top="7dp"
+        android:drawable="@drawable/surf_bracket_tl" />
+    <item
+        android:width="14dp"
+        android:height="14dp"
+        android:gravity="bottom|end"
+        android:right="7dp"
+        android:bottom="7dp"
+        android:drawable="@drawable/surf_bracket_br" />
+</layer-list>

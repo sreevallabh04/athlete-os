@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen surfaces: JARVIS Today widget, launcher shortcuts, Quick
+     Settings tile (docs/SURFACES.md). Colours mirror lib/core/theme/tokens.dart. -->
+<resources>
+    <color name="surf_navy">#FF04060B</color>
+    <color name="surf_surface">#FF0A101B</color>
+    <color name="surf_cyan">#FF36E2FF</color>
+    <color name="surf_cyan_deep">#FF00A9D4</color>
+    <color name="surf_gold">#FFFFC24B</color>
+    <color name="surf_text">#FFE8F1FA</color>
+    <color name="surf_text_muted">#FF8EA3B8</color>
+    <color name="surf_track">#2636E2FF</color>
+    <color name="surf_steps">#FFB07CFF</color>
+    <color name="surf_protein">#FF3EE6A0</color>
+    <color name="surf_calories">#FFFF8F4D</color>
+    <color name="surf_water">#FF45C4FF</color>
+
+    <string name="surf_widget_label">JARVIS Today</string>
+    <string name="surf_widget_description">Steps, protein, calories and water vs your targets, today\'s session and next routine block. One tap logs +250 ml water.</string>
+    <string name="surf_dash">—</string>
+    <string name="surf_water_button">+250 ml</string>
+    <string name="surf_water_button_cd">Log 250 millilitres of water</string>
+
+    <string name="surf_sc_water_short">Log water</string>
+    <string name="surf_sc_water_long">Log water (quick add)</string>
+    <string name="surf_sc_meal_short">Log meal</string>
+    <string name="surf_sc_meal_long">Log a meal</string>
+    <string name="surf_sc_coach_short">Ask JARVIS</string>
+    <string name="surf_sc_coach_long">Ask JARVIS (voice)</string>
+    <string name="surf_sc_session_short">Today\'s session</string>
+    <string name="surf_sc_session_long">Start today\'s session</string>
+    <string name="surf_sc_disabled">Open Athlete OS</string>
+
+    <string name="surf_tile_label">Water +250 ml</string>
+</resources>
