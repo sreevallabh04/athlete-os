@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import '../data/weight_query.dart';
 import '../domain/csv_export.dart';
 import '../domain/nutrition_calc.dart';
 import 'widgets/common.dart';
+import 'widgets/nutrition_hud.dart';
 
 class NutritionHistoryScreen extends ConsumerStatefulWidget {
   const NutritionHistoryScreen({super.key});
@@ -62,6 +64,7 @@ class _NutritionHistoryScreenState
         p.join(dir.path, 'athlete_os_food_log_${start}_$stop.csv'),
       );
       await file.writeAsString(csv, flush: true);
+      Haptics.success();
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'text/csv')],
@@ -88,35 +91,31 @@ class _NutritionHistoryScreenState
 
     return AppPage(
       title: 'Nutrition history',
+      eyebrow: 'LAST $_days DAYS · LOGGED DAYS ONLY',
       actions: [
         IconButton(
           tooltip: 'Export food log (CSV)',
           icon: _exporting
-              ? const SizedBox.square(
-                  dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const HudSpinner(size: 20)
               : const Icon(Icons.ios_share),
           onPressed: _exporting ? null : () => _export(start, today),
         ),
       ],
       children: [
-        Center(
-          child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 7, label: Text('7 days')),
-              ButtonSegment(value: 30, label: Text('30 days')),
-            ],
-            selected: {_days},
-            onSelectionChanged: (s) => setState(() => _days = s.first),
-          ),
+        SegmentedHud<int>(
+          segments: const [
+            HudSegment(value: 7, label: '7 days'),
+            HudSegment(value: 30, label: '30 days'),
+          ],
+          value: _days,
+          onChanged: (v) => setState(() => _days = v),
         ),
         const SizedBox(height: AppSpacing.lg),
         ...history.when(
-          loading: () => [const LoadingState()],
+          loading: () => [const ScanlineLoader(height: 280, lines: 0)],
           error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
           data: (h) => targets.when(
-            loading: () => [const LoadingState()],
+            loading: () => [const ScanlineLoader(height: 280, lines: 0)],
             error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
             data: (t) {
               final avg = PeriodAverages.compute(h.days, t);
@@ -125,6 +124,7 @@ class _NutritionHistoryScreenState
                   const AppCard(
                     child: EmptyState(
                       icon: Icons.insights_outlined,
+                      eyebrow: 'NO DATA YET',
                       title: 'No food logged in this period',
                       message:
                           'Averages and charts appear once you log meals. '
@@ -144,58 +144,20 @@ class _NutritionHistoryScreenState
               final weeks = weeklyAverages(h.days, t, LocalDates.weekStart);
               return [
                 _AveragesCard(avg: avg, targets: t),
-                if (weeks.length > 1) ...[
-                  const SectionHeader(
-                    'Weekly averages',
-                    subtitle: 'Logged days only (weeks start Monday)',
-                  ),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: Column(
-                      children: [
-                        for (final w in weeks.entries.toList().reversed)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              'Week of '
-                              '${DateFormat('d MMM').format(LocalDates.parse(w.key))}',
-                            ),
-                            subtitle: Text(
-                              w.value.hasData
-                                  ? '${w.value.loggedDays} of '
-                                        '${w.value.totalDays} days logged'
-                                  : 'No logs',
-                            ),
-                            trailing: w.value.hasData
-                                ? Text(
-                                    '${Fmt.integer(w.value.average.calories)} kcal'
-                                    ' · ${Fmt.grams(w.value.average.protein)} P',
-                                  )
-                                : null,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SectionHeader(
-                  'Calories',
-                  subtitle: 'Dashed line = target',
-                ),
+                const SectionHeader('Calories', subtitle: 'Band = target ±10%'),
                 AppCard(
                   child: _DailyBarChart(
                     days: h.days,
                     value: (d) => d.total.calories,
                     target: t.calories,
+                    band: 0.10,
                     color: AppColors.calories,
                     unit: 'kcal',
                   ),
                 ),
                 const SectionHeader(
                   'Protein',
-                  subtitle: 'Dashed line = target',
+                  subtitle: 'Bright bars hit ≥ 90%',
                 ),
                 AppCard(
                   child: _DailyBarChart(
@@ -204,11 +166,26 @@ class _NutritionHistoryScreenState
                     target: t.protein,
                     color: AppColors.protein,
                     unit: 'g',
+                    hitAt: 0.9,
                   ),
                 ),
+                if (weeks.length > 1) ...[
+                  const SectionHeader(
+                    'Weekly averages',
+                    subtitle: 'Logged days only',
+                  ),
+                  AppCard(
+                    child: Column(
+                      children: [
+                        for (final w in weeks.entries.toList().reversed)
+                          _WeekRow(weekStart: w.key, avg: w.value, targets: t),
+                      ],
+                    ),
+                  ),
+                ],
                 const SectionHeader(
-                  'Most protein-efficient usual foods',
-                  subtitle: 'Grams of protein per 100 kcal',
+                  'Protein-efficient foods',
+                  subtitle: 'Your usual foods, ranked',
                 ),
                 AppCard(
                   child: usual.isEmpty
@@ -222,24 +199,8 @@ class _NutritionHistoryScreenState
                         )
                       : Column(
                           children: [
-                            for (final u in usual)
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(u.name),
-                                subtitle: Text(
-                                  u.timesLogged > 1
-                                      ? 'Logged ${u.timesLogged}× · '
-                                            '${macroSummary(u.nutrients)}'
-                                      : macroSummary(u.nutrients),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: Text(
-                                  '${Fmt.oneDp(u.proteinEfficiency!)} g',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(color: AppColors.protein),
-                                ),
-                              ),
+                            for (var i = 0; i < usual.length; i++)
+                              _UsualRow(item: usual[i], rank: i + 1),
                           ],
                         ),
                 ),
@@ -250,16 +211,18 @@ class _NutritionHistoryScreenState
         const SectionHeader('Weight trend'),
         AppCard(
           child: weights.when(
-            loading: () => const LoadingState(),
+            loading: () => const ScanlineLoader(height: 160, lines: 0),
             error: (e, _) => ErrorState(message: redactSecrets('$e')),
             data: (w) => _WeightTrend(points: w),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        OutlinedButton.icon(
+        HudButton.secondary(
+          label: 'Export food log as CSV',
+          icon: Icons.table_view_outlined,
+          expand: true,
+          loading: _exporting,
           onPressed: _exporting ? null : () => _export(start, today),
-          icon: const Icon(Icons.table_view_outlined),
-          label: const Text('Export food log as CSV'),
         ),
       ],
     );
@@ -275,17 +238,66 @@ class _AveragesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = avg.average;
     final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return AppCard(
+      brackets: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Daily average · ${avg.loggedDays} of ${avg.totalDays} days logged',
-            style: t.titleSmall,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Daily average · ${avg.loggedDays} of ${avg.totalDays} '
+                  'days logged',
+                  style: t.titleSmall,
+                ),
+              ),
+              const SourceBadge(origin: DataOrigin.calculated),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          LayoutBuilder(
+            builder: (context, box) {
+              final w = math.min(150.0, (box.maxWidth - AppSpacing.md) / 2);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ArcGauge(
+                    value: avg.proteinAdherencePct / 100,
+                    valueText: '${avg.proteinAdherencePct.round()}%',
+                    label: 'PROTEIN ≥90%',
+                    color: AppColors.protein,
+                    width: w,
+                    semanticLabel:
+                        'Protein at least 90% of target on '
+                        '${avg.proteinAdherentDays} of ${avg.loggedDays} '
+                        'logged days',
+                  ),
+                  ArcGauge(
+                    value: avg.calorieAdherencePct / 100,
+                    valueText: '${avg.calorieAdherencePct.round()}%',
+                    label: 'KCAL ±10%',
+                    color: AppColors.calories,
+                    width: w,
+                    semanticLabel:
+                        'Calories within 10% of target on '
+                        '${avg.calorieAdherentDays} of ${avg.loggedDays} '
+                        'logged days',
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.xs),
-          const SourceBadge(origin: DataOrigin.calculated),
-          const SizedBox(height: AppSpacing.lg),
+          Center(
+            child: Text(
+              'ADHERENCE ON ${avg.loggedDays} LOGGED DAY'
+              '${avg.loggedDays == 1 ? '' : 'S'}',
+              style: hud.mono(size: 10),
+            ),
+          ),
+          const Divider(height: AppSpacing.xxl),
           Row(
             children: [
               Expanded(
@@ -315,6 +327,7 @@ class _AveragesCard extends StatelessWidget {
                 child: StatTile(
                   label: 'Carbs',
                   value: Fmt.grams(a.carbs),
+                  sub: 'target ${Fmt.grams(targets.carbs)}',
                   color: AppColors.carbs,
                 ),
               ),
@@ -322,28 +335,11 @@ class _AveragesCard extends StatelessWidget {
                 child: StatTile(
                   label: 'Fat',
                   value: Fmt.grams(a.fat),
+                  sub: 'target ${Fmt.grams(targets.fat)}',
                   color: AppColors.fat,
                 ),
               ),
             ],
-          ),
-          const Divider(height: AppSpacing.xxl),
-          Text('Target adherence (logged days)', style: t.titleSmall),
-          const SizedBox(height: AppSpacing.md),
-          _AdherenceRow(
-            label: 'Protein ≥ 90% of target',
-            hit: avg.proteinAdherentDays,
-            of: avg.loggedDays,
-            pct: avg.proteinAdherencePct,
-            color: AppColors.protein,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _AdherenceRow(
-            label: 'Calories within ±10%',
-            hit: avg.calorieAdherentDays,
-            of: avg.loggedDays,
-            pct: avg.calorieAdherencePct,
-            color: AppColors.calories,
           ),
         ],
       ),
@@ -351,28 +347,179 @@ class _AveragesCard extends StatelessWidget {
   }
 }
 
-class _AdherenceRow extends StatelessWidget {
-  const _AdherenceRow({
+class _WeekRow extends StatelessWidget {
+  const _WeekRow({
+    required this.weekStart,
+    required this.avg,
+    required this.targets,
+  });
+
+  final String weekStart;
+  final PeriodAverages avg;
+  final NutritionTargets targets;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final a = avg.average;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Week of '
+                  '${DateFormat('d MMM').format(LocalDates.parse(weekStart))}',
+                  style: t.titleSmall,
+                ),
+              ),
+              Text(
+                avg.hasData
+                    ? '${avg.loggedDays}/${avg.totalDays} DAYS'
+                    : 'NO LOGS',
+                style: hud.mono(size: 10.5),
+              ),
+            ],
+          ),
+          if (avg.hasData) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniBar(
+                    label: '${Fmt.integer(a.calories)} kcal',
+                    ratio: targets.calories > 0
+                        ? a.calories / targets.calories
+                        : 0,
+                    color: AppColors.calories,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: _MiniBar(
+                    label: '${Fmt.grams(a.protein)} P',
+                    ratio: targets.protein > 0
+                        ? a.protein / targets.protein
+                        : 0,
+                    color: AppColors.protein,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({
     required this.label,
-    required this.hit,
-    required this.of,
-    required this.pct,
+    required this.ratio,
     required this.color,
   });
   final String label;
-  final int hit;
-  final int of;
-  final double pct;
+  final double ratio;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return MetricBar(
-      label: '$label · ${pct.round()}%',
-      value: hit.toDouble(),
-      target: of.toDouble(),
-      color: color,
-      unit: ' days',
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: t.labelMedium?.copyWith(color: hud.textMuted)),
+        const SizedBox(height: 4),
+        MetricBarLine(ratio: ratio, color: color),
+      ],
+    );
+  }
+}
+
+/// Bare continuous progress line (no label); over-target turns warm red.
+class MetricBarLine extends StatelessWidget {
+  const MetricBarLine({super.key, required this.ratio, required this.color});
+  final double ratio;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final over = ratio > 1.1;
+    final c = over ? overColor : color;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: ratio.clamp(0.0, 1.0)),
+        duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.data,
+        curve: AppMotion.emphasizedDecelerate,
+        builder: (context, v, _) => LinearProgressIndicator(
+          value: v,
+          minHeight: 4,
+          color: c,
+          backgroundColor: color.withValues(alpha: 0.12),
+        ),
+      ),
+    );
+  }
+}
+
+class _UsualRow extends StatelessWidget {
+  const _UsualRow({required this.item, required this.rank});
+  final NamedNutrients item;
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          SizedBox(width: 28, child: Text('#$rank', style: hud.mono(size: 11))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: t.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  item.timesLogged > 1
+                      ? 'Logged ${item.timesLogged}× this period'
+                      : macroSummary(item.nutrients),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.bodySmall?.copyWith(color: hud.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                Fmt.oneDp(item.proteinEfficiency!),
+                style: hud.number(
+                  size: 22,
+                  color: hud.isDark ? AppColors.protein : hud.text,
+                ),
+              ),
+              Text('G / 100 KCAL', style: hud.label(size: 9)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -384,6 +531,8 @@ class _DailyBarChart extends StatelessWidget {
     required this.target,
     required this.color,
     required this.unit,
+    this.band,
+    this.hitAt,
   });
 
   final List<DaySummary> days;
@@ -392,16 +541,22 @@ class _DailyBarChart extends StatelessWidget {
   final Color color;
   final String unit;
 
+  /// Shade target ± this fraction (e.g. 0.10).
+  final double? band;
+
+  /// Bars at or above target × this fraction render bright.
+  final double? hitAt;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final maxVal = [
       ...days.map(value),
-      target,
+      target * (1 + (band ?? 0)),
     ].fold<double>(0, (a, b) => a > b ? a : b);
-    final maxY = maxVal <= 0 ? 1.0 : maxVal * 1.15;
+    final maxY = maxVal <= 0 ? 1.0 : maxVal * 1.12;
     final wide = days.length > 10;
-    final labelEvery = wide ? 5 : 1;
+    final labelEvery = wide ? 7 : 1;
     final semantics = days
         .map(
           (d) => d.hasLogs
@@ -409,8 +564,19 @@ class _DailyBarChart extends StatelessWidget {
               : '${d.localDate}: not logged',
         )
         .join(', ');
+    Color barColor(DaySummary d) {
+      final v = value(d);
+      if (band != null && target > 0 && v > target * (1 + band!)) {
+        return overColor;
+      }
+      if (hitAt != null && target > 0 && v < target * hitAt!) {
+        return color.withValues(alpha: 0.5);
+      }
+      return color;
+    }
+
     return SizedBox(
-      height: 190,
+      height: 200,
       child: Semantics(
         label: semantics,
         excludeSemantics: true,
@@ -418,90 +584,86 @@ class _DailyBarChart extends StatelessWidget {
           BarChartData(
             minY: 0,
             maxY: maxY,
-            gridData: const FlGridData(show: false),
-            borderData: FlBorderData(show: false),
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipItem: (group, _, rod, _) {
-                  final d = days[group.x];
-                  return BarTooltipItem(
-                    d.hasLogs ? '${Fmt.integer(rod.toY)} $unit' : 'Not logged',
-                    Theme.of(context).textTheme.labelMedium!,
-                  );
-                },
-              ),
+            gridData: HudChartStyle.grid(context),
+            borderData: HudChartStyle.noBorder,
+            barTouchData: HudChartStyle.barTouch(
+              context,
+              format: (group, rod) {
+                final d = days[group.x];
+                final date = DateFormat('EEE d')
+                    .format(LocalDates.parse(d.localDate));
+                return d.hasLogs
+                    ? '$date · ${Fmt.integer(rod.toY)} $unit'
+                    : '$date · not logged';
+              },
+            ),
+            rangeAnnotations: RangeAnnotations(
+              horizontalRangeAnnotations: [
+                if (band != null && target > 0)
+                  HorizontalRangeAnnotation(
+                    y1: target * (1 - band!),
+                    y2: target * (1 + band!),
+                    color: color.withValues(alpha: hud.isDark ? 0.08 : 0.12),
+                  ),
+              ],
             ),
             extraLinesData: ExtraLinesData(
               horizontalLines: [
                 if (target > 0)
                   HorizontalLine(
                     y: target,
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    color: color.withValues(alpha: 0.75),
                     strokeWidth: 1,
                     dashArray: [5, 4],
+                    label: HorizontalLineLabel(
+                      show: true,
+                      alignment: Alignment.topRight,
+                      style: HudChartStyle.axisLabel(context),
+                      labelResolver: (_) => 'TARGET ${Fmt.integer(target)}',
+                    ),
                   ),
               ],
             ),
-            titlesData: FlTitlesData(
-              topTitles: const AxisTitles(),
-              rightTitles: const AxisTitles(),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (v, meta) {
-                    if (v != meta.max && v != 0 && v != target) {
-                      return const SizedBox.shrink();
-                    }
-                    return SideTitleWidget(
-                      meta: meta,
-                      child: Text(
-                        Fmt.integer(v),
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 24,
-                  getTitlesWidget: (v, meta) {
-                    final i = v.toInt();
-                    if (i < 0 || i >= days.length) {
-                      return const SizedBox.shrink();
-                    }
-                    final fromEnd = days.length - 1 - i;
-                    if (fromEnd % labelEvery != 0) {
-                      return const SizedBox.shrink();
-                    }
-                    final d = LocalDates.parse(days[i].localDate);
-                    return SideTitleWidget(
-                      meta: meta,
-                      child: Text(
-                        wide
-                            ? DateFormat.Md().format(d)
-                            : DateFormat.E().format(d),
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    );
-                  },
-                ),
-              ),
+            titlesData: HudChartStyle.titles(
+              context,
+              left: (v, meta) {
+                if (v != meta.max && v != 0) return const SizedBox.shrink();
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    Fmt.integer(v),
+                    style: HudChartStyle.axisLabel(context),
+                  ),
+                );
+              },
+              leftReserved: 40,
+              bottom: (v, meta) {
+                final i = v.toInt();
+                if (i < 0 || i >= days.length) return const SizedBox.shrink();
+                final fromEnd = days.length - 1 - i;
+                if (fromEnd % labelEvery != 0) return const SizedBox.shrink();
+                final d = LocalDates.parse(days[i].localDate);
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    (wide
+                            ? DateFormat('d MMM').format(d)
+                            : DateFormat.E().format(d))
+                        .toUpperCase(),
+                    style: HudChartStyle.axisLabel(context),
+                  ),
+                );
+              },
             ),
             barGroups: [
               for (var i = 0; i < days.length; i++)
                 BarChartGroupData(
                   x: i,
                   barRods: [
-                    BarChartRodData(
-                      toY: days[i].hasLogs ? value(days[i]) : 0,
+                    HudChartStyle.rod(
+                      days[i].hasLogs ? value(days[i]) : 0,
+                      barColor(days[i]),
                       width: wide ? 6 : 18,
-                      color: color,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
                     ),
                   ],
                 ),
@@ -541,7 +703,7 @@ class _WeightTrend extends StatelessWidget {
             'entries will appear here.',
       );
     }
-    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     final first = points.first;
     final last = points.last;
     final change = last.kg - first.kg;
@@ -588,17 +750,26 @@ class _WeightTrend extends StatelessWidget {
                 LineChartData(
                   minY: minY,
                   maxY: maxY,
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  titlesData: const FlTitlesData(show: false),
+                  gridData: HudChartStyle.grid(context),
+                  borderData: HudChartStyle.noBorder,
+                  titlesData: HudChartStyle.titles(
+                    context,
+                    left: (v, meta) => v == meta.min || v == meta.max
+                        ? const SizedBox.shrink()
+                        : SideTitleWidget(
+                            meta: meta,
+                            child: Text(
+                              Fmt.oneDp(v),
+                              style: HudChartStyle.axisLabel(context),
+                            ),
+                          ),
+                  ),
+                  lineTouchData: HudChartStyle.lineTouch(
+                    context,
+                    format: (s) => '${Fmt.oneDp(s.y)} kg',
+                  ),
                   lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      color: AppColors.brand,
-                      barWidth: 3,
-                      isCurved: false,
-                      dotData: const FlDotData(show: true),
-                    ),
+                    HudChartStyle.line(spots, hud.accent, dots: true),
                   ],
                 ),
               ),
@@ -608,9 +779,8 @@ class _WeightTrend extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Text(
           'Sources: ${sources.join(', ')}',
-          style: t.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: hud.textMuted),
         ),
       ],
     );

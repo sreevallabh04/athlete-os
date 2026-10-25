@@ -5,6 +5,7 @@ import '../../../../core/domain/provenance.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/time/clock.dart';
 import '../../../../core/util/format.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/food_models.dart';
 import '../../domain/nutrients.dart';
 
@@ -53,7 +54,15 @@ String amountLabel(double servings, double? grams, {String unit = 'g'}) {
   return servings == 1 ? '1 serving' : '$s servings';
 }
 
-/// Visible ESTIMATE pill. Use wherever estimated values are displayed.
+/// Icon for a meal slot.
+IconData mealIcon(MealType m) => switch (m) {
+  MealType.breakfast => Icons.wb_twilight_rounded,
+  MealType.lunch => Icons.rice_bowl_outlined,
+  MealType.dinner => Icons.nightlight_outlined,
+  MealType.snack => Icons.cookie_outlined,
+};
+
+/// Visible amber ESTIMATE pill. Use wherever estimated values are shown.
 class EstimateBadge extends StatelessWidget {
   const EstimateBadge({super.key, this.label = 'ESTIMATE'});
   final String label;
@@ -64,19 +73,26 @@ class EstimateBadge extends StatelessWidget {
       label: 'Estimated values',
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.fromLTRB(5, 2, 6, 2),
         decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.15),
-          borderRadius: AppRadii.chip,
-          border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+          color: AppColors.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadii.xs),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.45)),
         ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.warning,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.auto_awesome_outlined,
+              size: 10,
+              color: AppColors.warning,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: AppTypography.hudLabel(AppColors.warning, size: 10.5),
+            ),
+          ],
         ),
       ),
     );
@@ -91,21 +107,28 @@ class VerificationLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Verifications.isEstimate(verification)) return const EstimateBadge();
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
+    final verified =
+        verification == Verifications.verifiedLabel ||
+        verification == Verifications.database;
     final icon = switch (verification) {
-      Verifications.verifiedLabel => Icons.qr_code_2,
+      Verifications.verifiedLabel => Icons.verified_outlined,
       Verifications.database => Icons.storage_outlined,
       _ => Icons.edit_outlined,
     };
+    final color = verified ? AppColors.success : hud.textMuted;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: scheme.onSurfaceVariant),
+        Icon(icon, size: 12, color: color),
         const SizedBox(width: 4),
-        Text(
-          Verifications.label(verification),
-          style: Theme.of(context).textTheme.labelSmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
+        Flexible(
+          child: Text(
+            Verifications.label(verification),
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: hud.textMuted),
+          ),
         ),
       ],
     );
@@ -120,68 +143,13 @@ class OffAttribution extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       'Data from Open Food Facts (ODbL)',
-      style: Theme.of(context).textTheme.labelSmall
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      style: context.hud.mono(size: 10.5),
     );
   }
 }
 
-/// Prev / label / next date switcher with a "Today" shortcut.
-class DateSwitcher extends StatelessWidget {
-  const DateSwitcher({
-    super.key,
-    required this.date,
-    required this.today,
-    required this.onChanged,
-    this.allowFuture = false,
-  });
-
-  final String date;
-  final String today;
-  final ValueChanged<String> onChanged;
-  final bool allowFuture;
-
-  @override
-  Widget build(BuildContext context) {
-    final canNext = allowFuture || date.compareTo(today) < 0;
-    final t = Theme.of(context).textTheme;
-    return Row(
-      children: [
-        IconButton(
-          tooltip: 'Previous day',
-          icon: const Icon(Icons.chevron_left),
-          onPressed: () => onChanged(LocalDates.addDays(date, -1)),
-        ),
-        Expanded(
-          child: Semantics(
-            liveRegion: true,
-            child: Text(
-              friendlyDate(date, today),
-              textAlign: TextAlign.center,
-              style: t.titleMedium,
-            ),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Next day',
-          icon: const Icon(Icons.chevron_right),
-          onPressed: canNext
-              ? () => onChanged(LocalDates.addDays(date, 1))
-              : null,
-        ),
-        if (date != today)
-          TextButton(
-            onPressed: () => onChanged(today),
-            child: const Text('Today'),
-          )
-        else
-          const SizedBox(width: AppSpacing.sm),
-      ],
-    );
-  }
-}
-
-/// Compact nutrient preview row used in sheets.
+/// Live macro preview: kcal · protein · carbs · fat (· fiber), each a
+/// ticking number over a family-coloured marker.
 class NutrientPreview extends StatelessWidget {
   const NutrientPreview({
     super.key,
@@ -194,16 +162,39 @@ class NutrientPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     Widget cell(String label, String value, Color color) => Expanded(
       child: Column(
         children: [
-          Text(
+          AnimatedTicker(
             value,
-            style: t.titleMedium?.copyWith(color: color),
+            duration: AppMotion.long,
+            style: t.titleMedium?.copyWith(
+              fontFamily: AppFonts.display,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 18,
+            height: 2,
+            decoration: BoxDecoration(
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.6 * hud.glowStrength),
+                  blurRadius: 5,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: hud.label(size: 10),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          Text(label, style: t.labelSmall),
         ],
       ),
     );
@@ -213,13 +204,14 @@ class NutrientPreview extends StatelessWidget {
           '${estimate ? ', estimate' : ''}',
       excludeSemantics: true,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          cell('kcal', Fmt.integer(nutrients.calories), AppColors.calories),
-          cell('protein', Fmt.grams(nutrients.protein), AppColors.protein),
-          cell('carbs', Fmt.grams(nutrients.carbs), AppColors.carbs),
-          cell('fat', Fmt.grams(nutrients.fat), AppColors.fat),
+          cell('KCAL', Fmt.integer(nutrients.calories), AppColors.calories),
+          cell('PROTEIN', Fmt.oneDp(nutrients.protein), AppColors.protein),
+          cell('CARBS', Fmt.oneDp(nutrients.carbs), AppColors.carbs),
+          cell('FAT', Fmt.oneDp(nutrients.fat), AppColors.fat),
           if (nutrients.fiber != null)
-            cell('fiber', Fmt.grams(nutrients.fiber!), AppColors.fiber),
+            cell('FIBER', Fmt.oneDp(nutrients.fiber!), AppColors.fiber),
         ],
       ),
     );
@@ -232,4 +224,12 @@ void showSnack(BuildContext context, String message, {SnackBarAction? action}) {
   m
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message), action: action));
+}
+
+/// "1.75 L" / "750 ml": hydration needs more precision than `Fmt.ml`.
+String preciseMl(int ml) {
+  if (ml.abs() < 1000) return '$ml ml';
+  var s = (ml / 1000).toStringAsFixed(2);
+  s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+  return '$s L';
 }

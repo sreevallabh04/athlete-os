@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,7 @@ import 'recipe_builder_screen.dart';
 import 'widgets/amount_sheet.dart';
 import 'widgets/common.dart';
 import 'widgets/food_tiles.dart';
+import 'widgets/nutrition_hud.dart';
 
 /// Add food: Search · Recent · Favorites · My foods · Meals · Quick add.
 class AddFoodScreen extends ConsumerStatefulWidget {
@@ -31,6 +34,7 @@ class AddFoodScreen extends ConsumerStatefulWidget {
     this.initialMeal,
     this.initialDate,
     this.initialQuery,
+    this.initialTab = 0,
   });
 
   /// From the `meal` query parameter (breakfast|lunch|dinner|snack).
@@ -42,6 +46,9 @@ class AddFoodScreen extends ConsumerStatefulWidget {
   /// From the `q` query parameter: free text (e.g. shared from another app)
   /// that opens the describe-meal parser pre-filled.
   final String? initialQuery;
+
+  /// 0 Search · 1 Recent · 2 Favorites · 3 My foods · 4 Meals · 5 Quick add.
+  final int initialTab;
 
   @override
   ConsumerState<AddFoodScreen> createState() => _AddFoodScreenState();
@@ -82,53 +89,58 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
       firstDate: DateTime(now.year - 2),
       lastDate: DateTime(now.year, now.month, now.day),
     );
-    if (picked != null) setState(() => _date = LocalDates.key(picked));
+    if (picked != null) {
+      Haptics.selection();
+      setState(() => _date = LocalDates.key(picked));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final today = LocalDates.key(ref.watch(clockProvider).now());
+    final hud = context.hud;
+    final scaler = MediaQuery.textScalerOf(context);
     return DefaultTabController(
       length: 6,
+      initialIndex: widget.initialTab.clamp(0, 5),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Add food'),
           actions: [
-            IconButton(
-              tooltip: 'Scan barcode',
-              icon: const Icon(Icons.qr_code_scanner),
-              onPressed: () =>
-                  runBarcodeFlow(context, ref, meal: _meal, date: _date),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: HudChip(
+                label: friendlyDate(_date, today),
+                icon: Icons.event_rounded,
+                selected: _date != today,
+                onTap: _pickDate,
+              ),
             ),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(112),
+            preferredSize: Size.fromHeight(
+              math.max(64, scaler.scale(50)) + AppSpacing.sm + 46,
+            ),
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    0,
+                    AppSpacing.gutter,
+                    AppSpacing.sm,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: MealPicker(
-                          value: _meal,
-                          onChanged: (m) => setState(() => _meal = m),
-                        ),
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.event, size: 18),
-                        label: Text(friendlyDate(_date, today)),
-                        onPressed: _pickDate,
-                      ),
-                    ],
+                  child: MealPicker(
+                    value: _meal,
+                    onChanged: (m) => setState(() => _meal = m),
                   ),
                 ),
-                const TabBar(
+                TabBar(
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
-                  tabs: [
+                  dividerColor: hud.hairline.withValues(alpha: 0.1),
+                  onTap: (_) => Haptics.selection(),
+                  tabs: const [
                     Tab(text: 'Search'),
                     Tab(text: 'Recent'),
                     Tab(text: 'Favorites'),
@@ -153,6 +165,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
               provider: favoriteFoodsProvider,
               meal: _meal,
               date: _date,
+              emptyIcon: Icons.star_outline_rounded,
               emptyTitle: 'No favorites yet',
               emptyMessage: 'Tap the star on any food to pin it here.',
             ),
@@ -160,6 +173,7 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
               provider: myFoodsProvider,
               meal: _meal,
               date: _date,
+              emptyIcon: Icons.inventory_2_outlined,
               emptyTitle: 'No saved foods',
               emptyMessage:
                   'Foods you create, scan or pick from search are kept here.',
@@ -174,6 +188,14 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
   }
 }
 
+/// Bottom padding for tab lists (keyboard / gesture bar safe).
+EdgeInsets _listPadding(BuildContext context) => EdgeInsets.fromLTRB(
+  AppSpacing.gutter,
+  AppSpacing.md,
+  AppSpacing.gutter,
+  MediaQuery.paddingOf(context).bottom + AppSpacing.xxxl,
+);
+
 class _SearchShortcuts extends ConsumerWidget {
   const _SearchShortcuts({required this.meal, required this.date});
   final MealType meal;
@@ -181,52 +203,129 @@ class _SearchShortcuts extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ActionChip(
-          avatar: const Icon(Icons.qr_code_scanner, size: 18),
-          label: const Text('Scan barcode'),
-          onPressed: () => runBarcodeFlow(context, ref, meal: meal, date: date),
+        Expanded(
+          child: _ShortcutTile(
+            icon: Icons.qr_code_scanner_rounded,
+            label: 'Scan barcode',
+            onTap: () => runBarcodeFlow(context, ref, meal: meal, date: date),
+          ),
         ),
-        ActionChip(
-          avatar: const Icon(Icons.notes, size: 18),
-          label: const Text('Describe meal'),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => DescribeMealScreen(meal: meal, date: date),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _ShortcutTile(
+            icon: Icons.notes_rounded,
+            label: 'Describe meal',
+            ai: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => DescribeMealScreen(meal: meal, date: date),
+              ),
             ),
           ),
         ),
-        ActionChip(
-          avatar: const Icon(Icons.photo_camera_outlined, size: 18),
-          label: const Text('Meal photo'),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => MealPhotoScreen(meal: meal, date: date),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _ShortcutTile(
+            icon: Icons.photo_camera_outlined,
+            label: 'Meal photo',
+            ai: true,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => MealPhotoScreen(meal: meal, date: date),
+              ),
             ),
           ),
         ),
-        ActionChip(
-          avatar: const Icon(Icons.add, size: 18),
-          label: const Text('Create food'),
-          onPressed: () async {
-            final food = await Navigator.of(context).push<Food>(
-              MaterialPageRoute(builder: (_) => const CustomFoodScreen()),
-            );
-            if (food != null && context.mounted) {
-              await logLocalFood(
-                context,
-                ref,
-                food: food,
-                meal: meal,
-                date: date,
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _ShortcutTile(
+            icon: Icons.add_box_outlined,
+            label: 'Create food',
+            onTap: () async {
+              final food = await Navigator.of(context).push<Food>(
+                MaterialPageRoute(builder: (_) => const CustomFoodScreen()),
               );
-            }
-          },
+              if (food != null && context.mounted) {
+                await logLocalFood(
+                  context,
+                  ref,
+                  food: food,
+                  meal: meal,
+                  date: date,
+                );
+              }
+            },
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _ShortcutTile extends StatelessWidget {
+  const _ShortcutTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.ai = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool ai;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    return Semantics(
+      button: true,
+      label: ai ? '$label, AI assisted' : label,
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: onTap,
+        pressedScale: 0.93,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 84),
+          padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            color: hud.glassFill,
+            border: Border.all(color: hud.hairline.withValues(alpha: 0.16)),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GlowIcon(icon, size: 22),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    style: t.labelMedium?.copyWith(color: hud.text),
+                  ),
+                ],
+              ),
+              if (ai)
+                Positioned(
+                  top: -6,
+                  right: -0,
+                  child: Text(
+                    'AI',
+                    style: AppTypography.hudLabel(AppColors.warning, size: 9),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -243,6 +342,7 @@ Future<void> copyFromPreviousDay(
         .read(foodLogRepositoryProvider)
         .copy(fromDate: from, toDate: date, fromMeal: meal, toMeal: meal);
     if (!context.mounted) return;
+    if (n > 0) Haptics.success();
     showSnack(
       context,
       n == 0
@@ -251,6 +351,34 @@ Future<void> copyFromPreviousDay(
     );
   } catch (e) {
     if (context.mounted) showSnack(context, redactSecrets(e.toString()));
+  }
+}
+
+class _CopyCard extends ConsumerWidget {
+  const _CopyCard({required this.meal, required this.date});
+  final MealType meal;
+  final String date;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hud = context.hud;
+    return AppCard(
+      onTap: () => copyFromPreviousDay(context, ref, meal: meal, date: date),
+      semanticLabel: 'Copy ${meal.label.toLowerCase()} from the day before',
+      child: Row(
+        children: [
+          const GlowIcon(Icons.content_copy_rounded, size: 18, framed: true),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              'Copy ${meal.label.toLowerCase()} from the day before',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          Icon(Icons.chevron_right, color: hud.textMuted),
+        ],
+      ),
+    );
   }
 }
 
@@ -263,27 +391,12 @@ class _RecentTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recents = ref.watch(recentFoodsProvider);
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.gutter),
+      padding: _listPadding(context),
       children: [
-        AppCard(
-          onTap: () =>
-              copyFromPreviousDay(context, ref, meal: meal, date: date),
-          child: Row(
-            children: [
-              const Icon(Icons.content_copy_outlined),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  'Copy ${meal.label.toLowerCase()} from the day before',
-                ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
+        _CopyCard(meal: meal, date: date),
+        const SizedBox(height: AppSpacing.lg),
         ...recents.when(
-          loading: () => [const LoadingState()],
+          loading: () => [const ScanlineLoader(lines: 4)],
           error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
           data: (list) => list.isEmpty
               ? [
@@ -294,20 +407,25 @@ class _RecentTab extends ConsumerWidget {
                   ),
                 ]
               : [
-                  for (final f in list)
-                    FoodListTile(
-                      food: f,
-                      onTap: () => logLocalFood(
-                        context,
-                        ref,
+                  HudCaption('Recently logged · ${list.length}'),
+                  const SizedBox(height: AppSpacing.sm),
+                  ...staggered([
+                    for (final f in list)
+                      FoodListTile(
+                        key: ValueKey('recent-${f.id}'),
                         food: f,
-                        meal: meal,
-                        date: date,
+                        onTap: () => logLocalFood(
+                          context,
+                          ref,
+                          food: f,
+                          meal: meal,
+                          date: date,
+                        ),
+                        onToggleFavorite: () => ref
+                            .read(foodRepositoryProvider)
+                            .setFavorite(f.id, !f.isFavorite),
                       ),
-                      onToggleFavorite: () => ref
-                          .read(foodRepositoryProvider)
-                          .setFavorite(f.id, !f.isFavorite),
-                    ),
+                  ]),
                 ],
         ),
       ],
@@ -320,6 +438,7 @@ class _FoodListTab extends ConsumerWidget {
     required this.provider,
     required this.meal,
     required this.date,
+    required this.emptyIcon,
     required this.emptyTitle,
     required this.emptyMessage,
     this.manage = false,
@@ -328,31 +447,31 @@ class _FoodListTab extends ConsumerWidget {
   final StreamProvider<List<Food>> provider;
   final MealType meal;
   final String date;
+  final IconData emptyIcon;
   final String emptyTitle;
   final String emptyMessage;
   final bool manage;
 
   Future<void> _manage(BuildContext context, WidgetRef ref, Food f) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Edit food'),
-              onTap: () => Navigator.pop(ctx, 'edit'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Delete food'),
-              subtitle: const Text('Past log entries are kept'),
-              onTap: () => Navigator.pop(ctx, 'delete'),
-            ),
-          ],
-        ),
+    Haptics.medium();
+    final action = await showHudBottomSheet<String>(
+      context,
+      title: f.name,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit food'),
+            onTap: () => Navigator.pop(ctx, 'edit'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: AppColors.red),
+            title: const Text('Delete food'),
+            subtitle: const Text('Past log entries are kept'),
+            onTap: () => Navigator.pop(ctx, 'delete'),
+          ),
+        ],
       ),
     );
     if (!context.mounted) return;
@@ -361,8 +480,18 @@ class _FoodListTab extends ConsumerWidget {
         MaterialPageRoute(builder: (_) => CustomFoodScreen(edit: f)),
       );
     } else if (action == 'delete') {
+      Haptics.heavy();
       await ref.read(foodRepositoryProvider).softDelete(f.id);
       if (context.mounted) showSnack(context, 'Deleted ${f.name}');
+    }
+  }
+
+  Future<void> _create(BuildContext context, WidgetRef ref) async {
+    final food = await Navigator.of(
+      context,
+    ).push<Food>(MaterialPageRoute(builder: (_) => const CustomFoodScreen()));
+    if (food != null && context.mounted) {
+      await logLocalFood(context, ref, food: food, meal: meal, date: date);
     }
   }
 
@@ -370,49 +499,42 @@ class _FoodListTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final foods = ref.watch(provider);
     return foods.when(
-      loading: () => const LoadingState(),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.gutter),
+        child: ScanlineLoader(lines: 4),
+      ),
       error: (e, _) => ErrorState(message: redactSecrets('$e')),
       data: (list) => ListView(
-        padding: const EdgeInsets.all(AppSpacing.gutter),
+        padding: _listPadding(context),
         children: [
-          if (manage)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.tonalIcon(
-                onPressed: () async {
-                  final food = await Navigator.of(context).push<Food>(
-                    MaterialPageRoute(builder: (_) => const CustomFoodScreen()),
-                  );
-                  if (food != null && context.mounted) {
-                    await logLocalFood(
-                      context,
-                      ref,
-                      food: food,
-                      meal: meal,
-                      date: date,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Create food'),
-              ),
+          if (manage) ...[
+            HudButton.secondary(
+              label: 'Create food',
+              icon: Icons.add_rounded,
+              expand: true,
+              onPressed: () => _create(context, ref),
             ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           if (list.isEmpty)
             EmptyState(
-              icon: Icons.inventory_2_outlined,
+              icon: emptyIcon,
               title: emptyTitle,
               message: emptyMessage,
             ),
-          for (final f in list)
-            FoodListTile(
-              food: f,
-              onTap: () =>
-                  logLocalFood(context, ref, food: f, meal: meal, date: date),
-              onLongPress: manage ? () => _manage(context, ref, f) : null,
-              onToggleFavorite: () => ref
-                  .read(foodRepositoryProvider)
-                  .setFavorite(f.id, !f.isFavorite),
-            ),
+          ...staggered([
+            for (final f in list)
+              FoodListTile(
+                key: ValueKey('food-${f.id}'),
+                food: f,
+                onTap: () =>
+                    logLocalFood(context, ref, food: f, meal: meal, date: date),
+                onLongPress: manage ? () => _manage(context, ref, f) : null,
+                onToggleFavorite: () => ref
+                    .read(foodRepositoryProvider)
+                    .setFavorite(f.id, !f.isFavorite),
+              ),
+          ]),
           if (manage && list.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -446,6 +568,7 @@ class _MealsTab extends ConsumerWidget {
             mealType: meal,
             localDate: date,
           );
+      Haptics.success();
       if (!context.mounted) return;
       final log = ref.read(foodLogRepositoryProvider);
       showSnack(
@@ -508,6 +631,7 @@ class _MealsTab extends ConsumerWidget {
         .toList();
     if (!context.mounted) return;
     if (entries.isEmpty) {
+      Haptics.warning();
       showSnack(context, 'Log some ${meal.label.toLowerCase()} items first');
       return;
     }
@@ -541,6 +665,7 @@ class _MealsTab extends ConsumerWidget {
     await ref
         .read(savedMealRepositoryProvider)
         .createFromEntries(name, entries, mealType: meal);
+    Haptics.success();
     if (context.mounted) showSnack(context, 'Saved "$name"');
   }
 
@@ -548,36 +673,41 @@ class _MealsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final saved = ref.watch(savedMealsProvider);
     final recipes = ref.watch(recipesProvider);
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.gutter),
+      padding: _listPadding(context),
       children: [
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
+        Row(
           children: [
-            FilledButton.tonalIcon(
-              onPressed: () => _saveCurrentMeal(context, ref),
-              icon: const Icon(Icons.bookmark_add_outlined),
-              label: Text('Save ${meal.label.toLowerCase()} as meal'),
+            Expanded(
+              child: HudButton.secondary(
+                label: 'Save ${meal.label.toLowerCase()}',
+                icon: Icons.bookmark_add_outlined,
+                compact: true,
+                expand: true,
+                onPressed: () => _saveCurrentMeal(context, ref),
+              ),
             ),
-            FilledButton.tonalIcon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<bool>(
-                  builder: (_) => const RecipeBuilderScreen(),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: HudButton.secondary(
+                label: 'New recipe',
+                icon: Icons.menu_book_outlined,
+                compact: true,
+                expand: true,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<bool>(
+                    builder: (_) => const RecipeBuilderScreen(),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.menu_book_outlined),
-              label: const Text('New recipe'),
             ),
           ],
         ),
-        const SectionHeader(
-          'Saved meals',
-          subtitle: 'Tap to log every item in one go',
-        ),
+        const SectionHeader('Saved meals', subtitle: 'Log every item at once'),
         ...saved.when(
-          loading: () => [const LoadingState()],
+          loading: () => [const ScanlineLoader(lines: 3)],
           error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
           data: (list) => list.isEmpty
               ? [
@@ -588,42 +718,78 @@ class _MealsTab extends ConsumerWidget {
                     message: 'Log a meal, then save it here to reuse it.',
                   ),
                 ]
-              : [
+              : staggered([
                   for (final m in list)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      minTileHeight: 60,
-                      title: Row(
-                        children: [
-                          Flexible(child: Text(m.meal.name)),
-                          if (m.hasEstimates) ...[
-                            const SizedBox(width: AppSpacing.xs),
-                            const EstimateBadge(),
+                    Padding(
+                      key: ValueKey('saved-${m.meal.id}'),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AppCard(
+                        semanticLabel: m.meal.name,
+                        onLongPress: () async {
+                          Haptics.heavy();
+                          await ref
+                              .read(savedMealRepositoryProvider)
+                              .softDelete(m.meal.id);
+                          if (context.mounted) {
+                            showSnack(context, 'Deleted "${m.meal.name}"');
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          m.meal.name,
+                                          style: t.titleSmall,
+                                        ),
+                                      ),
+                                      if (m.hasEstimates) ...[
+                                        const SizedBox(width: AppSpacing.xs),
+                                        const EstimateBadge(),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${m.items.length} items · '
+                                    '${macroSummary(m.total)}',
+                                    style: t.bodySmall?.copyWith(
+                                      color: hud.textMuted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  FractionallySizedBox(
+                                    widthFactor: 0.6,
+                                    child: MacroSplitBar(
+                                      protein: m.total.protein,
+                                      carbs: m.total.carbs,
+                                      fat: m.total.fat,
+                                      height: 3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            HudButton(
+                              label: 'Log',
+                              compact: true,
+                              onPressed: () => _logSaved(context, ref, m),
+                            ),
                           ],
-                        ],
+                        ),
                       ),
-                      subtitle: Text(
-                        '${m.items.length} items · ${macroSummary(m.total)}',
-                        style: TextStyle(color: scheme.onSurfaceVariant),
-                      ),
-                      trailing: FilledButton(
-                        onPressed: () => _logSaved(context, ref, m),
-                        child: const Text('Log'),
-                      ),
-                      onLongPress: () async {
-                        await ref
-                            .read(savedMealRepositoryProvider)
-                            .softDelete(m.meal.id);
-                        if (context.mounted) {
-                          showSnack(context, 'Deleted "${m.meal.name}"');
-                        }
-                      },
                     ),
-                ],
+                ]),
         ),
         const SectionHeader('Recipes', subtitle: 'Nutrition per serving'),
         ...recipes.when(
-          loading: () => [const LoadingState()],
+          loading: () => [const ScanlineLoader(lines: 3)],
           error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
           data: (list) => list.isEmpty
               ? [
@@ -634,36 +800,61 @@ class _MealsTab extends ConsumerWidget {
                     message: 'Build one from your foods with "New recipe".',
                   ),
                 ]
-              : [
+              : staggered([
                   for (final r in list)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      minTileHeight: 60,
-                      title: Text(r.recipe.name),
-                      subtitle: Text(
-                        'Per serving: ${macroSummary(r.perServing)}',
-                        style: TextStyle(color: scheme.onSurfaceVariant),
-                      ),
-                      onTap: () => _logRecipe(context, ref, r),
-                      trailing: IconButton(
-                        tooltip: 'Edit recipe',
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<bool>(
-                            builder: (_) => RecipeBuilderScreen(existing: r),
-                          ),
+                    Padding(
+                      key: ValueKey('recipe-${r.recipe.id}'),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AppCard(
+                        semanticLabel: r.recipe.name,
+                        onTap: () => _logRecipe(context, ref, r),
+                        onLongPress: () async {
+                          Haptics.heavy();
+                          await ref
+                              .read(recipeRepositoryProvider)
+                              .softDelete(r.recipe.id);
+                          if (context.mounted) {
+                            showSnack(context, 'Deleted "${r.recipe.name}"');
+                          }
+                        },
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.md,
+                          AppSpacing.xs,
+                          AppSpacing.md,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(r.recipe.name, style: t.titleSmall),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Per serving: ${macroSummary(r.perServing)}',
+                                    style: t.bodySmall?.copyWith(
+                                      color: hud.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Edit recipe',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<bool>(
+                                  builder: (_) =>
+                                      RecipeBuilderScreen(existing: r),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      onLongPress: () async {
-                        await ref
-                            .read(recipeRepositoryProvider)
-                            .softDelete(r.recipe.id);
-                        if (context.mounted) {
-                          showSnack(context, 'Deleted "${r.recipe.name}"');
-                        }
-                      },
                     ),
-                ],
+                ]),
         ),
       ],
     );
@@ -709,10 +900,12 @@ class _QuickAddTabState extends ConsumerState<_QuickAddTab> {
     final c = _d(_c);
     final f = _d(_f);
     if (kcal == null || kcal <= 0 || kcal > 10000) {
+      Haptics.warning();
       setState(() => _error = 'Enter calories between 1 and 10,000');
       return;
     }
     if (p == null || c == null || f == null) {
+      Haptics.warning();
       setState(() => _error = 'Macros must be numbers (or left empty)');
       return;
     }
@@ -727,6 +920,7 @@ class _QuickAddTabState extends ConsumerState<_QuickAddTab> {
           isEstimate: !_exact,
         );
     if (!mounted) return;
+    Haptics.success();
     for (final c in [_name, _kcal, _p, _c, _f]) {
       c.clear();
     }
@@ -740,83 +934,104 @@ class _QuickAddTabState extends ConsumerState<_QuickAddTab> {
         inputFormatters: [
           FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
         ],
-        decoration: InputDecoration(
-          labelText: label,
-          suffixText: suffix,
-          border: const OutlineInputBorder(),
-        ),
+        decoration: InputDecoration(labelText: label, suffixText: suffix),
+        onChanged: (_) => setState(() {}),
       );
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final kcal = _d(_kcal, optional: false);
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.gutter),
+      padding: _listPadding(context),
       children: [
+        _CopyCard(meal: widget.meal, date: widget.date),
+        const SectionHeader('Quick add', subtitle: 'Only know the calories?'),
         AppCard(
-          onTap: () => copyFromPreviousDay(
-            context,
-            ref,
-            meal: widget.meal,
-            date: widget.date,
-          ),
-          child: Row(
+          accent: _exact ? null : AppColors.warning,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.content_copy_outlined),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  'Copy ${widget.meal.label.toLowerCase()} from the day before',
+              TextField(
+                controller: _name,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Description (optional)',
+                  hintText: 'e.g. Office canteen thali',
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const SizedBox(height: AppSpacing.md),
+              _field(_kcal, 'Calories *', 'kcal'),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(child: _field(_p, 'Protein', 'g')),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: _field(_c, 'Carbs', 'g')),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: _field(_f, 'Fat', 'g')),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Exact values (from a label)',
+                          style: t.titleSmall,
+                        ),
+                        const SizedBox(height: 2),
+                        _exact
+                            ? Text(
+                                'Saved as entered by you',
+                                style: t.bodySmall?.copyWith(
+                                  color: hud.textMuted,
+                                ),
+                              )
+                            : Row(
+                                children: [
+                                  Text(
+                                    'Saved as an ',
+                                    style: t.bodySmall?.copyWith(
+                                      color: hud.textMuted,
+                                    ),
+                                  ),
+                                  const EstimateBadge(),
+                                ],
+                              ),
+                      ],
+                    ),
+                  ),
+                  HudToggle(
+                    value: _exact,
+                    semanticLabel: 'Exact values from a label',
+                    onChanged: (v) => setState(() => _exact = v),
+                  ),
+                ],
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  _error!,
+                  style: t.bodyMedium?.copyWith(color: AppColors.red),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              HudButton(
+                label: kcal == null || kcal <= 0
+                    ? 'Add to ${widget.meal.label}'
+                    : 'Add ${Fmt.kcal(kcal)} to ${widget.meal.label}',
+                icon: Icons.bolt_rounded,
+                expand: true,
+                onPressed: _submit,
+              ),
             ],
           ),
         ),
-        const SectionHeader(
-          'Quick add',
-          subtitle: 'For when you only know the calories',
-        ),
-        ...spaced([
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(
-              labelText: 'Description (optional)',
-              hintText: 'e.g. Office canteen thali',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          _field(_kcal, 'Calories *', 'kcal'),
-          Row(
-            children: [
-              Expanded(child: _field(_p, 'Protein', 'g')),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _field(_c, 'Carbs', 'g')),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _field(_f, 'Fat', 'g')),
-            ],
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Exact values (from a label)'),
-            subtitle: Text(
-              _exact ? 'Saved as entered by you' : 'Saved as an ESTIMATE',
-            ),
-            value: _exact,
-            onChanged: (v) => setState(() => _exact = v),
-          ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          SizedBox(
-            height: 52,
-            child: FilledButton(
-              onPressed: _submit,
-              child: Text('Add to ${widget.meal.label}'),
-            ),
-          ),
-        ]),
       ],
     );
   }

@@ -9,6 +9,7 @@ import 'package:athlete_os/features/nutrition/presentation/describe_meal_screen.
 import 'package:athlete_os/features/nutrition/presentation/hydration_screen.dart';
 import 'package:athlete_os/features/nutrition/presentation/nutrition_history_screen.dart';
 import 'package:athlete_os/features/nutrition/presentation/nutrition_screen.dart';
+import 'package:athlete_os/features/nutrition/presentation/widgets/amount_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,11 +75,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 700));
 
-    expect(find.text('Today'), findsWidgets);
+    expect(find.textContaining('FUEL LOG'), findsOneWidget);
     // 500 + 300 = 800 eaten of 2000 -> 1,200 left.
-    expect(find.text('800 kcal'), findsWidgets);
+    expect(find.text('800 / 2,000'), findsOneWidget);
     expect(find.text('1,200'), findsOneWidget);
-    expect(find.text('kcal left'), findsOneWidget);
+    expect(find.text('KCAL LEFT'), findsOneWidget);
     expect(find.text('Paneer'), findsOneWidget);
     expect(find.text('Samosa'), findsOneWidget);
     expect(find.text('Deleted cake'), findsNothing);
@@ -111,7 +112,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.text('500'), findsOneWidget);
-    expect(find.text('kcal over'), findsOneWidget);
+    expect(find.text('KCAL OVER'), findsOneWidget);
     await settleAndDispose(tester);
   });
 
@@ -214,10 +215,8 @@ void main() {
     for (final t in ['Search', 'Recent', 'Favorites', 'My foods', 'Meals']) {
       expect(find.text(t), findsWidgets);
     }
-    final dinner = tester.widget<ChoiceChip>(
-      find.widgetWithText(ChoiceChip, 'Dinner'),
-    );
-    expect(dinner.selected, isTrue);
+    final picker = tester.widget<MealPicker>(find.byType(MealPicker));
+    expect(picker.value, MealType.dinner);
     expect(find.text('Scan barcode'), findsOneWidget);
     await settleAndDispose(tester);
   });

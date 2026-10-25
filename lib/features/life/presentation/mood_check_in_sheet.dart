@@ -2,29 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/widgets.dart';
 import '../data/mood_repository.dart';
 import '../domain/crisis_detector.dart';
 import '../domain/mood_stats.dart';
 import 'widgets/life_widgets.dart';
+import 'widgets/mood_orb.dart';
 
-Future<void> showMoodCheckIn(BuildContext context) async {
-  final distressed = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (_) => const MoodCheckInSheet(),
+/// Opens the check-in sheet (optionally with a mood already chosen, e.g.
+/// from a one-tap face on the Life hub). If the note suggested severe
+/// distress, a calm support sheet follows.
+Future<void> showMoodCheckIn(BuildContext context, {int? initialMood}) async {
+  final distressed = await showHudBottomSheet<bool>(
+    context,
+    builder: (_) => MoodCheckInSheet(initialMood: initialMood),
   );
   if (distressed == true && context.mounted) {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        contentPadding: const EdgeInsets.all(AppSpacing.md),
-        content: const SingleChildScrollView(child: SupportCard()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
+    await showHudBottomSheet<void>(
+      context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Flexible(child: SingleChildScrollView(child: SupportCard())),
+          const SizedBox(height: AppSpacing.md),
+          HudButton.ghost(label: 'Close', onPressed: () => Navigator.pop(ctx)),
         ],
       ),
     );
@@ -34,20 +36,22 @@ Future<void> showMoodCheckIn(BuildContext context) async {
 /// Quick mood check-in. Pops with `true` when the note suggested severe
 /// distress (so the caller can keep showing support), otherwise `false`.
 class MoodCheckInSheet extends ConsumerStatefulWidget {
-  const MoodCheckInSheet({super.key});
+  const MoodCheckInSheet({super.key, this.initialMood});
+  final int? initialMood;
 
   @override
   ConsumerState<MoodCheckInSheet> createState() => _MoodCheckInSheetState();
 }
 
 class _MoodCheckInSheetState extends ConsumerState<MoodCheckInSheet> {
-  int? _mood;
+  late int? _mood = widget.initialMood;
   int? _energy;
   int? _stress;
   int? _sleep;
   final _tags = <String>{};
   final _note = TextEditingController();
   bool _saving = false;
+  double _scrub = 0;
 
   @override
   void initState() {
@@ -59,6 +63,25 @@ class _MoodCheckInSheetState extends ConsumerState<MoodCheckInSheet> {
   void dispose() {
     _note.dispose();
     super.dispose();
+  }
+
+  void _setMood(int m) {
+    if (m == _mood) return;
+    setState(() => _mood = m);
+  }
+
+  // Swipe across the orb to scrub the mood, one detent per ~32 px.
+  void _onScrub(DragUpdateDetails d) {
+    _scrub += d.delta.dx;
+    const step = 32.0;
+    if (_scrub.abs() < step) return;
+    final dir = _scrub.sign.toInt();
+    _scrub = 0;
+    final next = ((_mood ?? 3) + dir).clamp(1, 5);
+    if (next != _mood) {
+      Haptics.selection();
+      _setMood(next);
+    }
   }
 
   Future<void> _save() async {
@@ -77,146 +100,149 @@ class _MoodCheckInSheetState extends ConsumerState<MoodCheckInSheet> {
             note: _note.text,
           ),
         );
+    Haptics.success();
     if (mounted) Navigator.of(context).pop(detectsSevereDistress(_note.text));
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final distress = detectsSevereDistress(_note.text);
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.gutter,
-          0,
-          AppSpacing.gutter,
-          AppSpacing.xl,
+    final m = _mood;
+    return ListView(
+      shrinkWrap: true,
+      padding: EdgeInsets.zero,
+      children: [
+        Text(
+          'How are you feeling?',
+          style: t.titleLarge,
+          textAlign: TextAlign.center,
         ),
-        children: [
-          Text('How are you feeling?', style: t.titleLarge),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              for (var m = 1; m <= 5; m++)
-                Expanded(
-                  child: Semantics(
-                    button: true,
-                    selected: _mood == m,
-                    label: 'Mood ${moodLabels[m]}',
-                    excludeSemantics: true,
-                    child: InkWell(
-                      key: Key('mood-$m'),
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      onTap: () => setState(() => _mood = m),
-                      child: AnimatedContainer(
-                        duration: AppDurations.fast,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _mood == m
-                              ? moodColor(m).withValues(alpha: 0.22)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(AppRadii.md),
-                          border: Border.all(
-                            color: _mood == m
-                                ? moodColor(m)
-                                : scheme.outlineVariant,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(moodIcon(m), size: 34, color: moodColor(m)),
-                            const SizedBox(height: 4),
-                            Text(
-                              moodLabels[m]!,
-                              style: t.labelSmall,
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+        const SizedBox(height: AppSpacing.md),
+        Center(
+          child: GestureDetector(
+            onHorizontalDragStart: (_) => _scrub = 0,
+            onHorizontalDragUpdate: _onScrub,
+            child: MoodOrb(mood: m?.toDouble(), size: 136),
           ),
-          const SizedBox(height: AppSpacing.xl),
-          ScaleSelector(
-            label: 'Energy',
-            labels: energyLabels,
-            value: _energy,
-            onChanged: (v) => setState(() => _energy = v),
-            color: AppColors.calories,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ScaleSelector(
-            label: 'Stress',
-            labels: stressLabels,
-            value: _stress,
-            onChanged: (v) => setState(() => _stress = v),
-            color: AppColors.info,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ScaleSelector(
-            label: 'Sleep quality (last night)',
-            labels: sleepQualityLabels,
-            value: _sleep,
-            onChanged: (v) => setState(() => _sleep = v),
-            color: AppColors.sleep,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Emotions', style: t.labelLarge),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              for (final tag in emotionTags)
-                FilterChip(
-                  label: Text(tag),
-                  selected: _tags.contains(tag),
-                  onSelected: (on) =>
-                      setState(() => on ? _tags.add(tag) : _tags.remove(tag)),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          TextField(
-            controller: _note,
-            minLines: 2,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'Note (optional)',
-              hintText: 'Anything on your mind?',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AnimatedSwitcher(
+          duration: AppMotion.short,
+          transitionBuilder: (child, a) => FadeTransition(
+            opacity: a,
+            child: ScaleTransition(
+              scale: Tween(begin: 0.9, end: 1.0).animate(a),
+              child: child,
             ),
           ),
-          if (distress) ...[
-            const SizedBox(height: AppSpacing.md),
-            const SupportCard(),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: _mood == null || _saving ? null : _save,
-            child: Text(
-              _mood == null ? 'Choose a mood to save' : 'Save check-in',
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Stored only on this device.',
+          child: Text(
+            m == null
+                ? 'TAP A FACE · OR SWIPE THE ORB'
+                : moodLabels[m]!.toUpperCase(),
+            key: ValueKey(m),
             textAlign: TextAlign.center,
-            style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            style: hud.label(
+              size: m == null ? 11 : 15,
+              color: m == null
+                  ? hud.textMuted
+                  : (hud.isDark ? moodColor(m) : hud.text),
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        MoodPicker(value: m, onChanged: _setMood, size: 36),
+        const SizedBox(height: AppSpacing.lg),
+        GlassPanel(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.xs,
+          ),
+          child: Column(
+            children: [
+              ScaleSelector(
+                label: 'Energy',
+                icon: Icons.bolt_rounded,
+                labels: energyLabels,
+                value: _energy,
+                onChanged: (v) => setState(() => _energy = v),
+                color: AppColors.calories,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ScaleSelector(
+                label: 'Stress',
+                icon: Icons.waves_rounded,
+                labels: stressLabels,
+                value: _stress,
+                onChanged: (v) => setState(() => _stress = v),
+                color: AppColors.info,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              ScaleSelector(
+                label: 'Sleep last night',
+                icon: Icons.bedtime_rounded,
+                labels: sleepQualityLabels,
+                value: _sleep,
+                onChanged: (v) => setState(() => _sleep = v),
+                color: AppColors.sleep,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('EMOTIONS · OPTIONAL', style: hud.label(size: 11)),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.xs + 2,
+          runSpacing: AppSpacing.xs + 2,
+          children: [
+            for (final tag in emotionTags)
+              LifePill(
+                label: tag,
+                selected: _tags.contains(tag),
+                color: AppColors.mood,
+                onTap: () => setState(
+                  () =>
+                      _tags.contains(tag) ? _tags.remove(tag) : _tags.add(tag),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _note,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Note (optional)',
+            hintText: 'Anything on your mind?',
+          ),
+        ),
+        AnimatedSize(
+          duration: AppMotion.medium,
+          curve: AppMotion.standard,
+          child: distress
+              ? const Padding(
+                  padding: EdgeInsets.only(top: AppSpacing.md),
+                  child: SupportCard(),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        HudButton(
+          label: m == null ? 'Choose a mood to save' : 'Save check-in',
+          icon: m == null ? null : Icons.check_rounded,
+          expand: true,
+          loading: _saving,
+          onPressed: m == null || _saving ? null : _save,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        const Center(child: PrivacyBadge(label: 'STORED ONLY ON THIS DEVICE')),
+      ],
     );
   }
 }

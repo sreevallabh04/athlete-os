@@ -11,6 +11,7 @@ import 'package:athlete_os/features/life/presentation/journal_screen.dart';
 import 'package:athlete_os/features/life/presentation/life_screen.dart';
 import 'package:athlete_os/features/life/presentation/mood_screen.dart';
 import 'package:athlete_os/features/life/presentation/notification_settings_screen.dart';
+import 'package:athlete_os/features/life/presentation/suggested_habits_sheet.dart';
 import 'package:athlete_os/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,11 +54,11 @@ void main() {
 
       await tester.tap(find.text('Add suggested'));
       await pumpUntil(tester, find.text('Suggested habits'));
-      final boxes = tester.widgetList<CheckboxListTile>(
-        find.byType(CheckboxListTile),
+      final tiles = tester.widgetList<SuggestedHabitTile>(
+        find.byType(SuggestedHabitTile),
       );
-      expect(boxes, isNotEmpty);
-      expect(boxes.every((b) => b.value == false), isTrue);
+      expect(tiles, isNotEmpty);
+      expect(tiles.every((b) => b.selected == false), isTrue);
       expect(find.text('Select habits to add'), findsOneWidget);
       await settle(tester);
     });
@@ -182,7 +183,7 @@ void main() {
       find.text('Off: journal text never leaves this device.'),
       findsOneWidget,
     );
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byKey(const Key('ai-journal-consent')));
     await pumpUntil(tester, find.text('Allow AI journal analysis?'));
     await tester.tap(find.text('Keep off'));
     await tester.pump(const Duration(milliseconds: 300));
@@ -191,7 +192,7 @@ void main() {
       isNull,
     );
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byKey(const Key('ai-journal-consent')));
     await pumpUntil(tester, find.text('Allow'));
     await tester.tap(find.text('Allow'));
     await pumpUntil(

@@ -10,6 +10,10 @@ import '../data/habit_repository.dart';
 import '../domain/habit_engine.dart';
 import '../domain/habit_models.dart';
 import 'habits_screen.dart';
+import 'widgets/habit_widgets.dart';
+import 'widgets/life_widgets.dart';
+
+export 'widgets/habit_widgets.dart' show HabitMonthHeatmap;
 
 class HabitDetailScreen extends ConsumerStatefulWidget {
   const HabitDetailScreen({super.key, required this.habitId});
@@ -32,9 +36,13 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(habitDetailProvider(widget.habitId));
-    final today = LocalDates.key(ref.watch(clockProvider).now());
+    final now = ref.watch(clockProvider).now();
+    final today = LocalDates.key(now);
     return async.when(
-      loading: () => const AppPage(title: 'Habit', children: [LoadingState()]),
+      loading: () => const AppPage(
+        title: 'Habit',
+        children: [ScanlineLoader(height: 160, lines: 0)],
+      ),
       error: (e, _) => AppPage(
         title: 'Habit',
         children: [
@@ -61,12 +69,12 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
           today: today,
           startDate: v.startDate,
         );
-        String pct(double? r) => r == null ? '–' : '${(r * 100).round()}%';
         return AppPage(
           title: v.name,
-          subtitle: [
-            v.schedule.describe(),
-            if (v.habit.archived) 'Archived',
+          eyebrow: [
+            v.schedule.describe().toUpperCase(),
+            HabitCategory.fromKey(v.habit.category).label.toUpperCase(),
+            if (v.habit.archived) 'ARCHIVED',
           ].join(' · '),
           actions: [
             IconButton(
@@ -76,108 +84,28 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
             ),
           ],
           children: [
-            const SizedBox(height: AppSpacing.md),
+            _Hero(view: v, last30: last30, today: today),
+            const LifeSection(
+              'History',
+              hint: 'Tap a day to change it · swipe for other months',
+              accent: AppColors.habit,
+            ),
             AppCard(
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StatTile(
-                          label: 'Current streak',
-                          value: v.streak.format(v.streak.current),
-                          icon: Icons.local_fire_department_outlined,
-                          color: AppColors.habit,
-                        ),
-                      ),
-                      Expanded(
-                        child: StatTile(
-                          label: 'Best streak',
-                          value: v.streak.format(v.streak.best),
-                          icon: Icons.emoji_events_outlined,
-                          color: AppColors.habit,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StatTile(
-                          label: 'This week',
-                          value: pct(v.week.rate),
-                          sub: v.schedule.isWeekly
-                              ? '${v.weekDone} of ${v.schedule.weeklyTarget}'
-                              : '${v.week.done} of ${v.week.due} due',
-                        ),
-                      ),
-                      Expanded(
-                        child: StatTile(
-                          label: 'Last 30 days',
-                          value: pct(last30.rate),
-                          sub:
-                              '${last30.done} of ${last30.due}'
-                              '${last30.skipped > 0 ? ' · ${last30.skipped} skipped' : ''}',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Skipped days are neutral: they never break a streak or '
-                    'lower your percentage.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  MonthSwitcher(
+                    month: _month,
+                    maxMonth: DateTime(now.year, now.month),
+                    onChanged: (m) => setState(() => _month = m),
+                    builder: (context) => HabitMonthHeatmap(
+                      view: v,
+                      month: _month,
+                      today: today,
+                      onDayTap: (d) => _editDay(context, v, d),
                     ),
                   ),
-                ],
-              ),
-            ),
-            SectionHeader(
-              DateFormat('MMMM yyyy').format(_month),
-              subtitle: 'Tap a day to change it',
-            ),
-            AppCard(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Previous month',
-                        onPressed: () => setState(
-                          () =>
-                              _month = DateTime(_month.year, _month.month - 1),
-                        ),
-                        icon: const Icon(Icons.chevron_left),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'Next month',
-                        onPressed:
-                            DateTime(
-                              _month.year,
-                              _month.month + 1,
-                            ).isAfter(LocalDates.parse(today))
-                            ? null
-                            : () => setState(
-                                () => _month = DateTime(
-                                  _month.year,
-                                  _month.month + 1,
-                                ),
-                              ),
-                        icon: const Icon(Icons.chevron_right),
-                      ),
-                    ],
-                  ),
-                  HabitMonthHeatmap(
-                    view: v,
-                    month: _month,
-                    today: today,
-                    onDayTap: (d) => _editDay(context, v, d),
-                  ),
                   const SizedBox(height: AppSpacing.md),
-                  const _Legend(),
+                  const HabitHeatmapLegend(),
                 ],
               ),
             ),
@@ -187,20 +115,24 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: spaced([
                   _InfoRow(
+                    Icons.category_outlined,
                     'Category',
                     HabitCategory.fromKey(v.habit.category).label,
                   ),
                   _InfoRow(
+                    Icons.alarm,
                     'Reminders',
                     v.reminderTimes.isEmpty
                         ? 'None'
-                        : v.reminderTimes.map(formatMinutes).join(', '),
+                        : v.reminderTimes.map(formatMinutes).join(' · '),
+                    mono: v.reminderTimes.isNotEmpty,
                   ),
-                  _InfoRow('Automatic', v.autoRule?.label ?? 'Off'),
+                  _InfoRow(Icons.bolt, 'Automatic', v.autoRule?.label ?? 'Off'),
                   if (v.dependsOnName != null)
-                    _InfoRow('After', v.dependsOnName!),
-                  if (v.habit.notes != null) _InfoRow('Notes', v.habit.notes!),
-                ]),
+                    _InfoRow(Icons.east, 'After', v.dependsOnName!),
+                  if (v.habit.notes != null)
+                    _InfoRow(Icons.notes, 'Notes', v.habit.notes!),
+                ], gap: AppSpacing.md),
               ),
             ),
           ],
@@ -212,208 +144,261 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
   Future<void> _editDay(BuildContext context, HabitView v, String date) async {
     final repo = ref.read(habitRepositoryProvider);
     final mark = v.marks[date];
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Text(
-                DateFormat('EEEE, d MMMM').format(LocalDates.parse(date)),
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
+    final choice = await showHudBottomSheet<String>(
+      context,
+      title: DateFormat('EEEE, d MMMM').format(LocalDates.parse(date)),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (mark?.auto ?? false) ...[
+            const NoticeBanner(
+              icon: Icons.bolt,
+              message: 'Completed automatically from logged data.',
             ),
-            if (mark?.auto ?? false)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Text('Completed automatically from logged data.'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.check_circle, color: AppColors.habit),
-              title: const Text('Done'),
-              onTap: () => Navigator.pop(ctx, 'done'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.remove_circle_outline),
-              title: const Text('Skipped'),
-              subtitle: const Text('Neutral — doesn\'t affect streaks'),
-              onTap: () => Navigator.pop(ctx, 'skipped'),
-            ),
-            if (mark != null && !mark.auto)
-              ListTile(
-                leading: const Icon(Icons.undo),
-                title: const Text('Clear'),
-                onTap: () => Navigator.pop(ctx, 'clear'),
-              ),
+            const SizedBox(height: AppSpacing.md),
           ],
-        ),
+          _DayOption(
+            node: HabitNodeState.done,
+            title: 'Done',
+            selected: (mark?.isDone ?? false) && !(mark?.auto ?? false),
+            onTap: () => Navigator.pop(ctx, 'done'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _DayOption(
+            node: HabitNodeState.skipped,
+            title: 'Skipped',
+            subtitle: 'Neutral — doesn\'t affect streaks',
+            selected: mark?.isSkipped ?? false,
+            onTap: () => Navigator.pop(ctx, 'skipped'),
+          ),
+          if (mark != null && !mark.auto) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _DayOption(
+              node: HabitNodeState.open,
+              title: 'Clear',
+              subtitle: 'Back to no mark',
+              selected: false,
+              onTap: () => Navigator.pop(ctx, 'clear'),
+            ),
+          ],
+        ],
       ),
     );
     switch (choice) {
       case 'done':
+        Haptics.success();
         await repo.setStatus(v.id, date, HabitStatus.done);
       case 'skipped':
+        Haptics.medium();
         await repo.setStatus(v.id, date, HabitStatus.skipped);
       case 'clear':
+        Haptics.light();
         await repo.clearStatus(v.id, date);
     }
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value);
-  final String label;
-  final String value;
+class _Hero extends StatelessWidget {
+  const _Hero({required this.view, required this.last30, required this.today});
+  final HabitView view;
+  final CompletionStats last30;
+  final String today;
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final v = view;
+    final hot = isHotStreak(v.streak);
+    final unitWord = v.streak.unit == StreakUnit.weeks ? 'WEEK' : 'DAY';
+    String pct(double? r) => r == null ? '–' : '${(r * 100).round()}%';
+    return AppCard(
+      accent: hot ? AppColors.gold : AppColors.habit,
+      brackets: true,
+      glow: hot,
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Hero(
+                tag: 'habit-node-${v.id}',
+                child: HabitCheckNode(
+                  state: nodeStateOf(v.todayMark),
+                  size: 54,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 30,
+                          color: hot ? AppColors.gold : hud.textMuted,
+                          shadows: hot
+                              ? AppGlows.text(
+                                  AppColors.gold,
+                                  strength: hud.glowStrength,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 4),
+                        AnimatedTicker(
+                          '${v.streak.current}',
+                          style: hud.number(size: 48),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '$unitWord STREAK · BEST ${v.streak.best}',
+                      style: hud.label(size: 11),
+                    ),
+                  ],
+                ),
+              ),
+              ArcGauge(
+                value: last30.rate ?? 0,
+                valueText: pct(last30.rate),
+                label: '30 DAYS',
+                color: AppColors.habit,
+                width: 104,
+                stroke: 7,
+                semanticLabel: 'Last 30 days completion',
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: StatTile(
+                  label: 'This week',
+                  value: pct(v.week.rate),
+                  sub: v.schedule.isWeekly
+                      ? '${v.weekDone} of ${v.schedule.weeklyTarget}'
+                      : '${v.week.done} of ${v.week.due} due',
+                  color: AppColors.habit,
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: 'Last 30 days',
+                  value: '${last30.done}/${last30.due}',
+                  sub: last30.skipped > 0
+                      ? '${last30.skipped} skipped'
+                      : 'no skips',
+                  color: AppColors.habit,
+                ),
+              ),
+              Expanded(
+                child: StatTile(
+                  label: 'Since',
+                  value: DateFormat('d MMM')
+                      .format(LocalDates.parse(v.startDate)),
+                  sub:
+                      '${LocalDates.parse(today).difference(LocalDates.parse(v.startDate)).inDays + 1} days',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Icon(Icons.verified_outlined, size: 14, color: hud.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Skipped days are neutral: they never break a streak or '
+                  'lower your percentage.',
+                  style: t.bodySmall?.copyWith(color: hud.textMuted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayOption extends StatelessWidget {
+  const _DayOption({
+    required this.node,
+    required this.title,
+    required this.selected,
+    required this.onTap,
+    this.subtitle,
+  });
+  final HabitNodeState node;
+  final String title;
+  final String? subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: onTap,
+        haptic: PressHaptic.selection,
+        child: GlassPanel(
+          accent: selected ? AppColors.habit : null,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm + 2,
+          ),
+          child: HudRow(
+            leading: HabitCheckNode(state: node, size: 34),
+            title: title,
+            subtitle: subtitle,
+            trailing: selected
+                ? const Icon(Icons.check, color: AppColors.habit, size: 18)
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow(this.icon, this.label, this.value, {this.mono = false});
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Icon(icon, size: 16, color: hud.textMuted),
+        const SizedBox(width: AppSpacing.sm),
         SizedBox(
-          width: 110,
+          width: 96,
+          child: Text(label.toUpperCase(), style: hud.label(size: 11)),
+        ),
+        Expanded(
           child: Text(
-            label,
-            style: t.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            value,
+            style: mono ? hud.mono(size: 13, color: hud.text) : t.bodyMedium,
           ),
         ),
-        Expanded(child: Text(value, style: t.bodyMedium)),
       ],
-    );
-  }
-}
-
-class _Legend extends StatelessWidget {
-  const _Legend();
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    Widget item(Color fill, String label, {Color? border}) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(3),
-            border: border == null ? null : Border.all(color: border),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
-      ],
-    );
-    return Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.xs,
-      children: [
-        item(AppColors.habit, 'Done'),
-        item(AppColors.habit.withValues(alpha: 0.45), 'Auto'),
-        item(Colors.transparent, 'Skipped', border: scheme.onSurfaceVariant),
-        item(scheme.surfaceContainerHighest, 'Open'),
-      ],
-    );
-  }
-}
-
-/// Month grid (Mon–Sun columns) colour-coded by day status.
-class HabitMonthHeatmap extends StatelessWidget {
-  const HabitMonthHeatmap({
-    super.key,
-    required this.view,
-    required this.month,
-    required this.today,
-    required this.onDayTap,
-  });
-
-  final HabitView view;
-  final DateTime month;
-  final String today;
-  final ValueChanged<String> onDayTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final first = DateTime(month.year, month.month);
-    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final leading = first.weekday - 1;
-    final cells = <Widget>[
-      for (final l in weekdayLetter)
-        Center(
-          child: Text(
-            l,
-            style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ),
-      for (var i = 0; i < leading; i++) const SizedBox.shrink(),
-    ];
-    for (var d = 1; d <= daysInMonth; d++) {
-      final key = LocalDates.key(DateTime(month.year, month.month, d));
-      final mark = view.marks[key];
-      final future = key.compareTo(today) > 0;
-      final scheduled = view.schedule.isScheduledDay(key);
-      final beforeStart = key.compareTo(view.startDate) < 0 && mark == null;
-      Color fill = Colors.transparent;
-      Color? border;
-      Color textColor = scheme.onSurface;
-      String status;
-      if (mark?.isDone ?? false) {
-        fill = mark!.auto
-            ? AppColors.habit.withValues(alpha: 0.45)
-            : AppColors.habit;
-        textColor = Colors.black;
-        status = mark.auto ? 'done automatically' : 'done';
-      } else if (mark?.isSkipped ?? false) {
-        border = scheme.onSurfaceVariant;
-        status = 'skipped';
-      } else if (future || beforeStart || !scheduled) {
-        textColor = scheme.onSurfaceVariant.withValues(alpha: 0.6);
-        status = future ? 'upcoming' : 'not scheduled';
-      } else {
-        fill = scheme.surfaceContainerHighest;
-        status = 'open';
-      }
-      if (key == today) border = scheme.primary;
-      cells.add(
-        Semantics(
-          button: !future,
-          label:
-              '${DateFormat('d MMMM').format(LocalDates.parse(key))}, $status',
-          excludeSemantics: true,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-            onTap: future ? null : () => onDayTap(key),
-            child: Container(
-              margin: const EdgeInsets.all(2),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: fill,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-                border: border == null
-                    ? null
-                    : Border.all(color: border, width: 1.5),
-              ),
-              child: Text(
-                '$d',
-                style: t.labelMedium?.copyWith(color: textColor),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return GridView.count(
-      crossAxisCount: 7,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1,
-      children: cells,
     );
   }
 }

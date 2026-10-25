@@ -12,9 +12,10 @@ import '../domain/food_models.dart';
 import 'food_actions.dart';
 import 'widgets/common.dart';
 import 'widgets/food_tiles.dart';
+import 'widgets/nutrition_hud.dart';
 
-/// Search local foods (as you type) and Open Food Facts / USDA (on submit
-/// only, to respect API rate limits).
+/// Search local foods (instantly, as you type) and Open Food Facts / USDA
+/// (on submit only, to respect API rate limits).
 class FoodSearchPanel extends ConsumerStatefulWidget {
   const FoodSearchPanel({
     super.key,
@@ -73,6 +74,7 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
     final q = _ctrl.text.trim();
     if (q.length < 2 || _searching) return;
     FocusScope.of(context).unfocus();
+    Haptics.light();
     setState(() {
       _searching = true;
       _remoteQuery = q;
@@ -84,39 +86,47 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
       _remote = r;
       _searching = false;
     });
+    if (r.isEmpty) {
+      Haptics.light();
+    } else {
+      Haptics.selection();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final remote = _remote;
     final q = _ctrl.text.trim();
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.gutter,
         AppSpacing.md,
         AppSpacing.gutter,
-        AppSpacing.xxxl,
+        MediaQuery.paddingOf(context).bottom + AppSpacing.xxxl,
       ),
       children: [
         TextField(
           key: const Key('food-search-field'),
           controller: _ctrl,
           textInputAction: TextInputAction.search,
+          style: t.bodyLarge,
           decoration: InputDecoration(
             hintText: 'Search foods (e.g. paneer, dal, oats)',
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: Icon(Icons.search_rounded, color: hud.accentInk),
             suffixIcon: q.isEmpty
                 ? null
                 : IconButton(
                     tooltip: 'Clear',
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => setState(() {
                       _ctrl.clear();
                       _local = const [];
                       _remote = null;
                     }),
                   ),
-            border: const OutlineInputBorder(),
           ),
           onChanged: (v) {
             setState(() {});
@@ -124,38 +134,74 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
           },
           onSubmitted: (_) => _submit(),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: q.length < 2 || _searching ? null : _submit,
-            icon: const Icon(Icons.travel_explore, size: 18),
-            label: const Text('Search online databases'),
-          ),
+        AnimatedSize(
+          duration: AppMotion.reduced(context)
+              ? Duration.zero
+              : AppMotion.medium,
+          curve: AppMotion.emphasizedDecelerate,
+          alignment: Alignment.topCenter,
+          child: q.length < 2
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: HudButton.secondary(
+                    label: 'Search Open Food Facts for "$q"',
+                    icon: Icons.travel_explore_rounded,
+                    compact: true,
+                    expand: true,
+                    loading: _searching,
+                    onPressed: _searching ? null : _submit,
+                  ),
+                ),
         ),
-        ?widget.header,
-        if (q.isNotEmpty && _local.isNotEmpty) ...[
-          const SectionHeader('Your foods'),
-          for (final f in _local)
-            FoodListTile(
-              food: f,
-              onTap: () => logLocalFood(
-                context,
-                ref,
-                food: f,
-                meal: widget.meal,
-                date: widget.date,
-              ),
-            ),
+        if (widget.header != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          widget.header!,
         ],
-        if (_searching) const LoadingState(),
+        if (q.isNotEmpty && _local.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          HudCaption(
+            'Your foods · ${_local.length}',
+            trailing: Text('INSTANT', style: hud.mono(size: 10)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ...staggered([
+            for (final f in _local)
+              FoodListTile(
+                key: ValueKey('local-${f.id}'),
+                food: f,
+                onTap: () => logLocalFood(
+                  context,
+                  ref,
+                  food: f,
+                  meal: widget.meal,
+                  date: widget.date,
+                ),
+              ),
+          ]),
+        ],
+        if (q.isNotEmpty && _local.isEmpty && remote == null && !_searching)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: Text(
+              'Not in your foods yet. Press search to look it up online.',
+              style: t.bodySmall?.copyWith(color: hud.textMuted),
+            ),
+          ),
+        if (_searching) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const ScanlineLoader(lines: 3),
+          const SizedBox(height: AppSpacing.md),
+          const ScanlineLoader(lines: 3),
+        ],
         if (!_searching && remote != null) ..._remoteResults(remote),
         if (q.isEmpty && remote == null)
           const Padding(
-            padding: EdgeInsets.only(top: AppSpacing.xl),
+            padding: EdgeInsets.only(top: AppSpacing.lg),
             child: EmptyState(
               compact: true,
               icon: Icons.search,
+              eyebrow: 'READY',
               title: 'Find a food',
               message:
                   'Your saved foods appear as you type. Press search to look '
@@ -167,6 +213,8 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
   }
 
   List<Widget> _remoteResults(RemoteSearchResult r) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return [
       for (final e in r.errors) ...[
         const SizedBox(height: AppSpacing.md),
@@ -186,51 +234,64 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
               'create the food yourself.',
         ),
       if (r.openFoodFacts.isNotEmpty) ...[
-        const SectionHeader(
-          'Open Food Facts',
-          subtitle: 'Community data — verify against the label',
+        const SizedBox(height: AppSpacing.lg),
+        HudCaption(
+          'Open Food Facts · ${r.openFoodFacts.length}',
+          color: AppColors.warning,
         ),
-        for (final c in r.openFoodFacts)
-          CandidateTile(
-            candidate: c,
-            onTap: () => openCandidate(
-              context,
-              ref,
+        const SizedBox(height: 2),
+        Text(
+          'Community data — verify against the label',
+          style: t.bodySmall?.copyWith(color: hud.textMuted),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ...staggered([
+          for (final c in r.openFoodFacts)
+            CandidateTile(
               candidate: c,
-              meal: widget.meal,
-              date: widget.date,
+              onTap: () => openCandidate(
+                context,
+                ref,
+                candidate: c,
+                meal: widget.meal,
+                date: widget.date,
+              ),
             ),
-          ),
+        ]),
         const Padding(
           padding: EdgeInsets.only(top: AppSpacing.xs),
           child: OffAttribution(),
         ),
       ],
       if (r.usda.isNotEmpty) ...[
-        const SectionHeader(
-          'USDA FoodData Central',
-          subtitle: 'Generic foods, values per 100 g',
+        const SizedBox(height: AppSpacing.lg),
+        HudCaption('USDA FoodData Central · ${r.usda.length}'),
+        const SizedBox(height: 2),
+        Text(
+          'Generic foods, values per 100 g',
+          style: t.bodySmall?.copyWith(color: hud.textMuted),
         ),
-        for (final c in r.usda)
-          CandidateTile(
-            candidate: c,
-            onTap: () => openCandidate(
-              context,
-              ref,
+        const SizedBox(height: AppSpacing.sm),
+        ...staggered([
+          for (final c in r.usda)
+            CandidateTile(
               candidate: c,
-              meal: widget.meal,
-              date: widget.date,
+              onTap: () => openCandidate(
+                context,
+                ref,
+                candidate: c,
+                meal: widget.meal,
+                date: widget.date,
+              ),
             ),
-          ),
+        ]),
       ],
       if (!r.usdaConfigured)
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: Text(
             'USDA search is off (no API key configured).',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
           ),
         ),
     ];

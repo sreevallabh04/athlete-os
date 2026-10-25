@@ -10,9 +10,12 @@ import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
 import '../application/mood_journal_providers.dart';
 import '../data/mood_repository.dart';
+import '../domain/habit_models.dart';
 import '../domain/mood_stats.dart';
 import 'mood_check_in_sheet.dart';
+import 'widgets/habit_widgets.dart' show MonthSwitcher;
 import 'widgets/life_widgets.dart';
+import 'widgets/mood_orb.dart';
 
 class MoodScreen extends ConsumerStatefulWidget {
   const MoodScreen({super.key});
@@ -40,117 +43,194 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
     final now = ref.watch(clockProvider).now();
     return AppPage(
       title: 'Mood',
-      subtitle: 'Private check-ins, stored only on this device.',
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'mood-check-in',
+      eyebrow: 'PRIVATE CHECK-INS · ON THIS DEVICE',
+      floatingActionButton: HudButton(
+        label: 'Check in',
+        icon: Icons.add_reaction_outlined,
         onPressed: () => showMoodCheckIn(context),
-        icon: const Icon(Icons.add_reaction_outlined),
-        label: const Text('Check in'),
       ),
       children: [
-        const SizedBox(height: AppSpacing.md),
         today.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(height: 150, lines: 0),
           error: (e, _) =>
               const ErrorState(message: 'Today\'s check-in couldn\'t load.'),
-          data: (e) => e == null
-              ? AppCard(
-                  child: EmptyState(
-                    compact: true,
-                    icon: Icons.mood_outlined,
-                    title: 'No check-in yet today',
-                    message: 'It takes about ten seconds.',
-                    actionLabel: 'Check in',
-                    onAction: () => showMoodCheckIn(context),
-                  ),
-                )
-              : MoodEntryCard(entry: e, now: now, title: 'Latest today'),
+          data: (e) => _TodayHero(entry: e),
         ),
-        const SectionHeader('Trend', subtitle: 'Daily average mood'),
-        SegmentedButton<int>(
+        const LifeSection(
+          'Trend',
+          hint: 'Daily average mood · drag to scrub',
+          accent: AppColors.mood,
+        ),
+        SegmentedHud<int>(
           segments: const [
-            ButtonSegment(value: 30, label: Text('30 days')),
-            ButtonSegment(value: 90, label: Text('90 days')),
+            HudSegment(value: 30, label: '30 days'),
+            HudSegment(value: 90, label: '90 days'),
           ],
-          selected: {_days},
-          onSelectionChanged: (s) => setState(() => _days = s.first),
+          value: _days,
+          onChanged: (v) => setState(() => _days = v),
         ),
         const SizedBox(height: AppSpacing.md),
         insights.when(
-          loading: () => const AppCard(child: LoadingState()),
+          skipLoadingOnReload: true,
+          loading: () =>
+              const AppCard(child: ScanlineLoader(height: 180, lines: 0)),
           error: (e, _) => const AppCard(
             child: ErrorState(message: 'The trend couldn\'t be calculated.'),
           ),
           data: (i) => AppCard(child: MoodTrendChart(insights: i)),
         ),
-        const SectionHeader(
-          'Patterns',
-          subtitle: 'Observations, not causation',
-        ),
+        const SectionHeader('Patterns'),
         insights.when(
+          skipLoadingOnReload: true,
           loading: () => const SizedBox.shrink(),
           error: (e, _) => const SizedBox.shrink(),
           data: (i) => AppCard(child: _Correlations(insights: i)),
         ),
-        SectionHeader(
-          DateFormat('MMMM yyyy').format(_month),
-          subtitle: 'History',
-        ),
-        recent.when(
-          loading: () => const SizedBox.shrink(),
-          error: (e, _) => const SizedBox.shrink(),
-          data: (entries) => AppCard(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      tooltip: 'Previous month',
-                      onPressed: () => setState(
-                        () => _month = DateTime(_month.year, _month.month - 1),
-                      ),
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      tooltip: 'Next month',
-                      onPressed:
-                          DateTime(_month.year, _month.month + 1).isAfter(now)
-                          ? null
-                          : () => setState(
-                              () => _month = DateTime(
-                                _month.year,
-                                _month.month + 1,
-                              ),
-                            ),
-                      icon: const Icon(Icons.chevron_right),
-                    ),
-                  ],
-                ),
-                _MoodMonthGrid(month: _month, now: now),
-              ],
-            ),
+        const LifeSection('Calendar', hint: 'Average mood per day'),
+        AppCard(
+          child: MonthSwitcher(
+            month: _month,
+            maxMonth: DateTime(now.year, now.month),
+            onChanged: (m) => setState(() => _month = m),
+            builder: (context) => _MoodMonthGrid(month: _month, now: now),
           ),
         ),
         const SectionHeader('Recent check-ins'),
         recent.when(
-          loading: () => const LoadingState(),
+          loading: () => const ScanlineLoader(lines: 3),
           error: (e, _) =>
               const ErrorState(message: 'Check-ins couldn\'t be loaded.'),
           data: (entries) => entries.isEmpty
               ? const EmptyState(
                   compact: true,
                   icon: Icons.history,
+                  color: AppColors.mood,
                   title: 'No check-ins yet',
                 )
-              : Column(
-                  children: spaced([
+              : StaggeredList(
+                  gap: AppSpacing.sm,
+                  children: [
                     for (final e in entries.take(20))
-                      MoodEntryCard(entry: e, now: now, deletable: true),
-                  ], gap: AppSpacing.sm),
+                      MoodEntryCard(
+                        key: ValueKey(e.id),
+                        entry: e,
+                        now: now,
+                        deletable: true,
+                      ),
+                  ],
                 ),
         ),
+        const SizedBox(height: 96),
       ],
+    );
+  }
+}
+
+class _TodayHero extends StatelessWidget {
+  const _TodayHero({required this.entry});
+  final MoodEntry? entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final e = entry;
+    if (e == null) {
+      return AppCard(
+        accent: AppColors.mood,
+        brackets: true,
+        child: Column(
+          children: [
+            const Hero(
+              tag: 'life-mood-orb',
+              child: MoodOrb(mood: null, size: 112),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text('STANDBY', style: hud.mono(size: 10.5)),
+            const SizedBox(height: 2),
+            Text('No check-in yet today', style: t.titleMedium),
+            Text(
+              'It takes about ten seconds.',
+              style: t.bodyMedium?.copyWith(color: hud.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            MoodPicker(
+              value: null,
+              size: 36,
+              onChanged: (m) => showMoodCheckIn(context, initialMood: m),
+            ),
+          ],
+        ),
+      );
+    }
+    final tags = moodTagsOf(e);
+    return AppCard(
+      accent: moodColor(e.mood),
+      brackets: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Hero(
+                tag: 'life-mood-orb',
+                child: MoodOrb(mood: e.mood.toDouble(), size: 104),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('LATEST TODAY', style: hud.label(size: 11)),
+                    const SizedBox(height: 2),
+                    Text(moodLabels[e.mood]!, style: t.headlineSmall),
+                    Text(Fmt.time(e.recordedAt), style: hud.mono(size: 12)),
+                    const SizedBox(height: AppSpacing.sm),
+                    Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        MiniLevel(
+                          label: 'ENERGY',
+                          value: e.energy,
+                          color: AppColors.calories,
+                          valueLabel: energyLabels[e.energy],
+                        ),
+                        MiniLevel(
+                          label: 'STRESS',
+                          value: e.stress,
+                          color: AppColors.info,
+                          valueLabel: stressLabels[e.stress],
+                        ),
+                        MiniLevel(
+                          label: 'SLEEP',
+                          value: e.sleepQuality,
+                          color: AppColors.sleep,
+                          valueLabel: sleepQualityLabels[e.sleepQuality],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (tags.isNotEmpty || e.note != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final tag in tags) TagPill(tag, color: AppColors.mood),
+              ],
+            ),
+            if (e.note != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(e.note!, style: t.bodyMedium),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }
@@ -171,7 +251,7 @@ class MoodEntryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final tags = moodTagsOf(entry);
     final chips = <String>[
       if (entry.energy != null) 'Energy: ${energyLabels[entry.energy]}',
@@ -181,30 +261,41 @@ class MoodEntryCard extends ConsumerWidget {
     ];
     return AppCard(
       semanticLabel: 'Mood ${moodLabels[entry.mood]}',
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(moodIcon(entry.mood), size: 40, color: moodColor(entry.mood)),
+          MoodOrb(mood: entry.mood.toDouble(), size: 44, bezel: false),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (title != null)
-                  Text(
-                    title!,
-                    style: t.labelMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                  Text(title!.toUpperCase(), style: hud.label(size: 10.5)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        moodLabels[entry.mood]!,
+                        style: t.titleMedium,
+                      ),
                     ),
-                  ),
-                Text(moodLabels[entry.mood]!, style: t.titleMedium),
-                Text(
-                  '${Fmt.weekdayDayMonth(entry.recordedAt)} · '
-                  '${Fmt.time(entry.recordedAt)}',
-                  style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '${DateFormat('EEE d MMM').format(entry.recordedAt.toLocal()).toUpperCase()} · '
+                      '${DateFormat('HH:mm').format(entry.recordedAt.toLocal())}',
+                      style: hud.mono(size: 10.5),
+                    ),
+                  ],
                 ),
                 if (chips.isNotEmpty || tags.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.xs + 2),
                   Wrap(
                     spacing: AppSpacing.xs,
                     runSpacing: AppSpacing.xs,
@@ -216,7 +307,7 @@ class MoodEntryCard extends ConsumerWidget {
                   ),
                 ],
                 if (entry.note != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.xs + 2),
                   Text(entry.note!, style: t.bodyMedium),
                 ],
               ],
@@ -225,25 +316,15 @@ class MoodEntryCard extends ConsumerWidget {
           if (deletable)
             IconButton(
               tooltip: 'Delete check-in',
-              icon: const Icon(Icons.delete_outline),
+              icon: Icon(Icons.delete_outline, color: hud.textMuted, size: 20),
               onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Delete this check-in?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Delete'),
-                      ),
-                    ],
-                  ),
+                final ok = await confirmHud(
+                  context,
+                  title: 'Delete this check-in?',
+                  confirmLabel: 'Delete',
+                  destructive: true,
                 );
-                if (ok == true) {
+                if (ok) {
                   await ref.read(moodRepositoryProvider).delete(entry.id);
                 }
               },
@@ -254,20 +335,31 @@ class MoodEntryCard extends ConsumerWidget {
   }
 }
 
-class MoodTrendChart extends StatelessWidget {
+/// Daily mean mood line (gradient from the low-mood slate to the high-mood
+/// gold) with a dashed average and a scrubbable HUD tooltip.
+class MoodTrendChart extends StatefulWidget {
   const MoodTrendChart({super.key, required this.insights});
   final MoodInsights insights;
 
   @override
+  State<MoodTrendChart> createState() => _MoodTrendChartState();
+}
+
+class _MoodTrendChartState extends State<MoodTrendChart> {
+  int? _touched;
+
+  @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
+    final insights = widget.insights;
     final trend = insights.trend;
     final points = trend.where((p) => p.$2 != null).length;
     if (points < 2) {
       return EmptyState(
         compact: true,
         icon: Icons.show_chart,
+        color: AppColors.mood,
         title: 'Not enough check-ins yet',
         message: points == 0
             ? 'No check-ins in the last ${insights.days} days.'
@@ -282,84 +374,166 @@ class MoodTrendChart extends StatelessWidget {
     ];
     final values = [for (final p in trend) ?p.$2];
     final avg = values.reduce((a, b) => a + b) / values.length;
+    final base = HudChartStyle.line(spots, AppColors.mood, width: 2);
+    final lastX = spots.lastWhere((p) => !p.isNull()).x;
+    final small = insights.days <= 30;
+    final bar = base.copyWith(
+      curveSmoothness: 0.35,
+      // Small dots on real check-ins only; the latest one is highlighted.
+      dotData: FlDotData(
+        checkToShowDot: (spot, _) =>
+            !spot.isNull() && (small || spot.x == lastX),
+        getDotPainter: (spot, _, _, _) {
+          final c = moodColorAt(spot.y);
+          return spot.x == lastX
+              ? FlDotCirclePainter(
+                  radius: 4,
+                  color: Color.lerp(c, Colors.white, 0.7)!,
+                  strokeWidth: 2,
+                  strokeColor: c,
+                )
+              : FlDotCirclePainter(radius: 2.5, color: c, strokeWidth: 0);
+        },
+      ),
+      gradient: const LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: moodScaleColors,
+      ),
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.mood.withValues(alpha: 0.18),
+            AppColors.mood.withValues(alpha: 0),
+          ],
+        ),
+      ),
+    );
+    String labelFor(double v) => switch (v.round()) {
+      1 => 'V.LOW',
+      3 => 'OKAY',
+      5 => 'GREAT',
+      _ => '',
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Average ${avg.toStringAsFixed(1)} · $points of ${insights.days} days '
-          'with a check-in',
-          style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        Row(
+          children: [
+            Expanded(
+              child: StatTile(
+                label: 'Average',
+                value: avg.toStringAsFixed(1),
+                sub: moodLabels[avg.round().clamp(1, 5)],
+                color: AppColors.mood,
+              ),
+            ),
+            Expanded(
+              child: StatTile(
+                label: 'Days logged',
+                value: '$points/${insights.days}',
+                sub: '${insights.entryCount} check-ins',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.lg),
         Semantics(
           label:
               'Mood trend chart over ${insights.days} days, average '
               '${avg.toStringAsFixed(1)} out of 5',
           excludeSemantics: true,
           child: SizedBox(
-            height: 180,
+            height: 190,
             child: LineChart(
               LineChartData(
-                minY: 1,
-                maxY: 5,
+                minY: 0.8,
+                maxY: 5.2,
                 minX: 0,
                 maxX: (trend.length - 1).toDouble(),
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  horizontalInterval: 1,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: scheme.outlineVariant.withValues(alpha: 0.4),
-                    strokeWidth: 1,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(),
-                  rightTitles: const AxisTitles(),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      reservedSize: 28,
-                      getTitlesWidget: (v, meta) =>
-                          Text('${v.toInt()}', style: t.labelSmall),
+                clipData: const FlClipData.horizontal(),
+                gridData: HudChartStyle.grid(context, interval: 1),
+                borderData: HudChartStyle.noBorder,
+                extraLinesData: ExtraLinesData(
+                  horizontalLines: [
+                    HorizontalLine(
+                      y: avg,
+                      color: AppColors.mood.withValues(alpha: 0.5),
+                      strokeWidth: 1,
+                      dashArray: const [4, 4],
                     ),
+                  ],
+                ),
+                titlesData: HudChartStyle.titles(
+                  context,
+                  leftReserved: 44,
+                  leftInterval: 1,
+                  left: (v, meta) {
+                    if (v != v.roundToDouble()) return const SizedBox.shrink();
+                    return Text(
+                      labelFor(v),
+                      style: HudChartStyle.axisLabel(context),
+                    );
+                  },
+                  bottomInterval: (trend.length / 4).floorToDouble().clamp(
+                    1,
+                    60,
                   ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      interval: (trend.length / 4).floorToDouble().clamp(1, 60),
-                      getTitlesWidget: (v, meta) {
-                        final i = v.toInt();
-                        if (i < 0 || i >= trend.length) {
-                          return const SizedBox.shrink();
+                  bottom: (v, meta) {
+                    final i = v.toInt();
+                    final step = (trend.length / 4).floor().clamp(1, 60);
+                    if (i < 0 ||
+                        i >= trend.length ||
+                        v != v.roundToDouble() ||
+                        i % step != 0) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        DateFormat('d MMM')
+                            .format(LocalDates.parse(trend[i].$1))
+                            .toUpperCase(),
+                        style: HudChartStyle.axisLabel(context),
+                      ),
+                    );
+                  },
+                ),
+                lineTouchData:
+                    HudChartStyle.lineTouch(
+                      context,
+                      format: (s) {
+                        final i = s.x.toInt();
+                        final d = DateFormat('EEE d MMM')
+                            .format(LocalDates.parse(trend[i].$1));
+                        return '$d\n${moodLabels[s.y.round().clamp(1, 5)]} · '
+                            '${s.y.toStringAsFixed(1)}';
+                      },
+                    ).copyWith(
+                      touchCallback: (event, response) {
+                        final i = response?.lineBarSpots?.firstOrNull?.x
+                            .toInt();
+                        if (i != null && i != _touched) {
+                          Haptics.selection();
                         }
-                        return Text(
-                          DateFormat('d MMM')
-                              .format(LocalDates.parse(trend[i].$1)),
-                          style: t.labelSmall,
-                        );
+                        _touched = i;
                       },
                     ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    color: AppColors.mood,
-                    barWidth: 3,
-                    isCurved: false,
-                    dotData: FlDotData(show: insights.days <= 30),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppColors.mood.withValues(alpha: 0.10),
-                    ),
-                  ),
-                ],
+                lineBarsData: [bar],
               ),
+              duration: AppMotion.reduced(context)
+                  ? Duration.zero
+                  : AppMotion.long,
             ),
           ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Gaps are days without a check-in — nothing is filled in.',
+          style: t.bodySmall?.copyWith(color: hud.textMuted),
         ),
       ],
     );
@@ -373,38 +547,54 @@ class _Correlations extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
+    Widget divider() => Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Divider(height: 1, color: hud.hairline.withValues(alpha: 0.12)),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          children: [
+            Icon(Icons.visibility_outlined, size: 14, color: hud.textMuted),
+            const SizedBox(width: 6),
+            Text('OBSERVATION, NOT CAUSATION', style: hud.label(size: 11)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           'These show how things moved together over the last '
           '${insights.days} days. They can\'t tell you what causes what. '
           'A coefficient (r) is only shown with at least '
           '$minCorrelationSample days of data.',
-          style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          style: t.bodySmall?.copyWith(color: hud.textMuted),
         ),
-        const Divider(height: AppSpacing.xl),
+        divider(),
         _CorrelationRow(
+          icon: Icons.bedtime_outlined,
           title: 'Mood vs sleep quality',
           source: 'Your check-in ratings',
           result: insights.moodVsSleepQuality,
         ),
-        const Divider(height: AppSpacing.xl),
+        divider(),
         if (insights.moodVsSleepMinutes == null)
           const _CorrelationRow(
+            icon: Icons.timelapse,
             title: 'Mood vs sleep duration',
             source: 'Health Connect',
             unavailable: 'No sleep duration data has been synced.',
           )
         else
           _CorrelationRow(
+            icon: Icons.timelapse,
             title: 'Mood vs sleep duration',
             source: 'Synced sleep minutes',
             result: insights.moodVsSleepMinutes,
           ),
-        const Divider(height: AppSpacing.xl),
+        divider(),
         _CorrelationRow(
+          icon: Icons.fitness_center,
           title: 'Mood on workout days vs other days',
           source: 'Logged workouts',
           result: insights.moodVsWorkout,
@@ -417,12 +607,14 @@ class _Correlations extends StatelessWidget {
 
 class _CorrelationRow extends StatelessWidget {
   const _CorrelationRow({
+    required this.icon,
     required this.title,
     required this.source,
     this.result,
     this.unavailable,
     this.binary = false,
   });
+  final IconData icon;
   final String title;
   final String source;
   final CorrelationResult? result;
@@ -432,9 +624,15 @@ class _CorrelationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final r = result;
     String body;
+    final hasR =
+        unavailable == null &&
+        r != null &&
+        r.status != CorrelationStatus.notEnoughData &&
+        r.status != CorrelationStatus.noVariation &&
+        r.r != null;
     if (unavailable != null) {
       body = unavailable!;
     } else if (r == null || r.status == CorrelationStatus.notEnoughData) {
@@ -458,23 +656,141 @@ class _CorrelationRow extends StatelessWidget {
               'workout days vs ${r.meanWithout!.toStringAsFixed(1)} on '
               '${r.nWithout} other days.'
         : null;
+    final progress =
+        unavailable == null &&
+            r != null &&
+            r.status == CorrelationStatus.notEnoughData
+        ? (r.n / minCorrelationSample).clamp(0.0, 1.0)
+        : null;
     return Semantics(
       container: true,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: t.titleSmall),
-          const SizedBox(height: 2),
-          Text(body, style: t.bodyMedium),
-          if (extra != null) Text(extra, style: t.bodySmall),
-          Text(
-            'Source: $source',
-            style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 18, color: hud.textMuted),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: t.titleSmall),
+                const SizedBox(height: 2),
+                Text(body, style: t.bodyMedium),
+                if (extra != null)
+                  Text(
+                    extra,
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
+                  ),
+                const SizedBox(height: AppSpacing.sm),
+                if (hasR)
+                  _RMeter(r: r.r!)
+                else if (progress != null)
+                  MetricBar(
+                    label: 'Data collected',
+                    value: r!.n.toDouble(),
+                    target: minCorrelationSample.toDouble(),
+                    color: hud.accent,
+                    unit: ' days',
+                    segments: minCorrelationSample,
+                  ),
+                const SizedBox(height: 4),
+                Text(
+                  'SOURCE · ${source.toUpperCase()}',
+                  style: hud.mono(size: 10),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Diverging −1…+1 meter: a centre tick, the bar grows left (inverse) or
+/// right (together). Neutral colours — a correlation is not good or bad.
+class _RMeter extends StatelessWidget {
+  const _RMeter({required this.r});
+  final double r;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final reduced = AppMotion.reduced(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 10,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: r.clamp(-1.0, 1.0)),
+            duration: reduced ? Duration.zero : AppMotion.data,
+            curve: AppMotion.emphasizedDecelerate,
+            builder: (context, v, _) => CustomPaint(
+              painter: _RMeterPainter(v: v, hud: hud),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Text('−1 INVERSE', style: hud.label(size: 9.5)),
+            const Spacer(),
+            Text('0', style: hud.label(size: 9.5)),
+            const Spacer(),
+            Text('TOGETHER +1', style: hud.label(size: 9.5)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RMeterPainter extends CustomPainter {
+  _RMeterPainter({required this.v, required this.hud});
+  final double v;
+  final HudTheme hud;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final mid = size.width / 2;
+    final h = 6.0;
+    final top = (size.height - h) / 2;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, top, size.width, h),
+        const Radius.circular(3),
+      ),
+      Paint()..color = hud.hairline.withValues(alpha: hud.isDark ? 0.1 : 0.16),
+    );
+    final w = mid * v.abs();
+    final rect = v >= 0
+        ? Rect.fromLTWH(mid, top, w, h)
+        : Rect.fromLTWH(mid - w, top, w, h);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
+      Paint()..color = hud.accent.withValues(alpha: 0.85),
+    );
+    canvas.drawLine(
+      Offset(mid, 0),
+      Offset(mid, size.height),
+      Paint()
+        ..color = hud.text.withValues(alpha: 0.5)
+        ..strokeWidth = 1.2,
+    );
+    final head = Offset(v >= 0 ? mid + w : mid - w, size.height / 2);
+    canvas.drawCircle(
+      head,
+      4,
+      Paint()..color = Color.lerp(hud.accent, Colors.white, 0.6)!,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RMeterPainter old) => old.v != v || old.hud != hud;
 }
 
 class _MoodMonthGrid extends ConsumerWidget {
@@ -485,64 +801,135 @@ class _MoodMonthGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final first = DateTime(month.year, month.month);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final entries =
         ref.watch(moodMonthProvider(LocalDates.key(first))).value ??
         const <MoodEntry>[];
-    return Builder(
-      builder: (context) {
-        final daily = dailyMoodMeans(entries.map(moodPointOf));
-        final today = LocalDates.key(now);
-        final cells = <Widget>[
-          for (final l in const ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
-            Center(
-              child: Text(
-                l,
-                style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ),
-          for (var i = 0; i < first.weekday - 1; i++) const SizedBox.shrink(),
-        ];
-        for (var d = 1; d <= daysInMonth; d++) {
+    final daily = dailyMoodMeans(entries.map(moodPointOf));
+    final today = LocalDates.key(now);
+    final leading = first.weekday - 1;
+    final rows = ((leading + daysInMonth) / 7).ceil();
+    return LayoutBuilder(
+      builder: (context, box) {
+        final cellW = box.maxWidth / 7;
+        final cellH = cellW.clamp(0.0, 46.0);
+        Widget cell(int index) {
+          final d = index - leading + 1;
+          if (d < 1 || d > daysInMonth) {
+            return SizedBox(width: cellW, height: cellH);
+          }
           final key = LocalDates.key(DateTime(month.year, month.month, d));
           final mean = daily[key];
-          cells.add(
-            Semantics(
-              label:
-                  '${DateFormat('d MMMM').format(LocalDates.parse(key))}: '
-                  '${mean == null ? 'no check-in' : 'average mood ${mean.toStringAsFixed(1)}'}',
-              excludeSemantics: true,
-              child: Container(
-                margin: const EdgeInsets.all(2),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: mean == null
-                      ? scheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                      : moodColorFor(mean).withValues(alpha: 0.75),
-                  borderRadius: BorderRadius.circular(AppRadii.sm),
-                  border: key == today
-                      ? Border.all(color: scheme.primary, width: 1.5)
-                      : null,
+          final future = key.compareTo(today) > 0;
+          Widget face;
+          if (mean == null) {
+            face = Center(
+              child: Text(
+                '$d',
+                style: t.labelMedium?.copyWith(
+                  color: hud.textMuted.withValues(alpha: future ? 0.4 : 0.8),
                 ),
+              ),
+            );
+          } else {
+            final c = moodColorAt(mean);
+            face = DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  center: const Alignment(-0.3, -0.4),
+                  colors: [
+                    Color.lerp(c, Colors.white, 0.3)!,
+                    c.withValues(alpha: 0.75),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: c.withValues(alpha: 0.35 * hud.glowStrength),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Center(
                 child: Text(
                   '$d',
                   style: t.labelMedium?.copyWith(
-                    color: mean == null
-                        ? scheme.onSurfaceVariant
-                        : Colors.black,
+                    color: const Color(0xFF0B1220),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+            );
+          }
+          if (key == today) {
+            face = HudFrame(
+              color: hud.accent,
+              cornerLength: 6,
+              inset: -1,
+              child: face,
+            );
+          }
+          return SizedBox(
+            width: cellW,
+            height: cellH,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Semantics(
+                label:
+                    '${DateFormat('d MMMM').format(LocalDates.parse(key))}: '
+                    '${mean == null ? 'no check-in' : 'average mood ${mean.toStringAsFixed(1)}'}',
+                excludeSemantics: true,
+                child: face,
               ),
             ),
           );
         }
-        return GridView.count(
-          crossAxisCount: 7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: cells,
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                for (final l in weekdayLetter)
+                  SizedBox(
+                    width: cellW,
+                    child: Center(child: Text(l, style: hud.label(size: 11))),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            for (var r = 0; r < rows; r++)
+              Row(children: [for (var i = 0; i < 7; i++) cell(r * 7 + i)]),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 4,
+              children: [
+                for (var m = 1; m <= 5; m++)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: moodColor(m),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        moodLabels[m]!.toUpperCase(),
+                        style: hud.label(size: 9.5),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
         );
       },
     );

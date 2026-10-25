@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/provenance.dart';
 import '../../../core/util/redact.dart';
+import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
 import '../application/food_lookup_service.dart';
 import '../application/providers.dart';
@@ -43,6 +44,7 @@ Future<bool> logLocalFood(
           mealType: res.meal ?? meal,
           localDate: date,
         );
+    Haptics.success();
     if (context.mounted) {
       showSnack(context, 'Logged ${food.name} to ${(res.meal ?? meal).label}');
     }
@@ -135,6 +137,7 @@ Future<bool> openCandidate(
           mealType: res.meal ?? meal,
           localDate: date,
         );
+    Haptics.success();
     if (context.mounted) {
       showSnack(context, 'Logged ${food.name} to ${(res.meal ?? meal).label}');
     }
@@ -154,8 +157,10 @@ Future<void> runBarcodeFlow(
   required MealType meal,
   required String date,
 }) async {
+  // Root navigator: the scanner is full-screen chrome (never under the dock).
   final code = await Navigator.of(
     context,
+    rootNavigator: true,
   ).push<String>(MaterialPageRoute(builder: (_) => const BarcodeScanScreen()));
   if (code == null || !context.mounted) return;
   await lookupAndLogBarcode(context, ref, code: code, meal: meal, date: date);

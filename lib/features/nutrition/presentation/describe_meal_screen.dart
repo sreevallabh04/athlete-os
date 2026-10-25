@@ -16,6 +16,7 @@ import '../domain/nutrients.dart';
 import 'food_search_panel.dart';
 import 'widgets/amount_sheet.dart';
 import 'widgets/common.dart';
+import 'widgets/nutrition_hud.dart';
 
 /// Natural-language logging: "150 g paneer, 200 g rice and one banana".
 /// A deterministic local parser matches items to the user's foods; anything
@@ -50,6 +51,12 @@ class _EstimateRow {
   bool confirmed = false;
 }
 
+const _examples = [
+  '2 eggs, 2 rotis and 200 g dal',
+  '150 g paneer and 200 g rice',
+  '1 scoop whey and 1 banana',
+];
+
 class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
   late final _ctrl = TextEditingController(text: widget.initialText ?? '');
   late MealType _meal = widget.meal;
@@ -57,6 +64,7 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
   Map<String, Food> _foodsById = const {};
   bool _parsed = false;
   bool _busy = false;
+  bool _aiBusy = false;
   String? _aiMessage;
   List<_EstimateRow> _estimates = const [];
 
@@ -68,7 +76,10 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
 
   Future<void> _parse() async {
     final text = _ctrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      Haptics.warning();
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
     final repo = ref.read(foodRepositoryProvider);
@@ -91,6 +102,7 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
       _aiMessage = null;
       _estimates = const [];
     });
+    Haptics.selection();
   }
 
   Future<void> _chooseAmount(_Row row) async {
@@ -140,11 +152,11 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
         .map((r) => r.match.item.raw)
         .toList();
     final text = unmatched.isEmpty ? _ctrl.text.trim() : unmatched.join(', ');
-    setState(() => _busy = true);
+    setState(() => _aiBusy = true);
     final result = await ref.read(foodTextEstimatorProvider).estimate(text);
     if (!mounted) return;
     setState(() {
-      _busy = false;
+      _aiBusy = false;
       switch (result) {
         case FoodEstimateUnavailable(:final reason):
           _aiMessage = reason;
@@ -157,6 +169,11 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
           _estimates = [for (final i in items) _EstimateRow(i)];
       }
     });
+    if (_estimates.isEmpty) {
+      Haptics.warning();
+    } else {
+      Haptics.success();
+    }
   }
 
   Future<void> _logAll() async {
@@ -198,6 +215,7 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (count > 0) {
+      Haptics.success();
       showSnack(context, 'Logged $count item${count == 1 ? '' : 's'}');
       Navigator.of(context).pop(true);
     }
@@ -209,62 +227,121 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
           .length +
       _estimates.where((e) => e.confirmed).length;
 
+  Nutrients get _selectedTotal {
+    var n = Nutrients.zero;
+    for (final r in _rows) {
+      if (r.include && r.match.status == MatchStatus.matched) {
+        n = n + r.match.resolved!.nutrients;
+      }
+    }
+    for (final e in _estimates) {
+      if (e.confirmed) n = n + e.item.nutrients;
+    }
+    return n;
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final hasUnmatched = _rows.any(
       (r) => r.match.status == MatchStatus.needsLookup,
     );
+    final matchedCount = _rows
+        .where((r) => r.match.status == MatchStatus.matched)
+        .length;
+    final selected = _selectedCount;
     return Scaffold(
       appBar: AppBar(title: const Text('Describe your meal')),
       bottomNavigationBar: _parsed
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _selectedCount == 0 || _busy ? null : _logAll,
-                    child: Text(
-                      'Log $_selectedCount item${_selectedCount == 1 ? '' : 's'} '
-                      'to ${_meal.label}',
-                    ),
-                  ),
-                ),
+          ? _CommitBar(
+              total: _selectedTotal,
+              hasEstimates: _estimates.any((e) => e.confirmed),
+              child: HudButton(
+                label:
+                    'Log $selected item${selected == 1 ? '' : 's'} '
+                    'to ${_meal.label}',
+                icon: Icons.check_rounded,
+                expand: true,
+                onPressed: selected == 0 || _busy ? null : _logAll,
               ),
             )
           : null,
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.gutter),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.gutter,
+          AppSpacing.sm,
+          AppSpacing.gutter,
+          AppSpacing.xxxl,
+        ),
         children: [
-          TextField(
-            key: const Key('describe-field'),
-            controller: _ctrl,
-            minLines: 2,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: '150 g paneer, 200 g rice and one banana',
-              border: OutlineInputBorder(),
+          AppCard(
+            brackets: true,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('WHAT DID YOU EAT?', style: hud.label(size: 11)),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  key: const Key('describe-field'),
+                  controller: _ctrl,
+                  minLines: 3,
+                  maxLines: 6,
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w400),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    hintText: '150 g paneer, 200 g rice and one banana',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final e in _examples)
+                      _ExampleChip(
+                        text: e,
+                        onTap: () => setState(() {
+                          _ctrl.text = e;
+                          _ctrl.selection = TextSelection.collapsed(
+                            offset: e.length,
+                          );
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                MealPicker(
+                  value: _meal,
+                  onChanged: (m) => setState(() => _meal = m),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                KeyedSubtree(
+                  key: const Key('describe-parse'),
+                  child: HudButton(
+                    label: _parsed ? 'Match again' : 'Match foods',
+                    icon: Icons.auto_fix_high_outlined,
+                    variant: _parsed
+                        ? HudButtonVariant.secondary
+                        : HudButtonVariant.primary,
+                    expand: true,
+                    loading: _busy && !_parsed,
+                    onPressed: _busy ? null : _parse,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Matched on this phone against your foods and recents. '
+                  'Units: g, kg, ml, l, cup, piece, serving, or words like '
+                  '"one", "two".',
+                  style: t.bodySmall?.copyWith(color: hud.textMuted),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Matched on this phone against your foods and recents. Units: g, '
-            'kg, ml, l, cup, piece, serving, or words like "one", "two".',
-            style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          MealPicker(value: _meal, onChanged: (m) => setState(() => _meal = m)),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton.tonalIcon(
-            key: const Key('describe-parse'),
-            onPressed: _busy ? null : _parse,
-            icon: const Icon(Icons.auto_fix_high_outlined),
-            label: const Text('Match foods'),
-          ),
-          if (_busy) const LoadingState(),
           if (_parsed && _rows.isEmpty)
             const EmptyState(
               compact: true,
@@ -272,17 +349,20 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
               title: 'Nothing recognised',
               message: 'Try "200 g rice, 2 rotis".',
             ),
-          for (final r in _rows) _rowTile(r),
-          if (_parsed && hasUnmatched) ...[
-            const SectionHeader(
-              'AI estimate (optional)',
-              subtitle:
-                  'Estimates are approximate and must be confirmed one by one.',
+          if (_rows.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            HudCaption(
+              'Matched on device · $matchedCount of ${_rows.length}',
+              trailing: Text('NO AI USED', style: hud.mono(size: 10)),
             ),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _estimateWithAi,
-              icon: const Icon(Icons.auto_awesome_outlined),
-              label: const Text('Estimate unmatched items with AI'),
+            const SizedBox(height: AppSpacing.sm),
+            ...staggered([for (final r in _rows) _rowTile(r)]),
+          ],
+          if (_parsed && hasUnmatched) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _AiPanel(
+              busy: _aiBusy,
+              onEstimate: _aiBusy ? null : _estimateWithAi,
             ),
           ],
           if (_aiMessage != null) ...[
@@ -293,24 +373,21 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
               color: AppColors.warning,
             ),
           ],
-          for (final e in _estimates)
-            CheckboxListTile(
-              value: e.confirmed,
-              onChanged: (v) => setState(() => e.confirmed = v ?? false),
-              title: Row(
-                children: [
-                  Flexible(child: Text(e.item.name)),
-                  const SizedBox(width: AppSpacing.xs),
-                  const EstimateBadge(),
-                ],
-              ),
-              subtitle: Text(
-                '${e.item.quantityDescription ?? ''}\n'
-                '${macroSummary(e.item.nutrients)}\n'
-                'Tick to confirm this estimate',
-              ),
-              isThreeLine: true,
+          if (_estimates.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const HudCaption(
+              'AI estimates · confirm each',
+              color: AppColors.warning,
             ),
+            const SizedBox(height: AppSpacing.sm),
+            ...staggered([
+              for (final e in _estimates)
+                _EstimateCard(
+                  row: e,
+                  onChanged: (v) => setState(() => e.confirmed = v),
+                ),
+            ]),
+          ],
         ],
       ),
     );
@@ -318,47 +395,87 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
 
   Widget _rowTile(_Row r) {
     final m = r.match;
-    final scheme = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    Widget card({
+      required Widget leading,
+      required String title,
+      required String subtitle,
+      Widget? trailing,
+      Color? accent,
+    }) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppCard(
+        accent: accent,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: t.titleSmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
+    );
     switch (m.status) {
       case MatchStatus.matched:
         final n = m.resolved!.nutrients;
         final food = _foodsById[m.food!.id];
-        return CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          value: r.include,
-          onChanged: (v) => setState(() => r.include = v ?? false),
-          title: Text('${m.food!.name} · ${_amountText(m, food)}'),
-          subtitle: Text(
-            '"${m.item.raw}"\n${macroSummary(n)}',
-            style: TextStyle(color: scheme.onSurfaceVariant),
+        return card(
+          leading: HudToggle(
+            value: r.include,
+            semanticLabel: 'Include ${m.food!.name}',
+            onChanged: (v) => setState(() => r.include = v),
           ),
-          isThreeLine: true,
-          secondary: IconButton(
+          title: '${m.food!.name} · ${_amountText(m, food)}',
+          subtitle: '"${m.item.raw}"\n${macroSummary(n)}',
+          trailing: IconButton(
             tooltip: 'Change amount',
-            icon: const Icon(Icons.tune),
+            icon: const Icon(Icons.tune_rounded),
             onPressed: () => _chooseAmount(r),
           ),
         );
       case MatchStatus.needsAmount:
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.straighten, color: AppColors.warning),
-          title: Text('${m.food!.name} — choose amount'),
-          subtitle: Text(
-            '"${m.item.raw}": "${m.item.unit.name}" can\'t be converted for '
-            'this food (${m.food!.basis.servingLabel} per serving).',
+        return card(
+          accent: AppColors.warning,
+          leading: const GlowIcon(
+            Icons.straighten,
+            color: AppColors.warning,
+            framed: true,
+            size: 18,
           ),
+          title: '${m.food!.name} — choose amount',
+          subtitle:
+              '"${m.item.raw}": "${m.item.unit.name}" can\'t be converted for '
+              'this food (${m.food!.basis.servingLabel} per serving).',
           trailing: TextButton(
             onPressed: () => _chooseAmount(r),
             child: const Text('Amount'),
           ),
         );
       case MatchStatus.needsLookup:
-        return ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.travel_explore, color: AppColors.info),
-          title: Text('Needs lookup: ${m.item.name}'),
-          subtitle: Text('"${m.item.raw}" isn\'t in your foods yet.'),
+        return card(
+          leading: const GlowIcon(Icons.travel_explore, framed: true, size: 18),
+          title: 'Needs lookup: ${m.item.name}',
+          subtitle: '"${m.item.raw}" isn\'t in your foods yet.',
           trailing: TextButton(
             onPressed: () => _lookup(r),
             child: const Text('Search'),
@@ -374,5 +491,226 @@ class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
       return '${Fmt.oneDp(m.amount!.value)} $unit';
     }
     return amountLabel(r.servings, null);
+  }
+}
+
+class _AiPanel extends StatelessWidget {
+  const _AiPanel({required this.busy, required this.onEstimate});
+  final bool busy;
+  final VoidCallback? onEstimate;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    return GlassPanel(
+      accent: AppColors.warning,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_outlined,
+                size: 16,
+                color: AppColors.warning,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text('AI estimate (optional)', style: t.titleSmall),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Only the unmatched items are sent. Estimates are approximate '
+            'and must be confirmed one by one.',
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (busy) ...[
+            const ScanlineLoader(lines: 2, color: AppColors.warning),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          HudButton.secondary(
+            label: 'Estimate unmatched items with AI',
+            icon: Icons.auto_awesome_outlined,
+            expand: true,
+            loading: busy,
+            onPressed: onEstimate,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EstimateCard extends StatelessWidget {
+  const _EstimateCard({required this.row, required this.onChanged});
+  final _EstimateRow row;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
+    final item = row.item;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppCard(
+        accent: AppColors.warning,
+        onTap: () => onChanged(!row.confirmed),
+        semanticLabel:
+            '${item.name}, estimate, ${macroSummary(item.nutrients)}. '
+            '${row.confirmed ? 'Confirmed' : 'Not confirmed'}',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.name, style: t.titleSmall),
+                      if (item.quantityDescription != null)
+                        Text(
+                          item.quantityDescription!,
+                          style: t.bodySmall?.copyWith(color: hud.textMuted),
+                        ),
+                    ],
+                  ),
+                ),
+                const EstimateBadge(),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            NutrientPreview(nutrients: item.nutrients, estimate: true),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    row.confirmed
+                        ? 'Confirmed — will be logged as an estimate'
+                        : 'Tick to confirm this estimate',
+                    style: t.bodySmall?.copyWith(
+                      color: row.confirmed ? hud.text : hud.textMuted,
+                    ),
+                  ),
+                ),
+                HudToggle(
+                  value: row.confirmed,
+                  color: AppColors.warning,
+                  semanticLabel: 'Confirm ${item.name}',
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Frosted bottom bar with the running total and the commit button.
+class _CommitBar extends StatelessWidget {
+  const _CommitBar({
+    required this.total,
+    required this.hasEstimates,
+    required this.child,
+  });
+
+  final Nutrients total;
+  final bool hasEstimates;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: hud.glassFillStrong,
+        border: Border(
+          top: BorderSide(color: hud.accent.withValues(alpha: 0.25)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.gutter,
+            AppSpacing.md,
+            AppSpacing.gutter,
+            AppSpacing.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${Fmt.integer(total.calories)} KCAL · '
+                      'P ${Fmt.oneDp(total.protein)} G',
+                      style: hud.mono(size: 11.5, color: hud.text),
+                    ),
+                  ),
+                  if (hasEstimates) const EstimateBadge(),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExampleChip extends StatelessWidget {
+  const _ExampleChip({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return Semantics(
+      button: true,
+      label: 'Use example: $text',
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: onTap,
+        haptic: PressHaptic.selection,
+        pressedScale: 0.95,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            color: hud.accent.withValues(alpha: 0.06),
+            border: Border.all(color: hud.accent.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.north_west_rounded, size: 13, color: hud.accentInk),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  text,
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: hud.text),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
