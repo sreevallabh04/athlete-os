@@ -166,3 +166,15 @@ Housekeeping still to schedule (pg_cron, hourly):
   (Groq); food estimate ≈ $0.003 / $0.0006; meal photo ≈ $0.002–0.004 (Gemini
   only). The global `AI_MONTHLY_BUDGET_USD=10` stops all AI calls at 100 %.
 * The go-live verification cost ≈ $0.01 (see AI_AGENT.md → Live verification).
+
+## Scheduled housekeeping (applied 2026-10-26)
+
+Migration `20261026000100_schedule_purges.sql` enables `pg_cron` and schedules:
+
+| Job | Schedule | Purpose |
+|---|---|---|
+| `purge_ai_response_cache` | minute 7 of every hour | drops idempotency cache entries older than 24 h |
+| `purge_api_rate_limits` | minute 17 of every hour | drops rate-limit windows older than 1 h |
+
+Inspect with `select * from cron.job;` and `select * from cron.job_run_details order by start_time desc limit 20;` in the SQL editor.
+
