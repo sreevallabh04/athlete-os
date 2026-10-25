@@ -75,7 +75,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         now: now,
       );
       final report = ReportBuilder.build(input, previous: prev);
-      if (mounted) setState(() => _report = report);
+      if (mounted) {
+        setState(() => _report = report);
+        Haptics.success();
+      }
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not build the report.');
     } finally {
@@ -109,22 +112,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       title: 'Reports',
       subtitle: 'Generated on demand from your data — nothing is estimated.',
       children: [
-        SegmentedButton<String>(
+        SegmentedHud<String>(
           segments: const [
-            ButtonSegment(
+            HudSegment(
               value: 'weekly',
-              label: Text('Weekly'),
-              icon: Icon(Icons.view_week_outlined),
+              label: 'Weekly',
+              icon: Icons.view_week_outlined,
             ),
-            ButtonSegment(
+            HudSegment(
               value: 'monthly',
-              label: Text('Monthly'),
-              icon: Icon(Icons.calendar_month_outlined),
+              label: 'Monthly',
+              icon: Icons.calendar_month_outlined,
             ),
           ],
-          selected: {_kind},
-          onSelectionChanged: (s) => setState(() {
-            _kind = s.first;
+          value: _kind,
+          onChanged: (v) => setState(() {
+            _kind = v;
             _report = null;
           }),
         ),
@@ -142,9 +145,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             Expanded(
               child: Text(
                 '${formatDateKey(start, pattern: 'd MMM')} – '
-                '${formatDateKey(end, pattern: 'd MMM yyyy')}',
+                        '${formatDateKey(end, pattern: 'd MMM yyyy')}'
+                    .toUpperCase(),
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
+                style: context.hud.mono(size: 12, color: context.hud.text),
               ),
             ),
             IconButton(
@@ -163,28 +167,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         Row(
           children: [
             Expanded(
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
+              child: HudButton(
+                expand: true,
+                loading: _loading,
                 onPressed: _loading || isFuture ? null : _generate,
-                icon: const Icon(Icons.auto_graph),
-                label: Text(_report == null ? 'Generate report' : 'Regenerate'),
+                icon: Icons.auto_graph,
+                label: _report == null ? 'Generate report' : 'Regenerate',
               ),
             ),
             if (_report != null) ...[
               const SizedBox(width: AppSpacing.sm),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+              HudButton.secondary(
                 onPressed: _saved ? null : _save,
-                icon: Icon(_saved ? Icons.check : Icons.save_outlined),
-                label: Text(_saved ? 'Saved' : 'Save'),
+                icon: _saved ? Icons.check : Icons.save_outlined,
+                label: _saved ? 'Saved' : 'Save',
               ),
             ],
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        if (_loading) const LoadingState(),
+        if (_loading) const ScanlineLoader(height: 220, lines: 0),
         if (_error != null) ErrorState(message: _error!, onRetry: _generate),
         if (!_loading && _report != null) ReportView(report: _report!),
         if (!_loading && _report == null && _error == null)
@@ -264,14 +266,20 @@ class _CsvExportCardState extends ConsumerState<_CsvExportCard> {
             runSpacing: AppSpacing.xs,
             children: [
               for (final ds in ExportDataset.values)
-                FilterChip(
-                  label: Text(ds.label),
-                  avatar: ds == ExportDataset.journal
-                      ? const Icon(Icons.lock_outline, size: 16)
-                      : null,
-                  selected: _selected.contains(ds),
-                  onSelected: (v) => setState(
-                    () => v ? _selected.add(ds) : _selected.remove(ds),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 36),
+                  child: HudChip(
+                    label: ds.label,
+                    uppercase: false,
+                    icon: ds == ExportDataset.journal
+                        ? Icons.lock_outline
+                        : null,
+                    selected: _selected.contains(ds),
+                    onTap: () => setState(
+                      () => _selected.contains(ds)
+                          ? _selected.remove(ds)
+                          : _selected.add(ds),
+                    ),
                   ),
                 ),
             ],
@@ -294,12 +302,13 @@ class _CsvExportCardState extends ConsumerState<_CsvExportCard> {
             'to the source service’s terms.',
           ),
           const SizedBox(height: AppSpacing.sm),
-          FilledButton.tonalIcon(
+          HudButton.secondary(
+            expand: true,
+            loading: _busy,
             onPressed: _busy || _selected.isEmpty ? null : _export,
-            icon: const Icon(Icons.ios_share),
-            label: Text(
-              'Export ${_selected.length} file${_selected.length == 1 ? '' : 's'}',
-            ),
+            icon: Icons.ios_share,
+            label:
+                'Export ${_selected.length} file${_selected.length == 1 ? '' : 's'}',
           ),
         ],
       ),

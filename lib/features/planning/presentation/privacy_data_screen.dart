@@ -28,18 +28,16 @@ class PrivacyDataScreen extends ConsumerWidget {
       title: 'Privacy & data',
       subtitle: 'Your data lives on this device. You decide what leaves it.',
       children: [
-        SectionHeader('What is stored and where'),
+        SectionHeader('Where data lives'),
         _Inventory(),
-        SectionHeader(
-          'AI consent',
-          subtitle: 'Off by default. Change any time.',
-        ),
+        SectionHeader('AI consent', subtitle: 'Off by default'),
         _Consents(),
         SectionHeader('Export'),
         _ExportCard(),
         SectionHeader(
           'Delete data',
-          subtitle: 'Permanent — this cannot be undone',
+          subtitle: 'Permanent',
+          accent: AppColors.red,
         ),
         _DeleteCard(),
         SectionHeader('Connected services'),
@@ -104,7 +102,7 @@ class _Inventory extends StatelessWidget {
                 'Health data, journal text and meal photos are included only if '
                 'you switch on the matching consent below. Strava data is never '
                 'sent to AI.',
-            AppColors.competition,
+            AppColors.cyan,
           ),
           item(
             Icons.block,

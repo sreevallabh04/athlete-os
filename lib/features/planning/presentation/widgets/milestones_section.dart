@@ -35,7 +35,7 @@ class PrepTimeline extends StatelessWidget {
               m.dueDate!,
               m.title,
               m.kind == 'checklist' ? Icons.checklist : Icons.outlined_flag,
-              m.done ? AppColors.success : AppColors.competition,
+              m.done ? AppColors.success : AppColors.gold,
               m.done,
             ),
           (today, 'Today', Icons.radio_button_checked, AppColors.brand, false),
@@ -43,7 +43,7 @@ class PrepTimeline extends StatelessWidget {
             c.eventDate.key,
             view.competition.name,
             Icons.emoji_events,
-            AppColors.competition,
+            AppColors.gold,
             c.phase == CountdownPhase.past,
           ),
         ]..sort((a, b) => a.$1.compareTo(b.$1));
@@ -57,7 +57,7 @@ class PrepTimeline extends StatelessWidget {
           const CardTitle(
             icon: Icons.timeline,
             title: 'Prep timeline',
-            color: AppColors.competition,
+            color: AppColors.gold,
           ),
           const SizedBox(height: AppSpacing.md),
           for (var i = 0; i < entries.length; i++)
@@ -150,7 +150,7 @@ class MilestonesSection extends ConsumerWidget {
                   CardTitle(
                     icon: Icons.checklist,
                     title: 'Milestones & checklist',
-                    color: AppColors.competition,
+                    color: AppColors.gold,
                     trailing: list.isEmpty
                         ? null
                         : Text(
@@ -181,15 +181,17 @@ class MilestonesSection extends ConsumerWidget {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      FilledButton.tonalIcon(
+                      HudButton.secondary(
+                        compact: true,
                         onPressed: () => _editItem(context, ref, id),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add item'),
+                        icon: Icons.add,
+                        label: 'Add item',
                       ),
-                      OutlinedButton.icon(
+                      HudButton.ghost(
+                        compact: true,
                         onPressed: () => _addSuggested(context, ref, id, list),
-                        icon: const Icon(Icons.playlist_add),
-                        label: const Text('Add suggested checklist'),
+                        icon: Icons.playlist_add,
+                        label: 'Add suggested checklist',
                       ),
                     ],
                   ),

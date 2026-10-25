@@ -21,7 +21,7 @@ class _ReportViewState extends State<ReportView> {
   static Color _color(String key) => switch (key) {
     'kcal' => AppColors.calories,
     'protein' => AppColors.protein,
-    'weight' => AppColors.brandAlt,
+    'weight' => AppColors.cyan,
     'steps' => AppColors.steps,
     'run_km' => AppColors.running,
     _ => AppColors.brand,
@@ -85,17 +85,24 @@ class _ReportViewState extends State<ReportView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    for (final s in series)
-                      ChoiceChip(
-                        label: Text(s.title),
-                        selected: s.key == selected.key,
-                        onSelected: (_) => setState(() => _seriesKey = s.key),
-                      ),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final s in series) ...[
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 36),
+                          child: HudChip(
+                            label: s.title,
+                            color: s.key == selected.key ? _color(s.key) : null,
+                            selected: s.key == selected.key,
+                            onTap: () => setState(() => _seriesKey = s.key),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                      ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (selected.bar)
@@ -178,13 +185,10 @@ class _InsightCard extends StatelessWidget {
             icon: icon,
             title: label,
             color: color,
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                borderRadius: AppRadii.chip,
-                border: Border.all(color: color.withValues(alpha: 0.5)),
-              ),
-              child: Text('Rule-based', style: t.labelSmall),
+            trailing: HudChip(
+              label: 'Rule-based',
+              uppercase: false,
+              color: color,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -206,66 +210,69 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     return AppCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(section.title, style: t.titleSmall),
-          const SizedBox(height: AppSpacing.sm),
+          Text(section.title.toUpperCase(), style: hud.label(size: 11.5)),
+          const SizedBox(height: AppSpacing.md),
           if (!section.available)
             Row(
               children: [
-                Icon(
-                  Icons.remove_circle_outline,
-                  size: 16,
-                  color: scheme.onSurfaceVariant,
-                ),
+                Icon(Icons.remove, size: 16, color: hud.textMuted),
                 const SizedBox(width: 6),
                 Expanded(child: Hint(section.note ?? 'No data')),
               ],
             ),
-          for (final m in section.metrics)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          LayoutBuilder(
+            builder: (context, box) {
+              final w = (box.maxWidth - AppSpacing.md) / 2;
+              return Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          m.label,
-                          style: t.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
+                  for (final m in section.metrics)
+                    SizedBox(
+                      width: w,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m.label,
+                            style: t.labelMedium?.copyWith(
+                              color: hud.textMuted,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Flexible(
-                        child: Text(
-                          m.value,
-                          style: t.labelLarge,
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (m.detail != null || m.source != null)
-                    Text(
-                      [
-                        ?m.detail,
-                        if (m.source != null) 'Source: ${m.source}',
-                      ].join(' · '),
-                      style: t.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                          const SizedBox(height: 2),
+                          Text(
+                            m.value,
+                            style: t.titleMedium?.copyWith(
+                              fontFamily: AppFonts.display,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (m.detail != null || m.source != null)
+                            Text(
+                              [
+                                ?m.detail,
+                                if (m.source != null) m.source!,
+                              ].join(' · '),
+                              style: t.labelSmall?.copyWith(
+                                color: hud.textMuted,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                 ],
-              ),
-            ),
-          if (section.available && section.note != null) Hint(section.note!),
+              );
+            },
+          ),
+          if (section.available && section.note != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Hint(section.note!),
+          ],
         ],
       ),
     );

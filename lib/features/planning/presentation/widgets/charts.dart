@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/time/clock.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/metrics.dart';
 
 String _shortDate(String key) =>
@@ -32,8 +33,6 @@ class LabeledBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
     final fmt = valueFormat ?? (double v) => v.toStringAsFixed(v < 10 ? 1 : 0);
     final maxY = values.isEmpty ? 1.0 : values.reduce((a, b) => a > b ? a : b);
     final step = (labels.length / 6).ceil().clamp(1, 1000);
@@ -51,56 +50,38 @@ class LabeledBarChart extends StatelessWidget {
           BarChartData(
             maxY: maxY <= 0 ? 1 : maxY * 1.15,
             alignment: BarChartAlignment.spaceAround,
-            gridData: FlGridData(
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(
-                color: scheme.outlineVariant.withValues(alpha: 0.4),
-                strokeWidth: 1,
-              ),
+            gridData: HudChartStyle.grid(context),
+            borderData: HudChartStyle.noBorder,
+            titlesData: HudChartStyle.titles(
+              context,
+              bottom: (v, meta) {
+                final i = v.toInt();
+                if (i < 0 || i >= labels.length || i % step != 0) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    labels[i].toUpperCase(),
+                    style: HudChartStyle.axisLabel(context),
+                  ),
+                );
+              },
             ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              topTitles: const AxisTitles(),
-              rightTitles: const AxisTitles(),
-              leftTitles: const AxisTitles(),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 22,
-                  getTitlesWidget: (v, meta) {
-                    final i = v.toInt();
-                    if (i < 0 || i >= labels.length || i % step != 0) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(labels[i], style: t.labelSmall),
-                    );
-                  },
-                ),
-              ),
-            ),
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => scheme.surfaceContainerHighest,
-                getTooltipItem: (group, gi, rod, ri) => BarTooltipItem(
+            barTouchData: HudChartStyle.barTouch(
+              context,
+              format: (group, rod) =>
                   '${labels[group.x]}\n${fmt(rod.toY)} $unit',
-                  t.labelMedium ?? const TextStyle(),
-                ),
-              ),
             ),
             barGroups: [
               for (var i = 0; i < values.length; i++)
                 BarChartGroupData(
                   x: i,
                   barRods: [
-                    BarChartRodData(
-                      toY: values[i],
+                    HudChartStyle.rod(
+                      values[i],
+                      color,
                       width: labels.length > 20 ? 6 : 14,
-                      color: color,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
                     ),
                   ],
                 ),
@@ -145,8 +126,6 @@ class DateLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
     final all = [for (final l in lines) ...l.points];
     if (all.isEmpty) return SizedBox(height: height);
     final dates = all.map((p) => p.date).toList()..sort();
@@ -182,75 +161,46 @@ class DateLineChart extends StatelessWidget {
             maxX: maxX <= 0 ? 1 : maxX,
             minY: minY - pad,
             maxY: maxY + pad,
-            gridData: FlGridData(
-              drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(
-                color: scheme.outlineVariant.withValues(alpha: 0.4),
-                strokeWidth: 1,
+            gridData: HudChartStyle.grid(context),
+            borderData: HudChartStyle.noBorder,
+            titlesData: HudChartStyle.titles(
+              context,
+              leftReserved: 40,
+              bottomInterval: maxX <= 6 ? 1 : (maxX / 4).ceilToDouble(),
+              left: (v, meta) => Text(
+                v.toStringAsFixed(maxY - minY < 10 ? 1 : 0),
+                style: HudChartStyle.axisLabel(context),
               ),
-            ),
-            borderData: FlBorderData(show: false),
-            titlesData: FlTitlesData(
-              topTitles: const AxisTitles(),
-              rightTitles: const AxisTitles(),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 40,
-                  getTitlesWidget: (v, meta) => Text(
-                    v.toStringAsFixed(maxY - minY < 10 ? 1 : 0),
-                    style: t.labelSmall,
-                  ),
-                ),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 22,
-                  interval: maxX <= 6 ? 1 : (maxX / 4).ceilToDouble(),
-                  getTitlesWidget: (v, meta) => Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(label(v), style: t.labelSmall),
-                  ),
+              bottom: (v, meta) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  label(v).toUpperCase(),
+                  style: HudChartStyle.axisLabel(context),
                 ),
               ),
             ),
-            lineTouchData: LineTouchData(
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) => scheme.surfaceContainerHighest,
-                getTooltipItems: (spots) => [
-                  for (final s in spots)
-                    LineTooltipItem(
-                      '${lines[s.barIndex].label}\n${label(s.x)}: '
-                      '${s.y.toStringAsFixed(1)} $unit',
-                      (t.labelSmall ?? const TextStyle()).copyWith(
-                        color: lines[s.barIndex].color,
-                      ),
-                    ),
-                ],
-              ),
+            lineTouchData: HudChartStyle.lineTouch(
+              context,
+              format: (s) =>
+                  '${lines[s.barIndex].label}\n${label(s.x)}: '
+                  '${s.y.toStringAsFixed(1)} $unit',
             ),
             lineBarsData: [
               for (final l in lines)
-                LineChartBarData(
-                  spots: [for (final p in l.points) FlSpot(x(p.date), p.value)],
-                  color: l.color,
-                  barWidth: l.dotsOnly ? 0 : 3,
-                  isCurved: !l.dotsOnly,
-                  preventCurveOverShooting: true,
-                  dotData: FlDotData(show: l.dotsOnly || l.points.length < 3),
-                  belowBarData: BarAreaData(
-                    show: !l.dotsOnly,
-                    gradient: LinearGradient(
-                      colors: [
-                        l.color.withValues(alpha: 0.25),
-                        l.color.withValues(alpha: 0.0),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
+                l.dotsOnly
+                    ? HudChartStyle.line(
+                        [for (final p in l.points) FlSpot(x(p.date), p.value)],
+                        l.color,
+                        curved: false,
+                        fill: false,
+                        dots: true,
+                        width: 0,
+                      )
+                    : HudChartStyle.line(
+                        [for (final p in l.points) FlSpot(x(p.date), p.value)],
+                        l.color,
+                        dots: l.points.length < 3,
+                      ),
             ],
           ),
           duration: AppDurations.medium,
@@ -267,7 +217,7 @@ class ChartLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return Wrap(
       spacing: AppSpacing.md,
       runSpacing: AppSpacing.xs,
@@ -277,12 +227,21 @@ class ChartLegend extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: c,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: c.withValues(alpha: 0.7 * hud.glowStrength),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 4),
-              Text(l, style: t.labelSmall),
+              const SizedBox(width: 6),
+              Text(l.toUpperCase(), style: hud.label(size: 10)),
             ],
           ),
       ],

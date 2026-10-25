@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/paths.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/time/clock.dart';
+import '../../../core/widgets/widgets.dart';
+import '../../today/presentation/widgets/briefing.dart' show Typewriter;
 import '../../life/application/notifications/notification_providers.dart';
 import '../../life/domain/habit_models.dart';
 import '../../planning/application/planning_providers.dart';
@@ -43,7 +45,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
   bool _forward = true;
   bool _engaging = false;
+  bool _online = false;
   bool _loaded = false;
+  final _burst = CelebrationController();
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -182,6 +192,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _go(int to) {
     if (to < 0 || to >= _steps.length) return;
     FocusScope.of(context).unfocus();
+    Haptics.selection();
     setState(() {
       _forward = to > _step;
       _step = to;
@@ -200,6 +211,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final result = await ref
           .read(calibrationServiceProvider)
           .engage(_a, tzName: tz ?? 'Asia/Kolkata');
+      // Reactor power-up: the systems come online, then we hand over.
+      if (mounted) {
+        setState(() => _online = true);
+        _burst.fire();
+        Haptics.goalReached();
+        if (!AppMotion.reduced(context)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+        }
+      }
       ref.read(onboardingGateProvider.notifier).markDone();
       if (result.remindersEnabled.isNotEmpty) {
         try {
@@ -229,7 +249,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _engaging = false);
+      Haptics.warning();
+      setState(() {
+        _engaging = false;
+        _online = false;
+      });
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(content: Text('Calibration could not be saved: $e')),
       );
@@ -242,162 +266,201 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final step = steps[_step];
     final last = _step == steps.length - 1;
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final progress = (_step + 1) / steps.length;
+    final hud = context.hud;
+    final reduced = AppMotion.reduced(context);
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.sm,
-                AppSpacing.sm,
-                AppSpacing.sm,
-                0,
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Back',
-                    onPressed: _step == 0 ? null : () => _go(_step - 1),
-                    icon: const Icon(Icons.arrow_back),
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xs,
+                    AppSpacing.sm,
+                    AppSpacing.xs,
+                    0,
                   ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: TweenAnimationBuilder<double>(
-                            tween: Tween(end: progress),
-                            duration: AppDurations.medium,
-                            curve: Curves.easeOutCubic,
-                            builder: (_, v, _) => LinearProgressIndicator(
-                              value: v,
-                              minHeight: 6,
-                              backgroundColor: scheme.surfaceContainerHighest,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Step ${_step + 1} of ${steps.length}',
-                          style: t.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: last ? null : () => _go(steps.length - 1),
-                    child: const Text('Skip'),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: AppDurations.medium,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, anim) {
-                  final incoming = child.key == ValueKey(step.id);
-                  final dx = (_forward ? 1 : -1) * (incoming ? 0.12 : -0.12);
-                  return FadeTransition(
-                    opacity: anim,
-                    child: SlideTransition(
-                      position: Tween(
-                        begin: Offset(dx, 0),
-                        end: Offset.zero,
-                      ).animate(anim),
-                      child: child,
-                    ),
-                  );
-                },
-                child: KeyedSubtree(
-                  key: ValueKey(step.id),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.gutter,
-                      AppSpacing.lg,
-                      AppSpacing.gutter,
-                      AppSpacing.xxl,
-                    ),
+                  child: Row(
                     children: [
-                      Stagger(
-                        index: 0,
-                        child: Text(
-                          step.kicker,
-                          style: t.labelMedium?.copyWith(
-                            color: scheme.primary,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      IconButton(
+                        tooltip: 'Back',
+                        onPressed: _step == 0 || _engaging
+                            ? null
+                            : () => _go(_step - 1),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            SegmentedArcProgress(
+                              step: _step,
+                              count: steps.length,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Step ${_step + 1} of ${steps.length}',
+                              style: hud.mono(size: 10.5),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Stagger(
-                        index: 1,
-                        child: Text(
-                          step.title,
-                          style: t.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      TextButton(
+                        onPressed: last || _engaging
+                            ? null
+                            : () {
+                                Haptics.light();
+                                _go(steps.length - 1);
+                              },
+                        child: const Text('Skip'),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Stagger(
-                        index: 2,
-                        child: Text(
-                          step.subtitle,
-                          style: t.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      if (!_loaded && step.id == 'welcome')
-                        const LinearProgressIndicator(minHeight: 2),
-                      ..._body(step.id),
                     ],
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.gutter,
-                AppSpacing.sm,
-                AppSpacing.gutter,
-                AppSpacing.lg,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: FilledButton.icon(
-                  onPressed: _engaging
-                      ? null
-                      : last
-                      ? _engage
-                      : () => _go(_step + 1),
-                  icon: _engaging
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(last ? Icons.bolt : Icons.arrow_forward),
-                  label: Text(
-                    last
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: reduced ? Duration.zero : AppMotion.long,
+                    reverseDuration: reduced
+                        ? Duration.zero
+                        : AppMotion.pageReverse,
+                    switchInCurve: AppMotion.emphasizedDecelerate,
+                    switchOutCurve: AppMotion.emphasizedAccelerate,
+                    transitionBuilder: (child, anim) {
+                      final incoming = child.key == ValueKey(step.id);
+                      final dir = _forward ? 1.0 : -1.0;
+                      final dx = dir * (incoming ? 36.0 : -36.0);
+                      return AnimatedBuilder(
+                        animation: anim,
+                        child: child,
+                        builder: (context, child) {
+                          final v = anim.value;
+                          return Opacity(
+                            opacity: incoming
+                                ? Curves.easeIn.transform(
+                                    ((v - 0.25) / 0.75).clamp(0.0, 1.0),
+                                  )
+                                : v,
+                            child: Transform.translate(
+                              offset: Offset(dx * (1 - v), 0),
+                              child: Transform.scale(
+                                scale: incoming ? 0.97 + 0.03 * v : 1,
+                                child: child,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey(step.id),
+                      child: ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (r) => const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.white,
+                            Colors.white,
+                            Colors.transparent,
+                          ],
+                          stops: [0, 0.035, 0.96, 1],
+                        ).createShader(r),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.gutter,
+                            AppSpacing.lg,
+                            AppSpacing.gutter,
+                            AppSpacing.xxl,
+                          ),
+                          children: [
+                            if (step.id != 'welcome')
+                              Stagger(
+                                index: 0,
+                                child: Row(
+                                  children: [
+                                    const JarvisOrb(
+                                      size: 30,
+                                      fps: 30,
+                                      state: OrbState.speaking,
+                                      semanticLabel: null,
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Text(
+                                      'JARVIS · ${step.kicker}',
+                                      style: hud.mono(
+                                        size: 10.5,
+                                        color: hud.accentInk,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              const _WelcomeReactor(),
+                            const SizedBox(height: AppSpacing.md),
+                            Typewriter(
+                              step.title,
+                              style: t.headlineSmall,
+                              caret: hud.accent,
+                              charDelay: const Duration(milliseconds: 22),
+                              delay: const Duration(milliseconds: 160),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Stagger(
+                              index: 3,
+                              child: Text(
+                                step.subtitle,
+                                style: t.bodyMedium?.copyWith(
+                                  color: hud.textMuted,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            if (!_loaded && step.id == 'welcome')
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: AppSpacing.md),
+                                child: ScanlineLoader(height: 4, lines: 0),
+                              ),
+                            ..._body(step.id),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.sm,
+                    AppSpacing.gutter,
+                    AppSpacing.lg,
+                  ),
+                  child: HudButton(
+                    expand: true,
+                    loading: _engaging,
+                    icon: last ? Icons.bolt : Icons.arrow_forward,
+                    label: last
                         ? 'Engage'
                         : _step == 0
                         ? 'Begin calibration'
                         : 'Next',
+                    onPressed: _engaging
+                        ? null
+                        : last
+                        ? _engage
+                        : () => _go(_step + 1),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          if (_engaging)
+            Positioned.fill(
+              child: _PowerUp(online: _online, burst: _burst, name: _addr),
+            ),
+        ],
       ),
     );
   }
@@ -415,7 +478,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     switch (id) {
       case 'welcome':
         return _staggered([
-          const _JarvisOrb(),
           _bullet(Icons.restaurant, 'Calories & macros from your lean mass'),
           _bullet(Icons.fitness_center, '5 lift + 2 run program with deloads'),
           _bullet(Icons.view_timeline, 'A daily routine around your office'),
@@ -472,6 +534,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               icon: c == competitionCategories.last
                   ? Icons.do_not_disturb_on_outlined
                   : Icons.emoji_events_outlined,
+              accent: AppColors.gold,
               selected: a.category == c,
               onTap: () => _set(_a.copyWith(category: c)),
             ),
@@ -483,29 +546,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ? 'Tap to pick a date'
                 : 'Tap to change · long-press to clear',
             icon: Icons.event_outlined,
+            accent: AppColors.gold,
             selected: a.competitionDate != null,
             onTap: _pickCompetitionDate,
           ),
           if (a.competitionDate != null)
-            TextButton.icon(
+            HudButton.ghost(
               onPressed: () => _set(_a.copyWith(competitionDate: () => null)),
-              icon: const Icon(Icons.clear),
-              label: const Text('No date yet'),
+              icon: Icons.clear,
+              label: 'No date yet',
             ),
         ]);
       case 'diet':
         return _staggered([
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final d in dietTypes)
-                ChoiceChip(
-                  label: Text(d[0].toUpperCase() + d.substring(1)),
-                  selected: a.dietType == d,
-                  onSelected: (_) => _set(_a.copyWith(dietType: d)),
-                ),
-            ],
+          ChoiceChips<String>(
+            options: dietTypes,
+            labelOf: (d) => d,
+            isSelected: (d) => a.dietType == d,
+            onTap: (d) => _set(_a.copyWith(dietType: d)),
           ),
           ChipListEditor(
             label: 'Restrictions / allergies',
@@ -608,21 +666,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             minutes: a.sleepMinutes,
             onChanged: (v) => _set(_a.copyWith(sleepMinutes: v)),
           ),
-          Wrap(
-            spacing: AppSpacing.xs,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var d = 1; d <= 7; d++)
-                FilterChip(
-                  label: Text(weekdayShort[d - 1]),
-                  selected: maskHasWeekday(a.officeDaysMask, d),
-                  onSelected: (on) => _set(
-                    _a.copyWith(
-                      officeDaysMask: on
-                          ? a.officeDaysMask | weekdayBit(d)
-                          : a.officeDaysMask & ~weekdayBit(d),
-                    ),
+              Text('OFFICE DAYS', style: context.hud.label(size: 11)),
+              const SizedBox(height: AppSpacing.sm),
+              ChoiceChips<int>(
+                spread: true,
+                options: const [1, 2, 3, 4, 5, 6, 7],
+                labelOf: (d) => weekdayShort[d - 1].substring(0, 2),
+                isSelected: (d) => maskHasWeekday(a.officeDaysMask, d),
+                onTap: (d) => _set(
+                  _a.copyWith(
+                    officeDaysMask: maskHasWeekday(a.officeDaysMask, d)
+                        ? a.officeDaysMask & ~weekdayBit(d)
+                        : a.officeDaysMask | weekdayBit(d),
                   ),
                 ),
+              ),
             ],
           ),
         ]);
@@ -646,16 +707,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ]);
       case 'run':
         return _staggered([
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: [
-              for (final d in const [5000, 10000])
-                ChoiceChip(
-                  label: Text('${d ~/ 1000}K'),
-                  selected: a.runGoalDistanceM == d,
-                  onSelected: (_) => _set(_a.copyWith(runGoalDistanceM: d)),
-                ),
+          SegmentedHud<int>(
+            segments: const [
+              HudSegment(value: 5000, label: '5K'),
+              HudSegment(value: 10000, label: '10K'),
             ],
+            value: a.runGoalDistanceM,
+            onChanged: (d) => _set(_a.copyWith(runGoalDistanceM: d)),
           ),
           NumberStepper(
             label: 'Target time',
@@ -705,30 +763,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             onChanged: (v) => _set(_a.copyWith(personaName: v)),
           ),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final trait in const [
-                'calm',
-                'witty',
-                'formal',
-                'warm',
-                'blunt',
-                'motivational',
-              ])
-                FilterChip(
-                  label: Text(trait),
-                  selected: a.personaTraits.contains(trait),
-                  onSelected: (on) => _set(
-                    _a.copyWith(
-                      personaTraits: on
-                          ? [...a.personaTraits, trait]
-                          : a.personaTraits.where((x) => x != trait).toList(),
-                    ),
-                  ),
-                ),
+          ChoiceChips<String>(
+            options: const [
+              'calm',
+              'witty',
+              'formal',
+              'warm',
+              'blunt',
+              'motivational',
             ],
+            labelOf: (t) => t,
+            isSelected: (t) => a.personaTraits.contains(t),
+            onTap: (trait) => _set(
+              _a.copyWith(
+                personaTraits: a.personaTraits.contains(trait)
+                    ? a.personaTraits.where((x) => x != trait).toList()
+                    : [...a.personaTraits, trait],
+              ),
+            ),
           ),
           OptionCard(
             title: 'Voice responses',
@@ -834,12 +886,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  Widget _bullet(IconData icon, String text) => Row(
-    children: [
-      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(width: AppSpacing.md),
-      Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
-    ],
+  Widget _bullet(IconData icon, String text) => GlassPanel(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
+      vertical: AppSpacing.md,
+    ),
+    child: Row(
+      children: [
+        GlowIcon(icon, size: 18),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+      ],
+    ),
   );
 }
 
@@ -854,21 +914,20 @@ class _PreviewPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     return AnimatedSwitcher(
-      duration: AppDurations.medium,
-      child: Container(
+      duration: AppMotion.medium,
+      child: GlassPanel(
         key: ValueKey(text),
+        accent: hud.accent,
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppRadii.md),
-        ),
         child: Row(
           children: [
-            Icon(Icons.auto_awesome, size: 18, color: scheme.primary),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: Text(text)),
+            GlowIcon(Icons.auto_awesome, size: 18, color: hud.accent),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            ),
           ],
         ),
       ),
@@ -876,47 +935,92 @@ class _PreviewPill extends StatelessWidget {
   }
 }
 
-/// Glowing "JARVIS" orb on the welcome step (token colours only). Animates
-/// once on entry so tests can settle.
-class _JarvisOrb extends StatelessWidget {
-  const _JarvisOrb();
+/// Welcome: the reactor orb inside a ticked HUD frame.
+class _WelcomeReactor extends StatelessWidget {
+  const _WelcomeReactor();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final reduced = AppMotion.reduced(context);
     return Center(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 1200),
-        curve: Curves.easeOutBack,
-        builder: (context, v, child) => Transform.scale(
-          scale: 0.6 + 0.4 * v,
-          child: Container(
-            width: 120,
-            height: 120,
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  scheme.primary.withValues(alpha: 0.9),
-                  scheme.primary.withValues(alpha: 0.15),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: scheme.primary.withValues(
-                    alpha: (0.45 * v).clamp(0.0, 1.0),
-                  ),
-                  blurRadius: 12 + 36 * v,
-                  spreadRadius: 2 + 6 * v,
-                ),
-              ],
-            ),
-            child: child,
+      child: Entrance(
+        enabled: !reduced,
+        fromScale: 0.7,
+        blur: 10,
+        duration: const Duration(milliseconds: 900),
+        offset: Offset.zero,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: HudFrame(
+            cornerLength: 18,
+            ticks: true,
+            tag: 'CAL·01',
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: JarvisOrb(size: 168, semanticLabel: 'JARVIS'),
           ),
         ),
-        child: Icon(Icons.blur_on, size: 56, color: scheme.onPrimary),
+      ),
+    );
+  }
+}
+
+/// Full-screen "reactor power-up" while calibration is saved; bursts when
+/// the systems come online.
+class _PowerUp extends StatelessWidget {
+  const _PowerUp({
+    required this.online,
+    required this.burst,
+    required this.name,
+  });
+
+  final bool online;
+  final CelebrationController burst;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.long,
+      curve: AppMotion.emphasizedDecelerate,
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: ColoredBox(
+        color: hud.canvasBottom.withValues(alpha: 0.88),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CelebrationBurst(
+                controller: burst,
+                color: hud.accent,
+                child: JarvisOrb(
+                  size: 200,
+                  state: online ? OrbState.speaking : OrbState.thinking,
+                  semanticLabel: online ? 'Systems online' : 'Engaging',
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                online ? 'SYSTEMS ONLINE' : 'ENGAGING',
+                style: hud.label(size: 13, color: hud.accentInk),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AnimatedSwitcher(
+                duration: AppMotion.medium,
+                child: Text(
+                  online
+                      ? 'At your service, $name.'
+                      : 'Writing targets, program and routine…',
+                  key: ValueKey(online),
+                  style: t.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

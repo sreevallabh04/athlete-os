@@ -109,7 +109,7 @@ void main() {
     expect(find.text('170'), findsWidgets);
 
     await tester.tap(find.text('Engage'));
-    for (var i = 0; i < 100 && !finished; i++) {
+    for (var i = 0; i < 300 && !finished; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(finished, isTrue);

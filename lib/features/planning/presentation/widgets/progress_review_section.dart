@@ -36,7 +36,7 @@ class ProgressReviewSection extends ConsumerWidget {
             child: const CardTitle(
               icon: Icons.accessibility_new,
               title: 'Posing practice reminders',
-              color: AppColors.competition,
+              color: AppColors.gold,
               trailing: Icon(Icons.chevron_right),
             ),
           ),

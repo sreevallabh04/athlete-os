@@ -30,26 +30,18 @@ class PlanSummaryView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppCard(
-          accent: AppColors.calories,
+          brackets: true,
+          glow: true,
           child: Column(
             children: [
-              Text(
-                'DAILY TARGET',
-                style: t.labelMedium?.copyWith(
-                  letterSpacing: 1.5,
-                  color: scheme.onSurfaceVariant,
-                ),
+              Text('DAILY TARGET', style: context.hud.label(size: 12)),
+              const SizedBox(height: AppSpacing.xs),
+              AnimatedTicker(
+                '${_thousands(p.targetKcal)} kcal',
+                key: const ValueKey('plan-kcal'),
+                style: context.hud.number(size: 48),
               ),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: p.targetKcal.toDouble()),
-                duration: AppDurations.slow * 2,
-                curve: Curves.easeOutCubic,
-                builder: (_, v, _) => Text(
-                  '${_thousands(v.round())} kcal',
-                  key: const ValueKey('plan-kcal'),
-                  style: t.displaySmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Maintenance ≈ ${_thousands(p.maintenanceLow)}–'
                 '${_thousands(p.maintenanceHigh)} kcal · '
@@ -78,7 +70,7 @@ class PlanSummaryView extends StatelessWidget {
             color: AppColors.warning,
           ),
         ],
-        const SectionHeader('How I got these numbers'),
+        const SectionHeader('The maths'),
         AppCard(
           child: Column(
             children: [
@@ -157,14 +149,14 @@ class PlanSummaryView extends StatelessWidget {
               ('Sat', '5K session'),
               ('Sun', 'Pump'),
             ])
-              Chip(
-                avatar: Icon(
-                  d.$2.contains('run') || d.$2.contains('5K')
-                      ? Icons.directions_run
-                      : Icons.fitness_center,
-                  size: 16,
-                ),
-                label: Text('${d.$1} · ${d.$2}'),
+              HudChip(
+                icon: d.$2.contains('run') || d.$2.contains('5K')
+                    ? Icons.directions_run
+                    : Icons.fitness_center,
+                color: d.$2.contains('run') || d.$2.contains('5K')
+                    ? AppColors.running
+                    : AppColors.strength,
+                label: '${d.$1} · ${d.$2}',
               ),
           ],
         ),
@@ -249,19 +241,25 @@ class _Macro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
     return Expanded(
       child: Column(
         children: [
           ProgressRing(
             progress: 1,
             color: color,
-            size: 64,
+            size: 72,
             stroke: 6,
-            center: Text('$grams', style: t.titleMedium),
+            celebrate: false,
+            center: AnimatedTicker(
+              '$grams',
+              style: context.hud.number(size: 20),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text('$label (g)', style: t.labelMedium),
+          Text(
+            '${label.toUpperCase()} · G',
+            style: context.hud.label(size: 10),
+          ),
         ],
       ),
     );
@@ -315,7 +313,7 @@ class _Setup extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+        GlowIcon(icon, size: 17, glow: 0.6),
         const SizedBox(width: AppSpacing.sm),
         Expanded(child: Text(text)),
       ],

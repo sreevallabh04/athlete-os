@@ -69,7 +69,7 @@ void main() {
     await pump(tester, db, DateTime.utc(2026, 10, 25, 12));
 
     expect(find.text('42'), findsOneWidget);
-    expect(find.text('days to go'), findsOneWidget);
+    expect(find.text('DAYS TO GO'), findsOneWidget);
     expect(find.text('6 weeks'), findsOneWidget);
     expect(find.text('Pune'), findsOneWidget);
     expect(find.text("Men's Physique"), findsOneWidget);

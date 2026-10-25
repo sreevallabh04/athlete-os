@@ -38,9 +38,10 @@ void main() {
 
     expect(find.text('Good morning.'), findsOneWidget);
     expect(find.text('Set your competition date'), findsOneWidget);
-    expect(find.text('No step data yet today'), findsOneWidget);
-    expect(find.text('Nothing logged yet today'), findsOneWidget);
-    expect(find.textContaining('No water logged today'), findsOneWidget);
+    // Reactor: steps not synced, nutrition/water not logged; targets only.
+    expect(find.text('NOT SYNCED'), findsOneWidget);
+    expect(find.text('NOT LOGGED'), findsNWidgets(3));
+    expect(find.text('Target 2,000'), findsOneWidget);
     expect(find.text('No workouts recorded yet'), findsOneWidget);
     expect(find.text('No runs since Monday'), findsOneWidget);
     expect(find.text('No sleep data'), findsOneWidget);
@@ -49,8 +50,25 @@ void main() {
     expect(find.text('Google Calendar is not connected.'), findsOneWidget);
     expect(find.text('No habits set up'), findsOneWidget);
     expect(find.text('Not checked in yet'), findsOneWidget);
-    // Summary lists unavailable sources instead of inventing numbers.
-    expect(find.text('Not available yet'), findsOneWidget);
+    expect(
+      find.text(
+        'No program yet. Calibrate once and I will plan every '
+        'session, deloads included.',
+      ),
+      findsOneWidget,
+    );
+    // The briefing idles honestly, and the sheet lists unavailable sources
+    // instead of inventing numbers.
+    expect(
+      find.text('Nothing logged yet. Your targets are set and standing by.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('JARVIS · BRIEFING'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.text('NOT AVAILABLE YET'), findsOneWidget);
+    expect(find.text('Ask JARVIS'), findsOneWidget);
     for (final chip in [
       'Steps',
       'Food log',
@@ -139,6 +157,26 @@ void main() {
 
     await pumpToday(tester, db);
 
+    // Reactor legend: real remaining amounts.
+    expect(find.text('1,850 to go'), findsOneWidget); // steps
+    expect(find.text('58 g to go'), findsOneWidget); // protein
+    expect(find.text('1,000 left'), findsOneWidget); // calories
+    expect(find.text('Book tan appointment'), findsOneWidget);
+    expect(find.text('42'), findsOneWidget); // competition countdown
+    expect(find.text('NOT SYNCED'), findsNothing);
+
+    // Calories detail: meals logged (breakfast + snack).
+    await tester.tap(find.text('CALORIES'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.textContaining('2 meals · 3 items'), findsOneWidget);
+
+    // The full briefing has every deterministic sentence.
+    await tester.tap(find.text('JARVIS · BRIEFING'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
     expect(
       find.text(
         "You're 1,850 steps away from your 10,000 goal (Health Connect, 12 min ago).",
@@ -147,16 +185,9 @@ void main() {
     );
     expect(
       find.text("You've logged 92 g protein — 58 g to go."),
-      findsOneWidget,
+      findsNWidgets(2), // briefing strip lead + full briefing sheet
     );
-    expect(find.text('1,850 to go'), findsOneWidget); // steps card
-    expect(find.text('58 g'), findsOneWidget); // protein to go tile
-    expect(find.text('1,000 kcal'), findsOneWidget); // calories left
-    expect(find.text('2'), findsWidgets); // meals logged (breakfast + snack)
-    expect(find.text('Book tan appointment'), findsOneWidget);
-    expect(find.textContaining('days to State Classic'), findsOneWidget);
-    expect(find.text('No step data yet today'), findsNothing);
-    expect(find.text('Nothing logged yet today'), findsNothing);
+    expect(find.text('42 days to State Classic.'), findsOneWidget);
 
     await teardown(tester);
   });
@@ -178,9 +209,60 @@ void main() {
           ),
         );
     await pumpToday(tester, db, size: const Size(360, 5200));
-    expect(find.text('Show day — good luck!'), findsOneWidget);
-    expect(find.text('Fitness'), findsOneWidget);
-    expect(find.text('Productivity & well-being'), findsOneWidget);
+    expect(find.text('SHOW DAY'), findsOneWidget);
+    expect(find.textContaining('Show day. Good luck.'), findsOneWidget);
+    for (final label in [
+      'DAILY TARGETS',
+      'HABITS',
+      'TOP 3 PRIORITIES',
+      'AGENDA',
+      'VITALS',
+      'CHECK-INS',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    expect(tester.takeException(), isNull);
+    await teardown(tester);
+  });
+
+  testWidgets('+250 ml quick action logs water and offers undo', (
+    tester,
+  ) async {
+    final db = newTestDb();
+    addTearDown(db.close);
+    await pumpToday(tester, db);
+    await tester.tap(find.text('+250 ml'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    final rows = await db.select(db.waterLogs).get();
+    expect(rows.single.amountMl, 250);
+    expect(find.text('Undo'), findsOneWidget);
+    expect(find.text('2.8 L to go'), findsOneWidget);
+    await teardown(tester);
+  });
+
+  testWidgets('priorities toggle inline', (tester) async {
+    final db = newTestDb();
+    addTearDown(db.close);
+    await db
+        .into(db.tasks)
+        .insert(
+          TasksCompanion.insert(
+            id: 't1',
+            title: 'Book posing coach',
+            localDate: '2026-10-25',
+          ),
+        );
+    await pumpToday(tester, db);
+    await tester.tap(find.text('Book posing coach'));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    final t = await (db.select(
+      db.tasks,
+    )..where((r) => r.id.equals('t1'))).getSingle();
+    expect(t.done, isTrue);
     await teardown(tester);
   });
 }
