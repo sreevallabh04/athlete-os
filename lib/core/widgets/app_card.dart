@@ -163,6 +163,10 @@ class SectionHeader extends StatelessWidget {
     final c = accent ?? hud.accent;
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.sm),
+      // The title gets priority: it may take most of the row, and the
+      // decorative tick line only fills what is left.
+      // The title gets priority: it may take most of the space left after
+      // the optional action, and the decorative tick line fills the rest.
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -181,29 +185,40 @@ class SectionHeader extends StatelessWidget {
               ],
             ),
           ),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(title, style: t.titleMedium),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: t.bodySmall?.copyWith(color: hud.textMuted),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: ExcludeSemantics(
-              child: SizedBox(
-                height: 8,
-                child: CustomPaint(painter: _TickLinePainter(hud.hairline)),
+            child: LayoutBuilder(
+              builder: (context, box) => Row(
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: box.maxWidth * 0.86),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Semantics(
+                          header: true,
+                          child: Text(title, style: t.titleMedium),
+                        ),
+                        if (subtitle != null)
+                          Text(
+                            subtitle!,
+                            style: t.bodySmall?.copyWith(color: hud.textMuted),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: ExcludeSemantics(
+                      child: SizedBox(
+                        height: 8,
+                        child: CustomPaint(
+                          painter: _TickLinePainter(hud.hairline),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

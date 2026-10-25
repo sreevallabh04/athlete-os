@@ -31,6 +31,8 @@ abstract final class AppTypography {
       Color? color,
     }) => TextStyle(
       fontFamily: family,
+      // Display/HUD faces lack some symbols (→ Δ ⟳); fall back to Inter.
+      fontFamilyFallback: const [AppFonts.ui],
       fontSize: size,
       fontWeight: w,
       letterSpacing: ls,
@@ -64,6 +66,7 @@ abstract final class AppTypography {
   /// Letter-spaced technical label. Pass UPPERCASE strings.
   static TextStyle hudLabel(Color color, {double size = 12}) => TextStyle(
     fontFamily: AppFonts.hud,
+    fontFamilyFallback: const [AppFonts.ui],
     fontSize: size,
     fontWeight: FontWeight.w600,
     letterSpacing: size * 0.16,
@@ -75,6 +78,7 @@ abstract final class AppTypography {
   /// Hero numerals (rings, gauges, countdowns).
   static TextStyle hudNumber(Color color, {double size = 40}) => TextStyle(
     fontFamily: AppFonts.hud,
+    fontFamilyFallback: const [AppFonts.ui],
     fontSize: size,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.5,
@@ -86,6 +90,7 @@ abstract final class AppTypography {
   /// Monospace telemetry.
   static TextStyle mono(Color color, {double size = 11}) => TextStyle(
     fontFamily: AppFonts.mono,
+    fontFamilyFallback: const [AppFonts.ui],
     fontSize: size,
     fontWeight: FontWeight.w400,
     letterSpacing: 0.2,

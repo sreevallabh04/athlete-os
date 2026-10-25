@@ -238,7 +238,7 @@ void main() {
     final rows = await db.select(db.waterLogs).get();
     expect(rows.single.amountMl, 250);
     expect(find.text('Undo'), findsOneWidget);
-    expect(find.text('2.8 L to go'), findsOneWidget);
+    expect(find.text('2.75 L to go'), findsOneWidget);
     await teardown(tester);
   });
 
