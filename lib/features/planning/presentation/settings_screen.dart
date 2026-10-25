@@ -45,6 +45,13 @@ class SettingsScreen extends ConsumerWidget {
               AppColors.brand,
             ),
             link(
+              Icons.blur_on,
+              'Recalibrate JARVIS',
+              'Re-run the setup wizard: targets, program, routine',
+              AppPaths.onboarding,
+              AppColors.brandAlt,
+            ),
+            link(
               Icons.notifications_none,
               'Notifications',
               'Reminders, quiet hours',

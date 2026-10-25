@@ -14,6 +14,7 @@ import '../application/train_providers.dart';
 import '../domain/running_models.dart';
 import '../domain/strength_analytics.dart';
 import '../domain/strength_models.dart';
+import '../../onboarding/presentation/program_screen.dart';
 import 'log_workout_screen.dart';
 import 'widgets/strava_branding.dart';
 import 'widgets/sync_status.dart';
@@ -47,7 +48,7 @@ class TrainScreen extends ConsumerWidget {
       if (Env.hasStrava && isConnected(strava)) await controller.syncStrava();
     }
 
-    final children = <Widget>[];
+    final children = <Widget>[const PlannedSessionCard()];
     if (workoutsAsync.isLoading || cardioAsync.isLoading) {
       children.add(const LoadingState());
     } else if (workoutsAsync.hasError || cardioAsync.hasError) {

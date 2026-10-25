@@ -10,6 +10,7 @@ import '../../../core/util/redact.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../onboarding/presentation/meal_ideas_sheet.dart';
 import '../application/providers.dart';
 import '../data/mappers.dart';
 import '../domain/food_models.dart';
@@ -89,6 +90,13 @@ class NutritionScreen extends ConsumerWidget {
               error: (e, _) => [ErrorState(message: redactSecrets('$e'))],
               data: (t) => [
                 _SummaryCard(totals: totals, targets: t),
+                if (date == today) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  MealIdeasCard(
+                    kcalLeft: t.calories - totals.total.calories,
+                    proteinLeft: t.protein - totals.total.protein,
+                  ),
+                ],
                 if (totals.estimateCount > 0) ...[
                   const SizedBox(height: AppSpacing.md),
                   NoticeBanner(

@@ -7,6 +7,8 @@ import '../features/health/routes.dart';
 import '../features/integrations/routes.dart';
 import '../features/life/routes.dart';
 import '../features/nutrition/routes.dart';
+import '../features/onboarding/application/persona_providers.dart';
+import '../features/onboarding/routes.dart';
 import '../features/planning/routes.dart';
 import '../features/today/routes.dart';
 import '../features/train/routes.dart';
@@ -16,6 +18,7 @@ import 'shell.dart';
 GoRouter buildRouter({String initialLocation = AppPaths.today}) => GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: initialLocation,
+  redirect: onboardingRedirect,
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => AppShell(shell: shell),
@@ -36,6 +39,7 @@ GoRouter buildRouter({String initialLocation = AppPaths.today}) => GoRouter(
     ...integrationsRoutes,
     ...planningRoutes,
     ...assistantRoutes,
+    ...onboardingRoutes,
   ],
 );
 

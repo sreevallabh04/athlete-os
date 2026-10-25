@@ -39,4 +39,7 @@ abstract final class AppPaths {
   static const assistantSettings = '/assistant/settings';
   static const assistantAudit = '/assistant/audit';
   static const capabilities = '/settings/capabilities';
+  static const onboarding = '/onboarding';
+  static const program = '/train/program';
+  static const routine = '/routine';
 }
