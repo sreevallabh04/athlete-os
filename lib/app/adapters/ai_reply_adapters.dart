@@ -28,8 +28,9 @@ class AiReplyDrafter implements ReplyDrafter {
 
   @override
   Future<DraftResult> draft(DraftRequest request) async {
-    if (!isConfigured)
+    if (!isConfigured) {
       return const DraftResult.unavailable(aiUnavailableMessage);
+    }
     try {
       final out = await _ai.structured(
         system: _systemPrompt(request),
