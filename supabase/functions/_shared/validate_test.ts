@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
-import { clamp, LIMITS, readBodyLimited, validateChatRequest } from "./validate.ts";
+import { clamp, LIMITS, MAX_IMAGE_BASE64_CHARS, readBodyLimited, validateChatRequest } from "./validate.ts";
 import { conversation, WEATHER_TOOL } from "./testing.ts";
 
 const valid = () => ({
@@ -102,4 +102,38 @@ Deno.test("readBodyLimited enforces the byte limit", async () => {
   assertEquals(await readBodyLimited(small, 10), "hello");
   const big = new Request("http://x", { method: "POST", body: "x".repeat(11) });
   assertEquals(await readBodyLimited(big, 10), null);
+});
+
+Deno.test("validate: image blocks (user only, media type, base64, size, count)", () => {
+  const img = { type: "image", media_type: "image/jpeg", data: "/9j/4AAQSkZJRg==" };
+  const ok = valid();
+  (ok.messages[0].content as unknown[]).push(img);
+  const r = validateChatRequest(ok);
+  assert(r.ok);
+  if (r.ok) assertEquals(r.value.messages[0].content[1], img as never);
+
+  const asst = valid();
+  (asst.messages[1].content as unknown[]).push(img);
+  expectInvalid(asst, "messages[1].content[3].type");
+  const gif = valid();
+  (gif.messages[0].content as unknown[]).push({ ...img, media_type: "image/gif" });
+  expectInvalid(gif, "messages[0].content[1].media_type");
+  const dataUrl = valid();
+  (dataUrl.messages[0].content as unknown[]).push({ ...img, data: "data:image/jpeg;base64,AAAA" });
+  expectInvalid(dataUrl, "messages[0].content[1].data");
+  const big = valid();
+  (big.messages[0].content as unknown[]).push({ ...img, data: "A".repeat(MAX_IMAGE_BASE64_CHARS + 4) });
+  expectInvalid(big, "messages[0].content[1].data");
+  const two = valid();
+  (two.messages[0].content as unknown[]).push(img, img);
+  expectInvalid(two, "messages");
+});
+
+Deno.test("validate: groq is a valid provider id", () => {
+  const b = valid();
+  b.preferences.primary_provider = "groq";
+  b.preferences.fallback_providers = ["gemini"];
+  const r = validateChatRequest(b);
+  assert(r.ok);
+  if (r.ok) assertEquals(r.value.preferences.primary_provider, "groq");
 });

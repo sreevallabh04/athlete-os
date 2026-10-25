@@ -431,3 +431,59 @@ Deno.test("breaker registry persists snapshots", async () => {
   t += 60_000;
   assertEquals(fresh.state, "half_open");
 });
+
+Deno.test("fallback: request_too_large -> next provider, no retry, no key or breaker penalty", async () => {
+  const { promise, calls, health, breakers } = run({
+    "anthropic/primary": [fail("anthropic", { status: 413, kind: "request_too_large", message: "Request too large" })],
+    "openai/primary": [OK],
+  });
+  const r = await promise;
+  assert(r.ok);
+  assertEquals(r.provider, "openai");
+  assertEquals(calls, ["anthropic/primary", "openai/primary"]);
+  assertEquals(await health.get("anthropic", "primary"), null);
+  assertEquals((await breakers.get("anthropic")).snapshot().consecutive_failures, 0);
+});
+
+Deno.test("fallback: request_too_large on the last provider -> upstream_error", async () => {
+  const { promise } = run({
+    "anthropic/primary": [fail("anthropic", { status: 401, kind: "invalid_credential" })],
+    "anthropic/secondary": [fail("anthropic", { status: 401, kind: "invalid_credential" })],
+    "openai/primary": [fail("openai", { status: 413, kind: "request_too_large", message: "Request too large" })],
+  });
+  const r = await promise;
+  assertFalse(r.ok);
+  if (!r.ok) {
+    assertEquals(r.code, "upstream_error");
+    assert(r.message.includes("too large"));
+  }
+});
+
+Deno.test("fallback: a hanging primary leaves the reserve for the next provider", async () => {
+  const clock = fakeClock();
+  const timeouts: number[] = [];
+  const s = {
+    invoke: (p: ProviderPlan, _c: Credential, timeoutMs: number): Promise<CallResult> => {
+      timeouts.push(timeoutMs);
+      if (p.provider === "anthropic") {
+        clock.t += timeoutMs; // hangs until its timeout
+        return Promise.resolve(fail("anthropic", { status: 0, kind: "transient", code: "timeout" }));
+      }
+      return Promise.resolve(OK);
+    },
+  };
+  const r = await runWithFallback({
+    plan,
+    credentials: creds,
+    health: new InMemoryHealthStore(),
+    breakers: new BreakerRegistry(new InMemoryBreakerStore(), { now: clock.now }),
+    attemptsPerCredential: 3,
+    deadlineAt: clock.now() + 45_000,
+    clock,
+    invoke: s.invoke,
+  });
+  assert(r.ok);
+  assertEquals(r.provider, "openai");
+  assertEquals(timeouts[0], 30_000);
+  assertEquals(timeouts[timeouts.length - 1], 15_000);
+});

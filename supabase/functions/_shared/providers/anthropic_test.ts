@@ -134,3 +134,17 @@ Deno.test("anthropic errors: non-JSON body falls back to text", () => {
   assertEquals(classifyError(e), "transient");
   assert(e.message.includes("Bad gateway"));
 });
+
+Deno.test("anthropic request: image block -> base64 image source", () => {
+  const body = JSON.parse(String(anthropicAdapter.buildRequest({
+    model: "m",
+    system: "",
+    messages: [{ role: "user", content: [{ type: "image", media_type: "image/png", data: "iVBO" }] }],
+    tools: [],
+    maxTokens: 256,
+  }, "k").init.body));
+  assertEquals(body.messages[0].content[0], {
+    type: "image",
+    source: { type: "base64", media_type: "image/png", data: "iVBO" },
+  });
+});

@@ -111,3 +111,13 @@ Deno.test("month start is the first day of the UTC month", () => {
   assertEquals(monthStartUtc(new Date("2026-10-25T23:59:00-05:00")).toISOString(), "2026-10-01T00:00:00.000Z");
   assertEquals(monthStartUtc(new Date("2026-11-01T00:30:00+02:00")).toISOString(), "2026-10-01T00:00:00.000Z");
 });
+
+Deno.test("pricing: groq models priced and inferred; cheapest prefers the default on ties", () => {
+  assertAlmostEquals(costUsd("openai/gpt-oss-120b", { input_tokens: 1_000_000, output_tokens: 1_000_000 }), 0.75);
+  assertEquals(providerForModel("openai/gpt-oss-120b", env()), "groq");
+  assertEquals(cheapestModel("groq", env()), "openai/gpt-oss-20b");
+  assertEquals(cheapestModel("gemini", env({ AI_DEFAULT_MODEL_GEMINI: "gemini-3.6-flash" })), "gemini-3.6-flash");
+  assertEquals(cheapestModel("gemini", env()), "gemini-3.8-flash");
+  const t = loadPriceTable(env({ AI_PRICE_TABLE_JSON: '{"llama-3.3-70b-versatile":{"in":0.59,"out":0.79}}' }));
+  assertEquals(t["llama-3.3-70b-versatile"].provider, "groq");
+});

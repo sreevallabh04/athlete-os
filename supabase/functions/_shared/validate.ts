@@ -12,6 +12,11 @@ import { isPlainObject } from "./providers/util.ts";
 
 export const LIMITS = {
   bodyBytes: 256 * 1024,
+  /** Body limit when the request carries an image block. */
+  bodyBytesWithImage: 1_600 * 1024,
+  /** Decoded bytes per image (client downscales JPEGs to fit). */
+  imageBytes: 1024 * 1024,
+  imagesPerRequest: 1,
   messages: 60,
   blocksPerMessage: 40,
   textChars: 16_000,
@@ -28,6 +33,10 @@ export const LIMITS = {
 
 export const TOOL_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 export const REQUEST_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
+export const IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+/** Max base64 length for LIMITS.imageBytes decoded bytes. */
+export const MAX_IMAGE_BASE64_CHARS = 4 * Math.ceil(LIMITS.imageBytes / 3);
 
 export type ValidationResult =
   | { ok: true; value: ChatRequest }
@@ -60,6 +69,23 @@ function block(v: unknown, role: NormalisedMessage["role"], path: string): Block
   switch (b.type) {
     case "text":
       return { type: "text", text: str(b.text, `${path}.text`, LIMITS.textChars) };
+    case "image": {
+      if (role !== "user") throw new Invalid(`${path}.type`, "image blocks are only allowed in user messages");
+      const mt = b.media_type;
+      if (typeof mt !== "string" || !(IMAGE_MEDIA_TYPES as readonly string[]).includes(mt)) {
+        throw new Invalid(`${path}.media_type`, "must be image/jpeg, image/png or image/webp");
+      }
+      if (typeof b.data !== "string" || b.data.length === 0) {
+        throw new Invalid(`${path}.data`, "must be a non-empty base64 string");
+      }
+      if (b.data.length > MAX_IMAGE_BASE64_CHARS) {
+        throw new Invalid(`${path}.data`, `must decode to at most ${LIMITS.imageBytes} bytes`);
+      }
+      if (b.data.length % 4 !== 0 || !BASE64_RE.test(b.data)) {
+        throw new Invalid(`${path}.data`, "must be standard base64 without a data: prefix");
+      }
+      return { type: "image", media_type: mt as (typeof IMAGE_MEDIA_TYPES)[number], data: b.data };
+    }
     case "tool_call": {
       if (role !== "assistant") {
         throw new Invalid(`${path}.type`, "tool_call blocks are only allowed in assistant messages");
@@ -99,11 +125,11 @@ function block(v: unknown, role: NormalisedMessage["role"], path: string): Block
       if (role !== "assistant") {
         throw new Invalid(`${path}.type`, "opaque blocks are only allowed in assistant messages");
       }
-      if (!isProviderId(b.provider)) throw new Invalid(`${path}.provider`, "must be anthropic, openai or gemini");
+      if (!isProviderId(b.provider)) throw new Invalid(`${path}.provider`, "must be anthropic, openai, gemini or groq");
       return { type: "opaque", provider: b.provider, data: obj(b.data, `${path}.data`) };
     }
     default:
-      throw new Invalid(`${path}.type`, "must be text, tool_call, tool_result or opaque");
+      throw new Invalid(`${path}.type`, "must be text, image, tool_call, tool_result or opaque");
   }
 }
 
@@ -123,6 +149,10 @@ function messages(v: unknown): NormalisedMessage[] {
     }
     return { role, content: o.content.map((b, j) => block(b, role, `${path}.content[${j}]`)) };
   });
+  const images = out.reduce((n, m) => n + m.content.filter((b) => b.type === "image").length, 0);
+  if (images > LIMITS.imagesPerRequest) {
+    throw new Invalid("messages", `must contain at most ${LIMITS.imagesPerRequest} image(s)`);
+  }
   if (out[out.length - 1].role !== "user") {
     throw new Invalid(`messages[${out.length - 1}].role`, "the last message must be a user message");
   }
@@ -162,7 +192,7 @@ function optNumber(v: unknown, path: string): number | null {
 
 function optProvider(v: unknown, path: string): ProviderId | null {
   if (v === undefined || v === null) return null;
-  if (!isProviderId(v)) throw new Invalid(path, "must be anthropic, openai or gemini");
+  if (!isProviderId(v)) throw new Invalid(path, "must be anthropic, openai, gemini or groq");
   return v;
 }
 
@@ -198,6 +228,10 @@ function preferences(v: unknown): ChatPreferences {
     max_retries: optNumber(o.max_retries, "preferences.max_retries"),
     monthly_budget_usd: budget,
   };
+}
+
+export function hasImage(req: ChatRequest): boolean {
+  return req.messages.some((m) => m.content.some((b) => b.type === "image"));
 }
 
 /** Validates an already size-checked, JSON-parsed body. */

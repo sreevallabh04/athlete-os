@@ -16,7 +16,7 @@ keeps working. Detailed setup lives in `docs/integrations/`.
 | Google Calendar | `google_sign_in` 7 + Calendar API v3 | No | Google Cloud project, Calendar API enabled, OAuth consent (Testing), Android + Web client IDs | Free | [google-calendar.md](integrations/google-calendar.md) |
 | Open Food Facts | Public API v3 / search | **Yes** | Optional contact email for the User-Agent | Free (ODbL attribution) | [food-data.md](integrations/food-data.md) |
 | USDA FoodData Central | Public API | No | Free data.gov API key | Free | [food-data.md](integrations/food-data.md) |
-| AI providers (Anthropic / OpenAI / Gemini) | Supabase Edge Function `ai-chat` | No | Supabase project + at least one provider API key as a server secret | **Pay per token** (budget-capped) | [AI_AGENT.md](AI_AGENT.md) |
+| AI providers — **live**: Gemini (primary, `gemini-3.6-flash`) → Groq (fallback, `openai/gpt-oss-120b`); Anthropic / OpenAI supported but not configured | Supabase Edge Functions `ai-chat` / `ai-status` on project `gbvtlzkcqjligajsnoll` (Mumbai) | No (anonymous sign-in is automatic) | Done: keys are server secrets, one secondary Gemini key for failover only | Free tiers today; **pay per token** on paid tiers (global cap $10/month) | [AI_AGENT.md](AI_AGENT.md), [BACKEND_DEPLOY.md](BACKEND_DEPLOY.md) |
 | Messaging assistant (WhatsApp, SMS, …) | Android NotificationListenerService + notification reply actions | Needs notification access | Grant notification access; per-app enable | AI drafting uses the AI provider (paid) | [MESSAGING_ASSISTANT.md](MESSAGING_ASSISTANT.md) |
 
 ## Policy constraints that shape the design

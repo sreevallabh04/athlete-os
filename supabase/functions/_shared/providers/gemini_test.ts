@@ -237,3 +237,22 @@ Deno.test("gemini errors: invalid key, permission denied, unavailable, bad reque
   );
   assert(gerr(400, { message: "x" }).message === "x");
 });
+
+Deno.test("gemini request: image block -> inlineData part", () => {
+  const body = bodyOf(
+    geminiAdapter.buildRequest(
+      input([{
+        role: "user",
+        content: [
+          { type: "text", text: "What is on this plate?" },
+          { type: "image", media_type: "image/jpeg", data: "/9j/AAAA" },
+        ],
+      }]),
+      "k",
+    ).init,
+  );
+  assertEquals(body.contents, [{
+    role: "user",
+    parts: [{ text: "What is on this plate?" }, { inlineData: { mimeType: "image/jpeg", data: "/9j/AAAA" } }],
+  }]);
+});

@@ -92,8 +92,16 @@ Deno.serve(async (req) => {
     const clientSecret = Deno.env.get("STRAVA_CLIENT_SECRET");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!clientId || !clientSecret || !supabaseUrl || !serviceKey) {
-      return fail(500, "server_not_configured");
+    if (!clientId || !clientSecret) {
+      // Code kept stable for the app (StravaAuth maps it to "awaiting credentials").
+      return fail(
+        500,
+        "server_not_configured",
+        "Strava is not configured on the server (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET are unset).",
+      );
+    }
+    if (!supabaseUrl || !serviceKey) {
+      return fail(500, "server_not_configured", "Supabase environment is incomplete.");
     }
     const allowedRedirect = Deno.env.get("STRAVA_ALLOWED_REDIRECT") ?? "athleteos://localhost/strava";
 

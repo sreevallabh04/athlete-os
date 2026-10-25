@@ -90,7 +90,7 @@ Deno.test("ai-status: status shape without key material", async () => {
   const text = await r.text();
   assertFalse(text.includes("STATUSKEY"));
   const j = JSON.parse(text);
-  assertEquals(j.provider_order, ["anthropic", "openai", "gemini"]);
+  assertEquals(j.provider_order, ["anthropic", "openai", "gemini", "groq"]);
   assertEquals(j.limits, {
     max_tokens: [256, 16000],
     timeout_ms: [5000, 120000],

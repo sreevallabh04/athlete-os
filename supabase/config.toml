@@ -10,3 +10,22 @@ verify_jwt = true
 
 [functions.ai-status]
 verify_jwt = true
+
+[functions.strava-oauth]
+verify_jwt = true
+
+# Auth settings applied to the hosted project via the Management API
+# (PATCH /v1/projects/{ref}/config/auth, see docs/BACKEND_DEPLOY.md) and
+# mirrored here for `supabase start`. We deliberately do NOT use
+# `supabase config push` against production: it would also push every
+# unspecified [auth] default.
+[auth]
+site_url = "athleteos://localhost/auth"
+additional_redirect_urls = ["athleteos://localhost/**"]
+enable_anonymous_sign_ins = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+otp_length = 6
+otp_expiry = 600

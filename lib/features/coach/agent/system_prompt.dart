@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/time/clock.dart';
 import '../../../data/db/database.dart';
 import '../../../data/repositories/settings_repository.dart';
+import '../data/ai_preferences.dart' show AiSettingKeys, resolvePersona;
 import '../tools/life_tools.dart' show activeRestrictions;
 import '../tools/nutrition_tools.dart' show loadProfile;
 
@@ -20,6 +21,7 @@ class SystemPromptInputs {
     this.restrictions = const [],
     this.healthConsent = false,
     this.journalConsent = false,
+    this.persona = '',
   });
 
   final DateTime now;
@@ -29,6 +31,10 @@ class SystemPromptInputs {
   final List<HealthRestriction> restrictions;
   final bool healthConsent;
   final bool journalConsent;
+
+  /// Persona text (see `defaultAiPersona`); empty = plain coach voice.
+  /// Persona never overrides the rules below.
+  final String persona;
 }
 
 const maxPromptMemories = 20;
@@ -52,11 +58,23 @@ List<String> _jsonList(String json) {
 String buildSystemPrompt(SystemPromptInputs i) {
   final p = i.profile;
   final style = p?.coachingStyle ?? 'direct';
-  final b = StringBuffer()
-    ..writeln(
+  final persona = i.persona.trim();
+  final b = StringBuffer();
+  if (persona.isEmpty) {
+    b.writeln(
       'You are Athlete OS Coach, a friendly personal fitness, nutrition and '
       'well-being coach inside the user\'s app. ${_styleLine(style)}',
-    )
+    );
+  } else {
+    b
+      ..writeln('Persona:')
+      ..writeln(persona)
+      ..writeln(
+        'Coaching style within the persona: ${_styleLine(style)} The persona '
+        'sets tone only; the rules below always take precedence.',
+      );
+  }
+  b
     ..writeln()
     ..writeln('Rules:')
     ..writeln(
@@ -181,6 +199,7 @@ Future<SystemPromptInputs> loadSystemPromptInputs(
             ..limit(maxPromptMemories))
           .get();
   return SystemPromptInputs(
+    persona: resolvePersona(await settings.get<String>(AiSettingKeys.persona)),
     now: now,
     tzName: now.timeZoneName,
     profile: await loadProfile(db),

@@ -108,6 +108,9 @@ export function mapGeminiContents(messages: NormalisedMessage[]): GeminiContent[
         case "text":
           if (b.text.length > 0) parts.push({ text: b.text });
           break;
+        case "image":
+          if (m.role === "user") parts.push({ inlineData: { mimeType: b.media_type, data: b.data } });
+          break;
         case "tool_call": {
           if (m.role !== "assistant") break;
           const fc: JsonObject = { name: b.name, args: b.arguments ?? {} };

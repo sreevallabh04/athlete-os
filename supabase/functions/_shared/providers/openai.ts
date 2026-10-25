@@ -34,6 +34,10 @@ export function mapOpenAIInput(messages: NormalisedMessage[]): JsonObject[] {
           if (b.text.length === 0) break;
           parts.push({ type: m.role === "user" ? "input_text" : "output_text", text: b.text });
           break;
+        case "image":
+          if (m.role !== "user") break;
+          parts.push({ type: "input_image", image_url: `data:${b.media_type};base64,${b.data}` });
+          break;
         case "tool_call":
           if (m.role !== "assistant") break;
           flush();

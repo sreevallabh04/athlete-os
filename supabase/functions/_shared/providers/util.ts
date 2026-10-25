@@ -61,6 +61,9 @@ export function parseRetryAfterHeader(
   return undefined;
 }
 
+/** Sent instead of pixels to providers that cannot take image input. */
+export const IMAGE_PLACEHOLDER = "[Image omitted: this AI provider cannot view images.]";
+
 export function truncate(text: string, max = 500): string {
   return text.length <= max ? text : `${text.slice(0, max)}…`;
 }

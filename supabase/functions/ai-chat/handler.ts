@@ -15,7 +15,13 @@ import {
 import { type Credential, defaultModel, loadCredentials, providerOrder } from "../_shared/credentials.ts";
 import { errorResponse, handleOptions, jsonResponse } from "../_shared/http.ts";
 import { callProvider, getAdapter } from "../_shared/providers/call.ts";
-import type { ChatRequest, EnvFn, ProviderId, ProviderInput } from "../_shared/providers/types.ts";
+import {
+  type ChatRequest,
+  type EnvFn,
+  IMAGE_CAPABLE_PROVIDERS,
+  type ProviderId,
+  type ProviderInput,
+} from "../_shared/providers/types.ts";
 import { checkRateLimit, rateLimitPerMin, type RateLimitStore } from "../_shared/ratelimit.ts";
 import { redactAll } from "../_shared/redact.ts";
 import {
@@ -35,7 +41,7 @@ import {
   type UserSettings,
   type UserSettingsStore,
 } from "../_shared/stores.ts";
-import { clamp, LIMITS, readBodyLimited, validateChatRequest } from "../_shared/validate.ts";
+import { clamp, hasImage, LIMITS, readBodyLimited, validateChatRequest } from "../_shared/validate.ts";
 
 export interface ChatDeps {
   env: EnvFn;
@@ -125,8 +131,11 @@ export function createChatHandler(deps: ChatDeps): (req: Request) => Promise<Res
     let requestId: string | undefined;
     try {
       // ---- parse & validate -------------------------------------------------
-      const raw = await readBodyLimited(req);
-      if (raw === null) return errorResponse("invalid_request", `Request body exceeds ${LIMITS.bodyBytes} bytes.`);
+      // Read up to the image limit; text-only bodies are held to LIMITS.bodyBytes below.
+      const raw = await readBodyLimited(req, LIMITS.bodyBytesWithImage);
+      if (raw === null) {
+        return errorResponse("invalid_request", `Request body exceeds ${LIMITS.bodyBytesWithImage} bytes.`);
+      }
       let body: unknown;
       try {
         body = JSON.parse(raw);
@@ -137,6 +146,9 @@ export function createChatHandler(deps: ChatDeps): (req: Request) => Promise<Res
       if (!v.ok) return errorResponse("invalid_request", v.message);
       const chat = v.value;
       requestId = chat.request_id;
+      if (!hasImage(chat) && new TextEncoder().encode(raw).length > LIMITS.bodyBytes) {
+        return errorResponse("invalid_request", `Request body exceeds ${LIMITS.bodyBytes} bytes.`);
+      }
 
       // ---- idempotency ------------------------------------------------------
       const cached = await deps.cache.get(chat.request_id);
@@ -197,7 +209,12 @@ export function createChatHandler(deps: ChatDeps): (req: Request) => Promise<Res
       // ---- provider plan ----------------------------------------------------
       const table = loadPriceTable(deps.env);
       const s = resolveSettings(chat, stored);
-      const plan = buildPlan(deps.env, credentials, s.primary, s.fallback, s.model, table);
+      const withImage = hasImage(chat);
+      const plan = buildPlan(deps.env, credentials, s.primary, s.fallback, s.model, table)
+        .filter((p) => !withImage || IMAGE_CAPABLE_PROVIDERS.includes(p.provider));
+      if (plan.length === 0) {
+        return errorResponse("no_provider_configured", "No configured AI provider can analyse images.");
+      }
       const totalDeadlineMs = Math.min(
         s.timeoutMs,
         Number(deps.env("AI_TOTAL_DEADLINE_MS")) > 0 ? Number(deps.env("AI_TOTAL_DEADLINE_MS")) : DEFAULT_DEADLINE_MS,

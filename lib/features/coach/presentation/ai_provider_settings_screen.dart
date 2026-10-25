@@ -48,6 +48,8 @@ class AiProviderSettingsScreen extends ConsumerWidget {
         ],
         const SectionHeader('Preferences', subtitle: 'Sent with each request'),
         const _PreferencesSection(),
+        const SectionHeader('Persona', subtitle: 'How the assistant speaks'),
+        const _PersonaSection(),
         const SectionHeader('Privacy & consent'),
         const _ConsentSection(),
         const SectionHeader('Costs'),
@@ -94,6 +96,59 @@ class _BackendSectionState extends ConsumerState<_BackendSection> {
     }
   }
 
+  Future<void> _setAutoAnonymous(bool v) =>
+      ref.read(settingsRepositoryProvider).set(autoAnonymousSignInKey, v);
+
+  List<Widget> _emailForm(CoachAuth auth, {required bool linking}) => [
+    TextField(
+      controller: _email,
+      keyboardType: TextInputType.emailAddress,
+      decoration: const InputDecoration(labelText: 'Email'),
+    ),
+    if (_codeSent)
+      TextField(
+        controller: _code,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'Code from the email'),
+      ),
+    const SizedBox(height: AppSpacing.sm),
+    Wrap(
+      spacing: AppSpacing.sm,
+      children: [
+        OutlinedButton(
+          onPressed: _working
+              ? null
+              : () => _run(
+                  () async {
+                    if (!_email.text.contains('@')) {
+                      throw StateError('Enter a valid email address.');
+                    }
+                    await auth.sendEmailCode(_email.text);
+                    _codeSent = true;
+                  },
+                  success: linking
+                      ? 'Check your email: enter the code, or open the link '
+                            'in the email to confirm it.'
+                      : 'Check your email for a sign-in code.',
+                ),
+          child: Text(_codeSent ? 'Resend code' : 'Email me a code'),
+        ),
+        if (_codeSent)
+          FilledButton(
+            onPressed: _working
+                ? null
+                : () => _run(() async {
+                    await auth.verifyEmailCode(_email.text, _code.text);
+                    await _setAutoAnonymous(true);
+                    _codeSent = false;
+                    _code.clear();
+                  }, success: linking ? 'Email linked.' : null),
+            child: const Text('Verify'),
+          ),
+      ],
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(coachAuthProvider);
@@ -123,7 +178,8 @@ class _BackendSectionState extends ConsumerState<_BackendSection> {
             ...[
               '1. Create a Supabase project and run `supabase db push`.',
               '2. Set provider keys as function secrets (e.g. '
-                  'ANTHROPIC_API_KEY) and deploy ai-chat and ai-status.',
+                  'GEMINI_API_KEY, GROQ_API_KEY) and deploy ai-chat and '
+                  'ai-status.',
               '3. Enable Anonymous and/or Email sign-in in Supabase Auth.',
               '4. Put SUPABASE_URL and SUPABASE_ANON_KEY in config/dev.json '
                   'and run with --dart-define-from-file=config/dev.json.',
@@ -185,11 +241,28 @@ class _BackendSectionState extends ConsumerState<_BackendSection> {
                   child: const Text('Refresh status'),
                 ),
                 TextButton(
-                  onPressed: _working ? null : () => _run(auth.signOut),
+                  onPressed: _working
+                      ? null
+                      : () => _run(() async {
+                          // An explicit sign-out also stops the automatic
+                          // anonymous sign-in on the next launch.
+                          await _setAutoAnonymous(false);
+                          await auth.signOut();
+                        }),
                   child: const Text('Sign out'),
                 ),
               ],
             ),
+            if (authState.isAnonymous) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text('Link an email (optional)', style: t.titleSmall),
+              Text(
+                'Keeps this same account and its history if you reinstall or '
+                'switch phones.',
+                style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              ..._emailForm(auth, linking: true),
+            ],
             if (_message != null) Text(_message!, style: t.bodySmall),
           ],
         ),
@@ -210,50 +283,16 @@ class _BackendSectionState extends ConsumerState<_BackendSection> {
           ),
           const SizedBox(height: AppSpacing.md),
           FilledButton.tonal(
-            onPressed: _working ? null : () => _run(auth.signInAnonymously),
+            onPressed: _working
+                ? null
+                : () => _run(() async {
+                    await _setAutoAnonymous(true);
+                    await auth.signInAnonymously();
+                  }),
             child: const Text('Continue anonymously'),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email'),
-          ),
-          if (_codeSent)
-            TextField(
-              controller: _code,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Code from the email',
-              ),
-            ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: [
-              OutlinedButton(
-                onPressed: _working
-                    ? null
-                    : () => _run(() async {
-                        if (!_email.text.contains('@')) {
-                          throw StateError('Enter a valid email address.');
-                        }
-                        await auth.sendEmailCode(_email.text);
-                        _codeSent = true;
-                      }, success: 'Check your email for a sign-in code.'),
-                child: Text(_codeSent ? 'Resend code' : 'Email me a code'),
-              ),
-              if (_codeSent)
-                FilledButton(
-                  onPressed: _working
-                      ? null
-                      : () => _run(
-                          () => auth.verifyEmailCode(_email.text, _code.text),
-                        ),
-                  child: const Text('Verify'),
-                ),
-            ],
-          ),
+          ..._emailForm(auth, linking: false),
           if (_message != null)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
@@ -322,7 +361,7 @@ class _ProvidersSectionState extends ConsumerState<_ProvidersSection> {
             icon: Icons.key_off_outlined,
             title: 'No provider keys configured',
             message:
-                'Set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY '
+                'Set GEMINI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY '
                 'as Supabase function secrets.',
             compact: true,
           );
@@ -694,6 +733,95 @@ class _PreferencesSectionState extends ConsumerState<_PreferencesSection> {
 }
 
 // ---------------------------------------------------------------------------
+
+class _PersonaSection extends ConsumerStatefulWidget {
+  const _PersonaSection();
+  @override
+  ConsumerState<_PersonaSection> createState() => _PersonaSectionState();
+}
+
+class _PersonaSectionState extends ConsumerState<_PersonaSection> {
+  final _ctrl = TextEditingController();
+  bool _loaded = false;
+  String? _saved;
+
+  @override
+  void initState() {
+    super.initState();
+    ref
+        .read(settingsRepositoryProvider)
+        .get<String>(AiSettingKeys.persona)
+        .then((v) {
+          if (!mounted) return;
+          setState(() {
+            _ctrl.text = resolvePersona(v);
+            _loaded = true;
+          });
+        });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(String? value, String message) async {
+    await ref
+        .read(settingsRepositoryProvider)
+        .set(AiSettingKeys.persona, value);
+    if (!mounted) return;
+    setState(() {
+      _ctrl.text = resolvePersona(value);
+      _saved = message;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Sets the coach's name, tone and how it addresses you. Safety "
+            'rules always apply. Leave empty for the plain coach voice.',
+            style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _ctrl,
+            enabled: _loaded,
+            minLines: 3,
+            maxLines: 8,
+            maxLength: maxPersonaChars,
+            decoration: const InputDecoration(labelText: 'Persona'),
+          ),
+          Wrap(
+            spacing: AppSpacing.sm,
+            children: [
+              FilledButton.tonal(
+                onPressed: !_loaded
+                    ? null
+                    : () => _save(_ctrl.text.trim(), 'Persona saved.'),
+                child: const Text('Save'),
+              ),
+              TextButton(
+                onPressed: !_loaded
+                    ? null
+                    : () => _save(null, 'Reset to JARVIS.'),
+                child: const Text('Reset to JARVIS'),
+              ),
+            ],
+          ),
+          if (_saved != null) Text(_saved!, style: t.bodySmall),
+        ],
+      ),
+    );
+  }
+}
 
 class _ConsentSection extends ConsumerWidget {
   const _ConsentSection();
