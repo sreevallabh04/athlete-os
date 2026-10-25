@@ -22,9 +22,17 @@ import 'widgets/common.dart';
 /// unmatched is listed as "needs lookup". AI estimation is an explicit,
 /// clearly-labelled fallback that requires confirmation per item.
 class DescribeMealScreen extends ConsumerStatefulWidget {
-  const DescribeMealScreen({super.key, required this.meal, required this.date});
+  const DescribeMealScreen({
+    super.key,
+    required this.meal,
+    required this.date,
+    this.initialText,
+  });
   final MealType meal;
   final String date;
+
+  /// Pre-filled description, e.g. text shared into the app.
+  final String? initialText;
 
   @override
   ConsumerState<DescribeMealScreen> createState() => _DescribeMealScreenState();
@@ -43,7 +51,7 @@ class _EstimateRow {
 }
 
 class _DescribeMealScreenState extends ConsumerState<DescribeMealScreen> {
-  final _ctrl = TextEditingController();
+  late final _ctrl = TextEditingController(text: widget.initialText ?? '');
   late MealType _meal = widget.meal;
   List<_Row> _rows = const [];
   Map<String, Food> _foodsById = const {};

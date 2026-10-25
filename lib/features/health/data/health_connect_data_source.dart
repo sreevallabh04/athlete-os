@@ -222,8 +222,12 @@ class HealthConnectDataSource implements HealthDataSource {
   Future<bool> openSettings() async {
     if (!_isAndroid) return false;
     try {
-      final ok = await _settingsChannel.invokeMethod<bool>('openSettings');
-      return ok ?? false;
+      // Native side returns the route that worked (e.g. 'hc_settings_action',
+      // 'play_store') or null when nothing could be opened.
+      final route = await _settingsChannel.invokeMethod<Object?>(
+        'openSettings',
+      );
+      return route != null && route != false;
     } on MissingPluginException {
       return false;
     } catch (e) {

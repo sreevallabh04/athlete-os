@@ -26,13 +26,22 @@ import 'widgets/food_tiles.dart';
 
 /// Add food: Search · Recent · Favorites · My foods · Meals · Quick add.
 class AddFoodScreen extends ConsumerStatefulWidget {
-  const AddFoodScreen({super.key, this.initialMeal, this.initialDate});
+  const AddFoodScreen({
+    super.key,
+    this.initialMeal,
+    this.initialDate,
+    this.initialQuery,
+  });
 
   /// From the `meal` query parameter (breakfast|lunch|dinner|snack).
   final String? initialMeal;
 
   /// From the `date` query parameter (YYYY-MM-DD).
   final String? initialDate;
+
+  /// From the `q` query parameter: free text (e.g. shared from another app)
+  /// that opens the describe-meal parser pre-filled.
+  final String? initialQuery;
 
   @override
   ConsumerState<AddFoodScreen> createState() => _AddFoodScreenState();
@@ -51,6 +60,18 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
     _date = d != null && RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(d)
         ? d
         : LocalDates.key(now);
+    final q = widget.initialQuery?.trim();
+    if (q != null && q.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                DescribeMealScreen(meal: _meal, date: _date, initialText: q),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _pickDate() async {

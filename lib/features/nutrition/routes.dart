@@ -20,6 +20,7 @@ final nutritionRoutes = <RouteBase>[
     builder: (context, state) => AddFoodScreen(
       initialMeal: state.uri.queryParameters['meal'],
       initialDate: state.uri.queryParameters['date'],
+      initialQuery: state.uri.queryParameters['q'],
     ),
   ),
   GoRoute(
