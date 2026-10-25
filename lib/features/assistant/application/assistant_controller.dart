@@ -1,0 +1,157 @@
+import '../../../data/db/database.dart';
+import '../data/assistant_platform.dart';
+import '../data/assistant_repository.dart';
+import '../domain/assistant_models.dart';
+import '../domain/assistant_settings.dart';
+import '../domain/reply_policy_engine.dart';
+import '../domain/safe_log.dart';
+
+/// Settings mutations that must stay in sync with the native listener
+/// (allowlist + kill switch) and the optional foreground service.
+class AssistantController {
+  AssistantController({required this.repo, required this.platform});
+  final AssistantRepository repo;
+  final AssistantPlatform platform;
+
+  /// Writes the allowlist/kill switch to native SharedPreferences.
+  Future<NativeAssistantConfig> syncNativeConfig() async {
+    final s = await repo.settings();
+    final apps = await repo.apps();
+    final enabled = s.killSwitch || s.mode == AssistantMode.disabled
+        ? <String>[]
+        : [
+            for (final a in apps)
+              if (a.enabled && a.mode != AssistantMode.disabled.key)
+                a.packageName,
+          ];
+    final cfg = NativeAssistantConfig(
+      killSwitch: s.killSwitch,
+      enabledPackages: enabled..sort(),
+      retentionDays: s.defaultRetentionDays,
+    );
+    await platform.setConfig(cfg);
+    safeLog('native_config', {
+      'enabled': !s.killSwitch,
+      'count': cfg.enabledPackages.length,
+    });
+    return cfg;
+  }
+
+  /// Emergency stop: no capture, no drafts, no sends, native listener told
+  /// to ignore everything (and clear its queue), Assistant mode stopped.
+  Future<void> setKillSwitch(bool on) async {
+    await repo.setSetting(AssistantKeys.killSwitch, on);
+    await syncNativeConfig();
+    final s = await repo.settings();
+    if (on) {
+      await platform.stopAssistantService();
+      await platform.clearQueue();
+    } else if (s.serviceEnabled) {
+      await platform.startAssistantService();
+    }
+    await repo.audit(AuditAction.killSwitch, detail: on ? 'on' : 'off');
+    safeLog('kill_switch', {'enabled': on});
+  }
+
+  Future<void> setMode(AssistantMode mode) async {
+    await repo.setSetting(AssistantKeys.mode, mode.key);
+    await syncNativeConfig();
+    await repo.audit(AuditAction.settings, detail: 'global_mode=${mode.key}');
+  }
+
+  Future<void> setAiConsent(bool on) async {
+    await repo.setSetting(AssistantKeys.aiConsent, on);
+    await repo.audit(AuditAction.settings, detail: 'ai_consent=$on');
+  }
+
+  Future<void> setLimits(PolicyLimits limits) async {
+    await repo.setSetting(AssistantKeys.policy, policyLimitsToJson(limits));
+    await repo.audit(AuditAction.settings, detail: 'limits_updated');
+  }
+
+  Future<void> setTone(ToneProfile tone) =>
+      repo.setSetting(AssistantKeys.tone, tone.toJson());
+
+  Future<void> setBriefing(BriefingSettings b) =>
+      repo.setSetting(AssistantKeys.briefing, b.toJson());
+
+  Future<void> setApprovalNotifications(bool on) =>
+      repo.setSetting(AssistantKeys.approvalNotifications, on);
+
+  Future<void> setDefaultRetention(int days) =>
+      repo.setSetting(AssistantKeys.defaultRetentionDays, days.clamp(1, 90));
+
+  /// Opt-in Assistant mode foreground service.
+  Future<bool> setServiceEnabled(bool on) async {
+    await repo.setSetting(AssistantKeys.serviceEnabled, on);
+    final s = await repo.settings();
+    final ok = on && !s.killSwitch
+        ? await platform.startAssistantService()
+        : await platform.stopAssistantService();
+    await repo.audit(AuditAction.settings, detail: 'assistant_service=$on');
+    return ok;
+  }
+
+  Future<void> updateApp(
+    String packageName, {
+    required String appLabel,
+    bool? enabled,
+    AssistantMode? mode,
+    bool? allowAi,
+    int? retentionDays,
+  }) async {
+    await repo.upsertApp(
+      packageName,
+      appLabel: appLabel,
+      enabled: enabled,
+      mode: mode,
+      allowAi: allowAi,
+      retentionDays: retentionDays,
+    );
+    await syncNativeConfig();
+    await repo.audit(
+      AuditAction.settings,
+      packageName: packageName,
+      detail: [
+        if (enabled != null) 'enabled=$enabled',
+        if (mode != null) 'mode=${mode.key}',
+        if (allowAi != null) 'allow_ai=$allowAi',
+        if (retentionDays != null) 'retention=$retentionDays',
+      ].join(';'),
+    );
+  }
+
+  Future<void> updateContact(
+    MessagingContactRule c, {
+    String? rule,
+    String? toneJson,
+    bool clearTone = false,
+    int? maxAutoRepliesPerDay,
+  }) async {
+    await repo.updateContact(
+      c.id,
+      rule: rule,
+      toneJson: toneJson,
+      clearTone: clearTone,
+      maxAutoRepliesPerDay: maxAutoRepliesPerDay,
+    );
+    await repo.audit(
+      AuditAction.settings,
+      packageName: c.packageName,
+      conversationKey: c.conversationKey,
+      detail: [
+        if (rule != null) 'rule=$rule',
+        if (toneJson != null || clearTone) 'tone_updated',
+        if (maxAutoRepliesPerDay != null) 'max_auto=$maxAutoRepliesPerDay',
+      ].join(';'),
+    );
+  }
+
+  /// Deletes every captured message (DB + native queue) and draft text.
+  Future<void> deleteAllCaptured() async {
+    await repo.deleteAllContent();
+    await platform.clearQueue();
+    await repo.audit(AuditAction.settings, detail: 'deleted_all_captured');
+    safeLog('deleted_all_captured');
+  }
+}
