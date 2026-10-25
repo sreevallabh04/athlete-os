@@ -54,14 +54,8 @@ class _NoCompetition extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CompetitionCta(onTap: () => showCompetitionEditor(context)),
-        const SizedBox(height: AppSpacing.lg),
-        const EmptyState(
-          icon: Icons.emoji_events_outlined,
-          title: 'No competition set',
-          message:
-              'Add your event date and timezone to start a countdown, a prep '
-              'timeline, a checklist and weekly progress reviews.',
-        ),
+        const SizedBox(height: AppSpacing.md),
+        const _WhatYouGet(),
         const _SafetyCard(),
       ],
     );
@@ -123,19 +117,17 @@ class _Prep extends ConsumerWidget {
               ),
             ),
           ],
-          const SectionHeader(
-            'Plan',
-            subtitle: 'Milestones and prep checklist',
-          ),
+          const SectionHeader('Plan', accent: AppColors.gold),
           MilestonesSection(view: view),
         ];
         final right = <Widget>[
           const SectionHeader(
-            'Weekly progress review',
-            subtitle: 'Computed from your logged and synced data',
+            'Weekly review',
+            subtitle: 'From your logged data',
+            accent: AppColors.gold,
           ),
           const ProgressReviewSection(),
-          const SectionHeader('Progress photos'),
+          const SectionHeader('Progress photos', accent: AppColors.gold),
           const ProgressPhotosSection(),
           const _SafetyCard(),
         ];
@@ -164,6 +156,51 @@ class _Prep extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _WhatYouGet extends StatelessWidget {
+  const _WhatYouGet();
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    const items = [
+      (Icons.av_timer, 'Countdown in the event’s own timezone'),
+      (Icons.timeline, 'Prep phases and progress from your start date'),
+      (Icons.checklist, 'Milestones and a prep checklist'),
+      (Icons.insights_outlined, 'Weekly reviews from your logged data'),
+      (Icons.lock_outline, 'Progress photos that never leave the phone'),
+    ];
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('No competition set', style: t.titleSmall),
+          const SizedBox(height: 2),
+          Text(
+            'No date yet is fine. Once there is one, this becomes your prep '
+            'command centre.',
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ...staggered([
+            for (final (icon, text) in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 16, color: AppColors.gold),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: Text(text, style: t.bodyMedium)),
+                  ],
+                ),
+              ),
+          ]),
+        ],
+      ),
     );
   }
 }

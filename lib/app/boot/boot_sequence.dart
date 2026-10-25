@@ -263,6 +263,14 @@ class BootSequenceView extends ConsumerWidget {
                             progress: seg(0.46 + i * 0.07, 0.56 + i * 0.07),
                             hud: hud,
                           ),
+                        const SizedBox(height: AppSpacing.md),
+                        Opacity(
+                          opacity: seg(0.72, 0.78),
+                          child: Text(
+                            _summary(checks),
+                            style: hud.mono(size: 11, color: hud.accentInk),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -273,6 +281,17 @@ class BootSequenceView extends ConsumerWidget {
         );
       },
     );
+  }
+
+  /// Honest one-line verdict: never "nominal" unless everything is online.
+  static String _summary(List<_Check> checks) {
+    if (checks.any((c) => c.status == 'CHECKING')) return 'RUNNING CHECKS…';
+    final ok = checks.where((c) => c.tone == _Tone.ok).length;
+    if (ok == checks.length) return 'ALL SYSTEMS NOMINAL';
+    if (checks.any((c) => c.tone == _Tone.bad)) {
+      return '$ok OF ${checks.length} ONLINE · ATTENTION NEEDED';
+    }
+    return '$ok OF ${checks.length} ONLINE · LOCAL MODE READY';
   }
 
   static List<_Check> _checks(AsyncValue<List<IntegrationConnection>> v) {

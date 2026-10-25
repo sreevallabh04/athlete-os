@@ -42,14 +42,17 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final tasks = ref.watch(tasksForDateProvider(_date));
     return AppPage(
       title: 'Plan your day',
+      eyebrow: _date == _today
+          ? 'TODAY · ${formatDateKey(_date, pattern: 'EEE d MMM').toUpperCase()}'
+          : formatDateKey(_date, pattern: 'EEE d MMM yyyy').toUpperCase(),
       onRefresh: () async {
         ref.invalidate(calendarDayProvider(_date));
         ref.invalidate(tasksForDateProvider(_date));
       },
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: HudButton(
+        label: 'Add priority',
+        icon: Icons.add_task,
         onPressed: () => _editTask(context),
-        icon: const Icon(Icons.add_task),
-        label: const Text('Add priority'),
       ),
       children: [
         _DateStrip(
@@ -58,10 +61,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           onSelect: (d) => setState(() => _date = d),
         ),
         if (_date == _today) _CarryoverBanner(today: _date),
-        const SectionHeader(
-          'Priorities',
-          subtitle: 'Drag to reorder · P1 is most important',
-        ),
+        const SectionHeader('Priorities', subtitle: 'Drag to reorder'),
         tasks.when(
           loading: () => const LoadingState(),
           error: (e, _) => const ErrorState(message: 'Could not load tasks.'),
@@ -71,10 +71,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
             onEdit: (t) => _editTask(context, t),
           ),
         ),
-        const SectionHeader(
-          'Timeline',
-          subtitle: 'Calendar, free time and suggested blocks',
-        ),
+        const SectionHeader('Timeline'),
         _Timeline(
           date: _date,
           isToday: _date == _today,
@@ -82,31 +79,36 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         ),
         if (_date == _today) const RoutineSection(),
         const SectionHeader('Reviews'),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
+        Row(
           children: [
-            FilledButton.tonalIcon(
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                useSafeArea: true,
-                builder: (_) => EndOfDayReviewSheet(date: _date),
+            Expanded(
+              child: _ReviewTile(
+                icon: Icons.nightlight_outlined,
+                title: 'End-of-day review',
+                sub: 'Wins, misses, tomorrow',
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  useSafeArea: true,
+                  builder: (_) => EndOfDayReviewSheet(date: _date),
+                ),
               ),
-              icon: const Icon(Icons.nightlight_outlined),
-              label: const Text('End-of-day review'),
             ),
-            FilledButton.tonalIcon(
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                useSafeArea: true,
-                builder: (_) => WeeklyReviewSheet(anyDateInWeek: _date),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _ReviewTile(
+                icon: Icons.calendar_view_week,
+                title: 'Weekly review',
+                sub: 'Patterns and focus',
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  showDragHandle: true,
+                  useSafeArea: true,
+                  builder: (_) => WeeklyReviewSheet(anyDateInWeek: _date),
+                ),
               ),
-              icon: const Icon(Icons.calendar_view_week),
-              label: const Text('Weekly review'),
             ),
           ],
         ),
@@ -173,10 +175,15 @@ class _DateStrip extends StatelessWidget {
   final String today;
   final ValueChanged<String> onSelect;
 
+  void _pick(String d) {
+    Haptics.selection();
+    onSelect(d);
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+    final hud = context.hud;
     final monday = LocalDates.weekStart(selected);
     final days = [for (var i = 0; i < 7; i++) LocalDates.addDays(monday, i)];
     return Column(
@@ -186,33 +193,34 @@ class _DateStrip extends StatelessWidget {
           children: [
             IconButton(
               tooltip: 'Previous week',
-              onPressed: () => onSelect(LocalDates.addDays(selected, -7)),
+              onPressed: () => _pick(LocalDates.addDays(selected, -7)),
               icon: const Icon(Icons.chevron_left),
             ),
             Expanded(
               child: Text(
-                selected == today
-                    ? 'Today · ${formatDateKey(selected, pattern: 'EEE d MMM')}'
-                    : formatDateKey(selected),
+                '${formatDateKey(monday, pattern: 'd MMM')} – '
+                        '${formatDateKey(days.last, pattern: 'd MMM')}'
+                    .toUpperCase(),
                 textAlign: TextAlign.center,
-                style: t.titleSmall,
+                style: hud.mono(size: 11),
               ),
             ),
             IconButton(
               tooltip: 'Pick a date',
               onPressed: () async {
                 final d = await pickDateKey(context, initial: selected);
-                if (d != null) onSelect(d);
+                if (d != null) _pick(d);
               },
               icon: const Icon(Icons.calendar_month_outlined),
             ),
             IconButton(
               tooltip: 'Next week',
-              onPressed: () => onSelect(LocalDates.addDays(selected, 7)),
+              onPressed: () => _pick(LocalDates.addDays(selected, 7)),
               icon: const Icon(Icons.chevron_right),
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             for (final d in days)
@@ -224,18 +232,40 @@ class _DateStrip extends StatelessWidget {
                     button: true,
                     label: formatDateKey(d),
                     excludeSemantics: true,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      onTap: () => onSelect(d),
+                    child: PressableScale(
+                      onTap: d == selected ? null : () => _pick(d),
+                      haptic: PressHaptic.none,
+                      pressedScale: 0.92,
                       child: AnimatedContainer(
-                        duration: AppDurations.fast,
-                        constraints: const BoxConstraints(minHeight: 56),
+                        duration: AppMotion.medium,
+                        curve: AppMotion.emphasizedDecelerate,
+                        constraints: const BoxConstraints(minHeight: 60),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          gradient: d == selected ? AppGradients.brand : null,
                           borderRadius: BorderRadius.circular(AppRadii.md),
-                          border: d == today && d != selected
-                              ? Border.all(color: AppColors.brand)
+                          gradient: d == selected
+                              ? LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    hud.accent.withValues(alpha: 0.32),
+                                    hud.accent.withValues(alpha: 0.10),
+                                  ],
+                                )
+                              : null,
+                          color: d == selected ? null : hud.glassFill,
+                          border: Border.all(
+                            color: d == selected
+                                ? hud.accent.withValues(alpha: 0.8)
+                                : d == today
+                                ? hud.accent.withValues(alpha: 0.45)
+                                : hud.hairline.withValues(alpha: 0.12),
+                          ),
+                          boxShadow: d == selected
+                              ? AppGlows.soft(
+                                  hud.accent,
+                                  strength: hud.glowStrength,
+                                )
                               : null,
                         ),
                         child: Column(
@@ -243,20 +273,32 @@ class _DateStrip extends StatelessWidget {
                             Text(
                               DateFormat('E')
                                   .format(LocalDates.parse(d))
-                                  .substring(0, 1),
-                              style: t.labelSmall?.copyWith(
+                                  .toUpperCase(),
+                              style: hud.label(
+                                size: 9.5,
                                 color: d == selected
-                                    ? Colors.white
-                                    : scheme.onSurfaceVariant,
+                                    ? hud.accentInk
+                                    : hud.textMuted,
                               ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               '${LocalDates.parse(d).day}',
                               style: t.titleMedium?.copyWith(
-                                color: d == selected ? Colors.white : null,
+                                fontFamily: AppFonts.display,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
+                            if (d == today)
+                              Container(
+                                width: 4,
+                                height: 4,
+                                margin: const EdgeInsets.only(top: 2),
+                                decoration: BoxDecoration(
+                                  color: hud.accent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -384,73 +426,192 @@ class _TaskList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
     if (tasks.isEmpty) {
-      return const AppCard(
-        child: EmptyState(
-          compact: true,
-          icon: Icons.flag_outlined,
-          title: 'No priorities yet',
-          message: 'Add up to three things that would make today a win.',
-        ),
-      );
-    }
-    final repo = ref.read(planningRepositoryProvider);
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: ReorderableListView(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        buildDefaultDragHandles: false,
-        onReorderItem: (oldIndex, newIndex) {
-          final ids = tasks.map((t) => t.id).toList();
-          final id = ids.removeAt(oldIndex);
-          ids.insert(newIndex, id);
-          repo.setTaskOrder(date, ids);
-        },
-        children: [
-          for (var i = 0; i < tasks.length; i++)
-            ListTile(
-              key: ValueKey(tasks[i].id),
-              leading: Checkbox(
-                value: tasks[i].done,
-                onChanged: (v) => repo.setTaskDone(tasks[i].id, v ?? false),
-              ),
-              title: Text(
-                tasks[i].title,
-                style: TextStyle(
-                  decoration: tasks[i].done ? TextDecoration.lineThrough : null,
-                  color: tasks[i].done ? scheme.onSurfaceVariant : null,
-                ),
-              ),
-              subtitle: Text(
-                [
-                  'P${tasks[i].priority}',
-                  ?tasks[i].project,
-                  if (tasks[i].carriedFromDate != null)
-                    'carried from ${formatDateKey(tasks[i].carriedFromDate!, pattern: 'd MMM')}',
-                ].join(' · '),
-              ),
-              onTap: () => onEdit(tasks[i]),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+      return AppCard(
+        child: Row(
+          children: [
+            const GlowIcon(Icons.flag_outlined, framed: true, size: 18),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    tooltip: 'Delete',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => repo.deleteTask(tasks[i].id),
-                  ),
-                  ReorderableDragStartListener(
-                    index: i,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.drag_indicator),
-                    ),
+                  Text('No priorities yet', style: t.titleSmall),
+                  Text(
+                    'Add up to three things that would make today a win.',
+                    style: t.bodySmall?.copyWith(color: hud.textMuted),
                   ),
                 ],
               ),
             ),
+          ],
+        ),
+      );
+    }
+    final repo = ref.read(planningRepositoryProvider);
+    final done = tasks.where((t) => t.done).length;
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: MetricBar(
+              label: 'Done',
+              value: done.toDouble(),
+              target: tasks.length.toDouble(),
+              color: hud.accent,
+              segments: tasks.length.clamp(1, 24),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            proxyDecorator: (child, _, _) =>
+                Material(type: MaterialType.transparency, child: child),
+            onReorderItem: (oldIndex, newIndex) {
+              Haptics.selection();
+              final ids = tasks.map((t) => t.id).toList();
+              final id = ids.removeAt(oldIndex);
+              ids.insert(newIndex, id);
+              repo.setTaskOrder(date, ids);
+            },
+            children: [
+              for (var i = 0; i < tasks.length; i++)
+                _PlannerTaskRow(
+                  key: ValueKey(tasks[i].id),
+                  task: tasks[i],
+                  index: i,
+                  onEdit: () => onEdit(tasks[i]),
+                  onToggle: () async {
+                    final v = !tasks[i].done;
+                    await repo.setTaskDone(tasks[i].id, v);
+                    v ? Haptics.success() : Haptics.selection();
+                  },
+                  onDelete: () async {
+                    Haptics.medium();
+                    await repo.deleteTask(tasks[i].id);
+                  },
+                ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlannerTaskRow extends StatelessWidget {
+  const _PlannerTaskRow({
+    super.key,
+    required this.task,
+    required this.index,
+    required this.onEdit,
+    required this.onToggle,
+    required this.onDelete,
+  });
+
+  final TaskItem task;
+  final int index;
+  final VoidCallback onEdit;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    final pColor = switch (task.priority) {
+      1 => AppColors.red,
+      2 => AppColors.warning,
+      _ => hud.accent,
+    };
+    final sub = [
+      ?task.project,
+      if (task.carriedFromDate != null)
+        'carried from ${formatDateKey(task.carriedFromDate!, pattern: 'd MMM')}',
+    ].join(' · ');
+    return PressableScale(
+      onTap: onEdit,
+      pressedScale: 0.98,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Row(
+          children: [
+            Semantics(
+              checked: task.done,
+              label: 'Done: ${task.title}',
+              child: IconButton(
+                tooltip: task.done ? 'Mark not done' : 'Mark done',
+                onPressed: onToggle,
+                icon: AnimatedContainer(
+                  duration: AppMotion.medium,
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: task.done ? hud.accent : Colors.transparent,
+                    border: Border.all(
+                      color: task.done
+                          ? hud.accent
+                          : hud.textMuted.withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: task.done
+                      ? const Icon(
+                          Icons.check,
+                          size: 14,
+                          color: Color(0xFF02141C),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: t.bodyLarge?.copyWith(
+                      decoration: task.done ? TextDecoration.lineThrough : null,
+                      color: task.done ? hud.textMuted : null,
+                    ),
+                  ),
+                  Text(
+                    sub.isEmpty
+                        ? 'P${task.priority}'
+                        : 'P${task.priority} · $sub',
+                    style: hud.mono(size: 10, color: pColor),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Delete',
+              icon: Icon(Icons.delete_outline, color: hud.textMuted),
+              onPressed: onDelete,
+            ),
+            ReorderableDragStartListener(
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(Icons.drag_indicator, color: hud.textMuted),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -601,6 +762,13 @@ class _Timeline extends ConsumerWidget {
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text('All day · ${e.title}', style: t.labelLarge),
           ),
+        const SizedBox(height: AppSpacing.md),
+        DayRibbon(
+          window: dayWindow(day, profile.wakeMinutes, profile.sleepMinutes),
+          busy: busy,
+          free: free,
+          now: isToday ? now : null,
+        ),
         const SizedBox(height: AppSpacing.sm),
         Hint(
           'Day window ${Fmt.time(window.start)} – ${Fmt.time(window.end)} '
@@ -765,7 +933,10 @@ class _SuggestionCard extends ConsumerWidget {
               runSpacing: AppSpacing.xs,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                FilledButton.tonal(
+                HudButton.secondary(
+                  label: 'Add as task',
+                  icon: Icons.add,
+                  compact: true,
                   onPressed: () async {
                     await ref
                         .read(planningRepositoryProvider)
@@ -775,24 +946,212 @@ class _SuggestionCard extends ConsumerWidget {
                           priority: s.kind == BlockKind.workout ? 1 : 2,
                           project: s.project,
                         );
+                    Haptics.success();
                     if (context.mounted) {
                       showSnack(context, 'Added to priorities');
                     }
                   },
-                  child: const Text('Add as task'),
                 ),
                 Tooltip(
                   message: calendarConnected
                       ? 'Writing to Google Calendar is not available yet'
                       : 'Connect Google Calendar to add events',
-                  child: const OutlinedButton(
+                  child: const HudButton.ghost(
+                    label: 'Add to calendar',
+                    compact: true,
                     onPressed: null,
-                    child: Text('Add to calendar'),
                   ),
                 ),
-                if (!calendarConnected)
-                  Text('Connect Google Calendar', style: t.labelSmall),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({
+    required this.icon,
+    required this.title,
+    required this.sub,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String title;
+  final String sub;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.md + 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlowIcon(icon, size: 18, framed: true),
+          const SizedBox(height: AppSpacing.sm),
+          Text(title, style: t.titleSmall),
+          Text(sub, style: t.bodySmall?.copyWith(color: context.hud.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The day as one horizontal ribbon: busy calendar time, free slots and a
+/// "now" marker across the wake → sleep window.
+class DayRibbon extends StatelessWidget {
+  const DayRibbon({
+    super.key,
+    required this.window,
+    required this.busy,
+    required this.free,
+    this.now,
+  });
+
+  final TimeInterval window;
+  final List<TimeInterval> busy;
+  final List<TimeInterval> free;
+  final DateTime? now;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final totalMin = window.end.difference(window.start).inMinutes;
+    if (totalMin <= 0) return const SizedBox.shrink();
+    double x(DateTime t) =>
+        (t.difference(window.start).inMinutes / totalMin).clamp(0.0, 1.0);
+    final freeMin = free.fold<int>(0, (s, f) => s + f.duration.inMinutes);
+    final hours = <DateTime>[
+      for (
+        var h = DateTime(
+          window.start.year,
+          window.start.month,
+          window.start.day,
+          window.start.hour + 1,
+        );
+        h.isBefore(window.end);
+        h = h.add(const Duration(hours: 3))
+      )
+        h,
+    ];
+    return Semantics(
+      label:
+          'Day ribbon: ${freeMin ~/ 60} hours ${freeMin % 60} minutes free '
+          'between ${Fmt.time(window.start)} and ${Fmt.time(window.end)}',
+      excludeSemantics: true,
+      child: GlassPanel(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text('FREE TIME', style: hud.label(size: 10.5)),
+                const Spacer(),
+                Text(
+                  '${freeMin ~/ 60} H ${freeMin % 60} M',
+                  style: hud.mono(size: 10.5, color: AppColors.success),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            LayoutBuilder(
+              builder: (context, box) {
+                final w = box.maxWidth;
+                Widget seg(TimeInterval i, Color fill, Color border) =>
+                    Positioned(
+                      left: w * x(i.start),
+                      width: (w * (x(i.end) - x(i.start))).clamp(2.0, w),
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: fill,
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(color: border),
+                        ),
+                      ),
+                    );
+                return SizedBox(
+                  height: 22,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: hud.text.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      for (final f in free)
+                        seg(
+                          f,
+                          AppColors.success.withValues(alpha: 0.18),
+                          AppColors.success.withValues(alpha: 0.55),
+                        ),
+                      for (final b in busy)
+                        seg(
+                          b,
+                          hud.accent.withValues(alpha: 0.35),
+                          hud.accent.withValues(alpha: 0.8),
+                        ),
+                      if (now != null &&
+                          now!.isAfter(window.start) &&
+                          now!.isBefore(window.end))
+                        Positioned(
+                          left: w * x(now!) - 1,
+                          top: -4,
+                          bottom: -4,
+                          child: Container(
+                            width: 2,
+                            decoration: BoxDecoration(
+                              color: hud.text,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: hud.accent.withValues(alpha: 0.9),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            LayoutBuilder(
+              builder: (context, box) => SizedBox(
+                height: 14,
+                child: Stack(
+                  children: [
+                    for (final h in hours)
+                      Positioned(
+                        left: (box.maxWidth * x(h) - 6).clamp(
+                          0.0,
+                          box.maxWidth - 30,
+                        ),
+                        child: Text(
+                          DateFormat('HH').format(h),
+                          style: hud.mono(size: 9.5),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

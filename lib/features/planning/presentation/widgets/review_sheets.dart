@@ -94,42 +94,58 @@ class _EndOfDayReviewSheetState extends ConsumerState<EndOfDayReviewSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('End-of-day review', style: t.titleLarge),
-                Hint(formatDateKey(widget.date)),
-                const SizedBox(height: AppSpacing.lg),
                 Text(
-                  'Got done: ${f.doneTitles.length} of ${f.totalTasks} '
-                  'priorities',
-                  style: t.titleSmall,
-                ),
-                for (final d in f.doneTitles)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: AppColors.success,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(child: Text(d)),
-                      ],
-                    ),
+                  formatDateKey(widget.date).toUpperCase(),
+                  style: context.hud.mono(
+                    size: 10.5,
+                    color: context.hud.accentInk,
                   ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  f.habits.total == 0
-                      ? 'Habits: none scheduled'
-                      : 'Habits: ${f.habits.done} of ${f.habits.total} done',
-                  style: t.titleSmall,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  f.mood == null
-                      ? 'Mood: no check-in today'
-                      : 'Mood: ${f.mood}/5',
-                  style: t.titleSmall,
+                const SizedBox(height: AppSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        label: 'Priorities',
+                        value: '${f.doneTitles.length}/${f.totalTasks}',
+                      ),
+                    ),
+                    Expanded(
+                      child: StatTile(
+                        label: 'Habits',
+                        value: f.habits.total == 0
+                            ? '—'
+                            : '${f.habits.done}/${f.habits.total}',
+                        color: AppColors.habit,
+                      ),
+                    ),
+                    Expanded(
+                      child: StatTile(
+                        label: 'Mood',
+                        value: f.mood == null ? '—' : '${f.mood}/5',
+                        color: AppColors.mood,
+                      ),
+                    ),
+                  ],
                 ),
+                if (f.doneTitles.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  for (final d in f.doneTitles)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check,
+                            size: 16,
+                            color: AppColors.success,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(d)),
+                        ],
+                      ),
+                    ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 TextField(
                   controller: _note,
@@ -142,10 +158,10 @@ class _EndOfDayReviewSheetState extends ConsumerState<EndOfDayReviewSheet> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
+                HudButton(
+                  label: 'Save review',
+                  icon: Icons.check,
+                  expand: true,
                   onPressed: () async {
                     await ref.read(planningRepositoryProvider).saveDayReview(
                       widget.date,
@@ -163,12 +179,12 @@ class _EndOfDayReviewSheetState extends ConsumerState<EndOfDayReviewSheet> {
                             .toIso8601String(),
                       },
                     );
+                    Haptics.success();
                     if (context.mounted) {
                       Navigator.pop(context);
-                      showSnack(context, 'Review saved');
+                      showSnack(context, 'Review saved. Rest well.');
                     }
                   },
-                  child: const Text('Save review'),
                 ),
               ],
             ),

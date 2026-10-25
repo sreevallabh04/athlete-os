@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,122 +12,782 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/time/clock.dart';
 import '../../../core/util/format.dart';
 import '../../../core/widgets/widgets.dart';
-import '../../planning/application/planning_providers.dart';
-import '../../planning/data/planning_repository.dart';
+import '../../../data/db/database.dart';
+import '../../../data/repositories/integration_status_repository.dart';
+import '../../onboarding/application/persona_providers.dart';
 import '../../onboarding/presentation/persona_cards.dart';
-import '../../planning/presentation/widgets/countdown_hero.dart';
+import '../../planning/application/planning_providers.dart';
 import '../application/today_providers.dart';
 import '../data/today_repository.dart';
 import '../domain/daily_summary.dart';
-import 'today_widgets.dart';
+import '../domain/today_layout.dart';
+import 'widgets/briefing.dart';
+import 'widgets/deck.dart';
+import 'widgets/deck_cards.dart';
+import 'widgets/quick_actions.dart';
+import 'widgets/target_reactor.dart';
 
-class TodayScreen extends ConsumerWidget {
+/// The JARVIS command deck: greeting, honest system status, the daily
+/// targets reactor, one-tap logging and the day's plan, ordered for the
+/// time of day.
+class TodayScreen extends ConsumerStatefulWidget {
   const TodayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayScreen> createState() => _TodayScreenState();
+}
+
+class _TodayScreenState extends ConsumerState<TodayScreen> {
+  final _entrances = EntranceCoordinator();
+  bool _scanning = false;
+  bool _scrolled = false;
+
+  Future<void> _refresh(String date) async {
+    Haptics.medium();
+    setState(() => _scanning = true);
+    ref.invalidate(todaySnapshotProvider);
+    ref.invalidate(calendarDayProvider(date));
+    try {
+      await Future.wait([
+        ref.read(todaySnapshotProvider.future),
+        Future<void>.delayed(const Duration(milliseconds: 900)),
+      ]);
+      Haptics.light();
+    } catch (_) {
+      Haptics.warning();
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final now = ref.watch(clockProvider).now();
     final date = LocalDates.key(now);
     final snapshot = ref.watch(todaySnapshotProvider);
     final calendar = ref.watch(calendarDayProvider(date));
+    final statuses = ref.watch(integrationStatusesProvider).value;
+    final mq = MediaQuery.of(context);
+    final reduced = AppMotion.reduced(context);
 
-    Future<void> refresh() async {
-      ref.invalidate(todaySnapshotProvider);
-      ref.invalidate(calendarDayProvider(date));
-      await ref.read(todaySnapshotProvider.future);
-    }
+    final body = snapshot.when(
+      loading: () => const _DeckSkeleton(),
+      error: (e, _) => ErrorState(
+        message: 'Could not load today’s data.',
+        onRetry: () => ref.invalidate(todaySnapshotProvider),
+      ),
+      data: (s) => _Deck(snapshot: s, calendar: calendar),
+    );
 
-    return AppPage(
-      title: 'Today',
-      showBack: false,
-      onRefresh: refresh,
-      actions: [
-        IconButton(
-          tooltip: 'Plan your day',
-          icon: const Icon(Icons.view_timeline_outlined),
-          onPressed: () => context.push(AppPaths.planner),
-        ),
-        IconButton(
-          tooltip: 'Reports',
-          icon: const Icon(Icons.insights_outlined),
-          onPressed: () => context.push(AppPaths.reports),
-        ),
-        IconButton(
-          tooltip: 'Settings',
-          icon: const Icon(Icons.settings_outlined),
-          onPressed: () => context.push(AppPaths.settings),
-        ),
-      ],
-      children: [
-        snapshot.when(
-          loading: () => const LoadingState(),
-          error: (e, _) => ErrorState(
-            message: 'Could not load today’s data.',
-            onRetry: () => ref.invalidate(todaySnapshotProvider),
+    final scroll = CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _DeckBarDelegate(
+            topPadding: mq.padding.top,
+            hud: context.hud,
+            statuses: statuses,
+            scrolled: _scrolled,
           ),
-          data: (s) => _TodayBody(snapshot: s, calendar: calendar),
+        ),
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.gutter,
+            AppSpacing.xs,
+            AppSpacing.gutter,
+            mq.padding.bottom + AppSpacing.xxxl,
+          ),
+          sliver: SliverList.list(
+            children: [
+              _Greeting(
+                now: now,
+                name: snapshot.value?.profile.displayName,
+                reduced: reduced,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              body,
+            ],
+          ),
         ),
       ],
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: EntranceScope(
+        coordinator: _entrances,
+        child: Stack(
+          children: [
+            NotificationListener<ScrollUpdateNotification>(
+              onNotification: (n) {
+                final scrolled = n.metrics.pixels > 4;
+                if (n.depth == 0 && scrolled != _scrolled) {
+                  setState(() => _scrolled = scrolled);
+                }
+                return false;
+              },
+              child: RefreshIndicator.noSpinner(
+                onRefresh: () => _refresh(date),
+                child: scroll,
+              ),
+            ),
+            Positioned(
+              top: mq.padding.top + _DeckBarDelegate.barHeight,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: _ScanBeam(active: _scanning, reduced: reduced),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _TodayBody extends StatelessWidget {
-  const _TodayBody({required this.snapshot, required this.calendar});
+// ───────────────────────────────────────────────────────────── Header
+
+class _DeckBarDelegate extends SliverPersistentHeaderDelegate {
+  _DeckBarDelegate({
+    required this.topPadding,
+    required this.hud,
+    required this.statuses,
+    required this.scrolled,
+  });
+
+  static const barHeight = 52.0;
+  final double topPadding;
+  final HudTheme hud;
+  final List<IntegrationConnection>? statuses;
+  final bool scrolled;
+
+  @override
+  double get minExtent => topPadding + barHeight;
+  @override
+  double get maxExtent => topPadding + barHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: overlaps || scrolled ? 1 : 0),
+      duration: AppMotion.medium,
+      builder: (context, g, child) {
+        Widget bg = Container(
+          decoration: BoxDecoration(
+            color: hud.glassFillStrong.withValues(
+              alpha: hud.glassFillStrong.a * g,
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: hud.hairline.withValues(alpha: 0.14 * g),
+              ),
+            ),
+          ),
+        );
+        if (g > 0.01) {
+          bg = ClipRect(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 18 * g, sigmaY: 18 * g),
+              child: bg,
+            ),
+          );
+        }
+        return Stack(fit: StackFit.expand, children: [bg, child!]);
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: topPadding,
+          left: AppSpacing.gutter - 4,
+          right: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Expanded(child: SystemStatusRow(statuses: statuses)),
+            IconButton(
+              tooltip: 'Plan your day',
+              icon: const Icon(Icons.view_timeline_outlined),
+              onPressed: () {
+                Haptics.light();
+                context.push(AppPaths.planner);
+              },
+            ),
+            IconButton(
+              tooltip: 'Settings',
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                Haptics.light();
+                context.push(AppPaths.settings);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_DeckBarDelegate old) =>
+      old.topPadding != topPadding ||
+      old.hud != hud ||
+      old.scrolled != scrolled ||
+      old.statuses != statuses;
+}
+
+/// Honest system glyphs: Health Connect, AI core and calendar. Never shows
+/// "online" unless the integration really reported connected.
+class SystemStatusRow extends StatelessWidget {
+  const SystemStatusRow({super.key, required this.statuses});
+  final List<IntegrationConnection>? statuses;
+
+  (Color, String) _state(BuildContext context, String id) {
+    final hud = context.hud;
+    if (statuses == null) return (hud.textMuted, 'checking');
+    final s = statuses!.where((r) => r.provider == id).firstOrNull?.status;
+    return switch (s) {
+      ConnectionStates.connected => (AppColors.success, 'online'),
+      ConnectionStates.needsSetup => (AppColors.warning, 'needs setup'),
+      ConnectionStates.awaitingCredentials => (
+        AppColors.warning,
+        'awaiting keys',
+      ),
+      ConnectionStates.error => (AppColors.red, 'error'),
+      _ => (hud.textMuted.withValues(alpha: 0.55), 'offline'),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final items = [
+      ('HEALTH', 'Health Connect', Providers.healthConnect),
+      ('AI', 'AI core', Providers.aiBackend),
+      ('CAL', 'Calendar', Providers.googleCalendar),
+    ];
+    final states = [for (final i in items) _state(context, i.$3)];
+    final label = [
+      for (var i = 0; i < items.length; i++) '${items[i].$2} ${states[i].$2}',
+    ].join(', ');
+    return Semantics(
+      button: true,
+      label: 'System status: $label. Open integrations.',
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: () => context.push(AppPaths.integrations),
+        pressedScale: 0.97,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.md),
+                StatusDot(color: states[i].$1, size: 5),
+                const SizedBox(width: 5),
+                Text(
+                  items[i].$1,
+                  style: hud.mono(size: 10, color: hud.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Greeting extends StatelessWidget {
+  const _Greeting({
+    required this.now,
+    required this.name,
+    required this.reduced,
+  });
+
+  final DateTime now;
+  final String? name;
+  final bool reduced;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    return Entrance(
+      enabled: !reduced,
+      blur: 6,
+      offset: const Offset(0, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${DateFormat('EEEE d MMMM').format(now).toUpperCase()} · '
+            '${DateFormat('HH:mm').format(now)}',
+            style: hud.mono(size: 10.5, color: hud.accentInk),
+          ),
+          const SizedBox(height: 6),
+          Semantics(
+            header: true,
+            child: Text(
+              greetingFor(now, name),
+              style: t.headlineSmall?.copyWith(fontSize: 25),
+              maxLines: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pull-to-refresh "sensor rescan": a cyan beam sweeping under the bar.
+class _ScanBeam extends StatefulWidget {
+  const _ScanBeam({required this.active, required this.reduced});
+  final bool active;
+  final bool reduced;
+
+  @override
+  State<_ScanBeam> createState() => _ScanBeamState();
+}
+
+class _ScanBeamState extends State<_ScanBeam>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  @override
+  void didUpdateWidget(_ScanBeam old) {
+    super.didUpdateWidget(old);
+    if (widget.active && !old.active && !widget.reduced) {
+      _c.repeat();
+    } else if (!widget.active && old.active) {
+      _c.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return AnimatedOpacity(
+      duration: AppMotion.short,
+      opacity: widget.active ? 1 : 0,
+      child: SizedBox(
+        height: 120,
+        child: Stack(
+          children: [
+            AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) => CustomPaint(
+                size: const Size(double.infinity, 120),
+                painter: _BeamPainter(
+                  t: widget.reduced ? 0.5 : _c.value,
+                  color: hud.accent,
+                  glow: hud.glowStrength,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 6,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                  'RESCANNING SENSORS',
+                  style: hud.mono(size: 10, color: hud.accentInk),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BeamPainter extends CustomPainter {
+  _BeamPainter({required this.t, required this.color, required this.glow});
+  final double t;
+  final Color color;
+  final double glow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = 22 + (size.height - 30) * Curves.easeInOut.transform(t);
+    final rect = Rect.fromLTWH(0, y - 18, size.width, 18);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [color.withValues(alpha: 0), color.withValues(alpha: 0.18)],
+        ).createShader(rect),
+    );
+    canvas.drawLine(
+      Offset(0, y),
+      Offset(size.width, y),
+      Paint()
+        ..strokeWidth = 1.2
+        ..shader = LinearGradient(
+          colors: [
+            color.withValues(alpha: 0),
+            color.withValues(alpha: 0.9),
+            color.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromLTWH(0, y, size.width, 1))
+        ..maskFilter = MaskFilter.blur(BlurStyle.solid, 2 * glow),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BeamPainter old) => old.t != t || old.color != color;
+}
+
+// ───────────────────────────────────────────────────────────── Deck body
+
+class _DeckSkeleton extends StatelessWidget {
+  const _DeckSkeleton();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ScanlineLoader(height: 64, lines: 0),
+      SizedBox(height: AppSpacing.md),
+      ScanlineLoader(height: 240, lines: 0),
+      SizedBox(height: AppSpacing.md),
+      ScanlineLoader(lines: 3),
+    ],
+  );
+}
+
+class _Deck extends ConsumerWidget {
+  const _Deck({required this.snapshot, required this.calendar});
   final TodaySnapshot snapshot;
   final AsyncValue<CalendarReadResult> calendar;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = snapshot;
+    final phase = dayPhaseOf(s.now);
     final summary = buildDailySummary(
-      _summaryInput(
+      summaryInputFor(
         s,
         calendar.value,
         pending: calendar.isLoading && !calendar.hasValue,
       ),
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _Header(snapshot: s),
-        const SizedBox(height: AppSpacing.lg),
-        if (s.competition != null)
-          CountdownHero(
-            view: s.competition!,
-            onTap: () => context.push(AppPaths.competition),
-          )
-        else
-          CompetitionCta(onTap: () => context.push(AppPaths.competition)),
-        const SizedBox(height: AppSpacing.md),
-        const PersonaTodaySection(),
-        _SummaryCard(summary: summary),
-        ResponsiveColumns(
-          left: [
-            const SectionHeader('Fitness'),
-            _StepsCard(s: s),
-            const SizedBox(height: AppSpacing.md),
-            _FitnessTiles(s: s),
-            const SectionHeader('Nutrition'),
-            _NutritionCard(s: s),
-            const SizedBox(height: AppSpacing.md),
-            _WaterCard(s: s),
-          ],
-          right: [
-            const SectionHeader('Productivity & well-being'),
-            _CalendarCard(calendar: calendar, now: s.now),
-            const SizedBox(height: AppSpacing.md),
-            _PrioritiesCard(s: s),
-            const SizedBox(height: AppSpacing.md),
-            _CheckInsGrid(s: s),
-          ],
+    final session = ref.watch(todaysPlannedSessionProvider).value;
+    final order = todaySectionOrder(s.now, sessionDone: s.workoutToday != null);
+
+    Widget section(TodaySection id) => switch (id) {
+      TodaySection.briefing => Entrance(
+        child: BriefingStrip(summary: summary, phase: phase, now: s.now),
+      ),
+      TodaySection.targets => TargetReactor(rings: targetRings(context, s)),
+      TodaySection.quickActions => Entrance(
+        delay: const Duration(milliseconds: 90),
+        child: QuickActionsRow(
+          waterMl: s.waterMl,
+          waterGoalMl: s.profile.waterGoalMl,
+          moodLogged: s.moodToday != null,
+          sessionTitle: session?.day.title,
         ),
-      ],
+      ),
+      TodaySection.session => TodaySessionCard(
+        loggedTitle: s.workoutToday?.title,
+        emphasize: phase == DayPhase.morning,
+      ),
+      TodaySection.routine => const RoutinePeekCard(),
+      TodaySection.priorities => PrioritiesCard(snapshot: s),
+      TodaySection.agenda => AgendaCard(calendar: calendar, now: s.now),
+      TodaySection.habits => const HabitsCard(),
+      TodaySection.review => ReviewCard(
+        snapshot: s,
+        evening: phase == DayPhase.evening,
+      ),
+      TodaySection.vitals => VitalsCard(snapshot: s),
+      TodaySection.competition => CompetitionModule(
+        view: s.competition,
+        name: s.profile.displayName,
+      ),
+      TodaySection.inbox => const InboxTeaser(),
+    };
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (box.maxWidth < 900) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: spaced([for (final id in order) section(id)]),
+          );
+        }
+        final left = <Widget>[];
+        final right = <Widget>[];
+        for (var i = 0; i < order.length; i++) {
+          (i.isEven ? left : right).add(section(order[i]));
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: spaced(left),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xl),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: spaced(right),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-SummaryInput _summaryInput(
+/// "12k", "10k", "12.5k".
+String _kSteps(int v) {
+  final k = v / 1000;
+  return k == k.roundToDouble() ? '${k.round()}k' : '${k.toStringAsFixed(1)}k';
+}
+
+String _litres(int ml) {
+  final l = (ml / 1000).toStringAsFixed(2);
+  return l.replaceAll(RegExp(r'\.?0+$'), '');
+}
+
+/// The four reactor rings built from the snapshot. Targets are real
+/// configuration; values are only what was logged or synced.
+List<TargetRingData> targetRings(BuildContext context, TodaySnapshot s) {
+  final p = s.profile;
+  final n = s.nutrition;
+  final logged = n.entries > 0;
+  final steps = s.steps;
+  final stepsLeft = steps == null ? 0 : p.stepGoal - steps.value.round();
+  final kcalLeft = p.calorieTarget - n.kcal;
+  final proteinToGo = (p.proteinTargetG - n.proteinG).round();
+  final waterLeft = p.waterGoalMl - s.waterMl;
+  final t = Theme.of(context).textTheme;
+  final hud = context.hud;
+  Widget actions(List<Widget> buttons) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.md),
+    child: Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: buttons,
+    ),
+  );
+  Text muted(String text) =>
+      Text(text, style: t.bodySmall?.copyWith(color: hud.textMuted));
+
+  return [
+    TargetRingData(
+      id: 'steps',
+      label: 'STEPS',
+      unit: 'STEPS',
+      color: AppColors.steps,
+      icon: Icons.directions_walk,
+      value: steps?.value,
+      target: p.stepGoal.toDouble(),
+      valueText: steps == null ? '—' : Fmt.integer(steps.value),
+      targetText: _kSteps(p.stepGoal),
+      statusText: stepsLeft > 0
+          ? '${Fmt.integer(stepsLeft)} to go'
+          : 'Goal reached',
+      detail: steps == null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Steps arrive when Health Connect syncs.'),
+                muted(
+                  'Target ${Fmt.integer(p.stepGoal)}. Nothing is estimated '
+                  'in the meantime.',
+                ),
+                actions([
+                  HudButton.secondary(
+                    label: 'Check Health Connect',
+                    compact: true,
+                    onPressed: () => context.push(AppPaths.healthStatus),
+                  ),
+                ]),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                        if (s.distance != null) Fmt.km(s.distance!.value),
+                        if (s.activeMinutes != null)
+                          '${s.activeMinutes!.value.round()} active min',
+                      ]
+                      .join(' · ')
+                      .ifEmpty('Distance and active minutes not synced.'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                SourceBadge(
+                  origin: DataOrigin.fromKey(steps.origin),
+                  asOf: steps.computedAt,
+                  now: s.now,
+                ),
+                actions([
+                  HudButton.secondary(
+                    label: 'Steps detail',
+                    compact: true,
+                    onPressed: () => context.push(AppPaths.steps),
+                  ),
+                ]),
+              ],
+            ),
+    ),
+    TargetRingData(
+      id: 'kcal',
+      label: 'CALORIES',
+      unit: 'KCAL',
+      color: AppColors.calories,
+      icon: Icons.local_fire_department_outlined,
+      value: logged ? n.kcal : null,
+      target: p.calorieTarget.toDouble(),
+      valueText: Fmt.integer(n.kcal),
+      targetText: Fmt.integer(p.calorieTarget),
+      missingText: 'NOT LOGGED',
+      statusText: kcalLeft >= 0
+          ? '${Fmt.integer(kcalLeft)} left'
+          : '${Fmt.integer(-kcalLeft)} over',
+      detail: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (logged) ...[
+            Text(
+              '${s.mealsLogged} meal${s.mealsLogged == 1 ? '' : 's'} · '
+              '${n.entries} item${n.entries == 1 ? '' : 's'}'
+              '${s.nutritionLastLoggedAt == null ? '' : ' · last ${Fmt.ago(s.nutritionLastLoggedAt!, s.now)}'}',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            MetricBar(
+              label: 'Carbs',
+              value: n.carbsG,
+              target: p.carbsTargetG,
+              color: AppColors.carbs,
+              unit: ' g',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            MetricBar(
+              label: 'Fat',
+              value: n.fatG,
+              target: p.fatTargetG,
+              color: AppColors.fat,
+              unit: ' g',
+            ),
+          ] else
+            Text(
+              'Target ${Fmt.kcal(p.calorieTarget)} · '
+              '${p.proteinTargetG.round()} P · ${p.carbsTargetG.round()} C · '
+              '${p.fatTargetG.round()} F.',
+            ),
+          actions([
+            HudButton.secondary(
+              label: 'Log meal',
+              icon: Icons.add,
+              compact: true,
+              onPressed: () => context.push(AppPaths.addFood),
+            ),
+            HudButton.ghost(
+              label: 'Nutrition',
+              compact: true,
+              onPressed: () => context.go(AppPaths.nutrition),
+            ),
+          ]),
+        ],
+      ),
+    ),
+    TargetRingData(
+      id: 'protein',
+      label: 'PROTEIN',
+      unit: 'G PROTEIN',
+      color: AppColors.protein,
+      icon: Icons.egg_alt_outlined,
+      value: logged ? n.proteinG : null,
+      target: p.proteinTargetG,
+      valueText: Fmt.integer(n.proteinG),
+      targetText: '${p.proteinTargetG.round()} g',
+      missingText: 'NOT LOGGED',
+      statusText: proteinToGo > 0 ? '$proteinToGo g to go' : 'Target met',
+      detail: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            logged
+                ? '${Fmt.integer(n.proteinG)} g of ${p.proteinTargetG.round()} g '
+                      'from your food log.'
+                : 'Target ${p.proteinTargetG.round()} g, spread across your '
+                      'meals.',
+          ),
+          actions([
+            HudButton.secondary(
+              label: 'Log meal',
+              icon: Icons.add,
+              compact: true,
+              onPressed: () => context.push(AppPaths.addFood),
+            ),
+          ]),
+        ],
+      ),
+    ),
+    TargetRingData(
+      id: 'water',
+      label: 'WATER',
+      unit: 'LITRES',
+      color: AppColors.water,
+      icon: Icons.water_drop_outlined,
+      value: s.waterMl > 0 ? s.waterMl.toDouble() : null,
+      target: p.waterGoalMl.toDouble(),
+      valueText: _litres(s.waterMl),
+      targetText: Fmt.ml(p.waterGoalMl),
+      missingText: 'NOT LOGGED',
+      statusText: waterLeft > 0 ? '${Fmt.ml(waterLeft)} to go' : 'Goal reached',
+      detail: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            s.waterLastLoggedAt == null
+                ? 'No water logged today. One tap on +250 ml below.'
+                : 'Last logged ${Fmt.ago(s.waterLastLoggedAt!, s.now)}.',
+          ),
+          actions([
+            HudButton.secondary(
+              label: 'Hydration',
+              compact: true,
+              onPressed: () => context.push(AppPaths.hydration),
+            ),
+          ]),
+        ],
+      ),
+    ),
+  ];
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// Facts for the deterministic briefing. Public for tests.
+SummaryInput summaryInputFor(
   TodaySnapshot s,
   CalendarReadResult? cal, {
   bool pending = false,
@@ -175,787 +837,4 @@ SummaryInput _summaryInput(
             asOf: s.sleep!.computedAt,
           ),
   );
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.snapshot});
-  final TodaySnapshot snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final h = snapshot.now.hour;
-    final greeting = h < 5
-        ? 'Good night'
-        : h < 12
-        ? 'Good morning'
-        : h < 17
-        ? 'Good afternoon'
-        : 'Good evening';
-    final name = snapshot.profile.displayName;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          DateFormat('EEEE, d MMMM').format(snapshot.now).toUpperCase(),
-          style: t.labelMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          name == null || name.isEmpty ? '$greeting.' : '$greeting, $name.',
-          style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.summary});
-  final DailySummary summary;
-
-  static IconData _icon(SummaryTopic t) => switch (t) {
-    SummaryTopic.competition => Icons.emoji_events_outlined,
-    SummaryTopic.steps => Icons.directions_walk,
-    SummaryTopic.protein => Icons.egg_alt_outlined,
-    SummaryTopic.calories => Icons.local_fire_department_outlined,
-    SummaryTopic.water => Icons.water_drop_outlined,
-    SummaryTopic.calendar => Icons.event_outlined,
-    SummaryTopic.workout => Icons.fitness_center,
-    SummaryTopic.sleep => Icons.bedtime_outlined,
-  };
-
-  static Color _color(SummaryTopic t) => switch (t) {
-    SummaryTopic.competition => AppColors.competition,
-    SummaryTopic.steps => AppColors.steps,
-    SummaryTopic.protein => AppColors.protein,
-    SummaryTopic.calories => AppColors.calories,
-    SummaryTopic.water => AppColors.water,
-    SummaryTopic.calendar => AppColors.info,
-    SummaryTopic.workout => AppColors.strength,
-    SummaryTopic.sleep => AppColors.sleep,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      accent: AppColors.brand,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.auto_awesome_motion,
-                size: 18,
-                color: AppColors.brand,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('Your day so far', style: t.titleMedium)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (summary.lines.isEmpty)
-            Text(
-              'Nothing to summarise yet — log food, water or connect '
-              'Health Connect to see a daily brief.',
-              style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          for (final line in summary.lines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(
-                      _icon(line.topic),
-                      size: 16,
-                      color: _color(line.topic),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(child: Text(line.text, style: t.bodyMedium)),
-                ],
-              ),
-            ),
-          if (summary.unavailable.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Not available yet',
-              style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final u in summary.unavailable) UnavailableChip(u),
-              ],
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Built from your logged and synced data only.',
-            style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepsCard extends StatelessWidget {
-  const _StepsCard({required this.s});
-  final TodaySnapshot s;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final steps = s.steps;
-    final goal = s.profile.stepGoal;
-    if (steps == null) {
-      return AppCard(
-        child: EmptyState(
-          compact: true,
-          icon: Icons.directions_walk,
-          title: 'No step data yet today',
-          message:
-              'Steps appear here once Health Connect syncs or you add them '
-              'manually.',
-          actionLabel: 'Check Health Connect',
-          onAction: () => context.push(AppPaths.healthStatus),
-        ),
-      );
-    }
-    final value = steps.value.round();
-    final remaining = goal - value;
-    return AppCard(
-      accent: AppColors.steps,
-      onTap: () => context.push(AppPaths.steps),
-      child: Row(
-        children: [
-          ProgressRing(
-            progress: goal <= 0 ? 0 : value / goal,
-            color: AppColors.steps,
-            size: 116,
-            stroke: 11,
-            semanticLabel: 'Steps $value of $goal',
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  Fmt.integer(value),
-                  style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  'of ${Fmt.integer(goal)}',
-                  style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Steps', style: t.labelLarge),
-                Text(
-                  remaining > 0
-                      ? '${Fmt.integer(remaining)} to go'
-                      : 'Goal reached',
-                  style: t.titleMedium?.copyWith(
-                    color: remaining > 0 ? null : AppColors.success,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.lg,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    _inline(
-                      context,
-                      Icons.straighten,
-                      s.distance == null ? '— km' : Fmt.km(s.distance!.value),
-                    ),
-                    _inline(
-                      context,
-                      Icons.timer_outlined,
-                      s.activeMinutes == null
-                          ? '— active min'
-                          : '${s.activeMinutes!.value.round()} active min',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                SourceBadge(
-                  origin: DataOrigin.fromKey(steps.origin),
-                  asOf: steps.computedAt,
-                  now: s.now,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _inline(BuildContext context, IconData icon, String text) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 4),
-        Text(text, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-}
-
-class _FitnessTiles extends StatelessWidget {
-  const _FitnessTiles({required this.s});
-  final TodaySnapshot s;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = s.latestWorkout;
-    final runs = s.weekRuns;
-    final sleep = s.sleep;
-    final hr = s.latestHeartRate;
-    return TileGrid(
-      children: [
-        MetricTile(
-          icon: Icons.fitness_center,
-          color: AppColors.strength,
-          label: 'Latest workout',
-          value: w?.title,
-          sub: w == null
-              ? null
-              : '${Fmt.weekdayDayMonth(w.startAt)} · '
-                    '${s.latestWorkoutExercises} exercises',
-          badge: w == null
-              ? null
-              : SourceBadge(
-                  origin: DataOrigin.fromKey(w.source),
-                  asOf: w.endAt ?? w.startAt,
-                  now: s.now,
-                  staleAfter: const Duration(days: 365),
-                ),
-          emptyText: 'No workouts recorded yet',
-          onTap: w == null
-              ? () => context.push(AppPaths.strength)
-              : () => context.push(
-                  AppPaths.workoutDetail.replaceFirst(':id', w.id),
-                ),
-        ),
-        MetricTile(
-          icon: Icons.directions_run,
-          color: AppColors.running,
-          label: 'Running this week',
-          value: runs.count == 0 ? null : Fmt.km(runs.distanceM),
-          sub: runs.count == 0
-              ? null
-              : '${runs.count} run${runs.count == 1 ? '' : 's'} · '
-                    'from ${_sources(runs.sources)}',
-          emptyText: 'No runs since Monday',
-          onTap: () => context.push(AppPaths.running),
-        ),
-        MetricTile(
-          icon: Icons.bedtime_outlined,
-          color: AppColors.sleep,
-          label: 'Sleep last night',
-          value: sleep == null
-              ? null
-              : '${sleep.value.round() ~/ 60} h ${sleep.value.round() % 60} m',
-          badge: sleep == null
-              ? null
-              : SourceBadge(
-                  origin: DataOrigin.fromKey(sleep.origin),
-                  asOf: sleep.computedAt,
-                  now: s.now,
-                  staleAfter: const Duration(hours: 24),
-                ),
-          emptyText: 'No sleep data',
-          onTap: () => context.push(AppPaths.healthOverview),
-        ),
-        MetricTile(
-          icon: Icons.favorite_outline,
-          color: AppColors.heart,
-          label: 'Latest heart rate',
-          value: hr == null ? null : '${hr.value.round()} bpm',
-          sub: hr == null ? null : 'at ${Fmt.time(hr.endAt)}',
-          badge: hr == null
-              ? null
-              : SourceBadge(
-                  origin: DataOrigin.fromKey(hr.origin),
-                  asOf: hr.endAt,
-                  now: s.now,
-                ),
-          emptyText: 'No heart-rate data',
-          onTap: () => context.push(AppPaths.healthOverview),
-        ),
-      ],
-    );
-  }
-
-  static String _sources(Set<String> keys) =>
-      keys.map((k) => DataOrigin.fromKey(k).label).join(' + ');
-}
-
-class _NutritionCard extends StatelessWidget {
-  const _NutritionCard({required this.s});
-  final TodaySnapshot s;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final n = s.nutrition;
-    final p = s.profile;
-    if (!n.logged) {
-      return AppCard(
-        child: EmptyState(
-          compact: true,
-          icon: Icons.restaurant_outlined,
-          title: 'Nothing logged yet today',
-          message:
-              'Targets: ${Fmt.kcal(p.calorieTarget)} · '
-              '${Fmt.grams(p.proteinTargetG.round())} protein.',
-          actionLabel: 'Log food',
-          onAction: () => context.push(AppPaths.nutrition),
-        ),
-      );
-    }
-    final kcalLeft = p.calorieTarget - n.kcal;
-    final proteinLeft = p.proteinTargetG - n.proteinG;
-    return AppCard(
-      accent: AppColors.calories,
-      onTap: () => context.push(AppPaths.nutrition),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              ProgressRing(
-                progress: p.calorieTarget <= 0 ? 0 : n.kcal / p.calorieTarget,
-                color: AppColors.calories,
-                size: 116,
-                stroke: 11,
-                semanticLabel:
-                    'Calories ${n.kcal.round()} of ${p.calorieTarget}',
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      Fmt.integer(n.kcal),
-                      style: t.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'of ${Fmt.integer(p.calorieTarget)} kcal',
-                      style: t.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  children: [
-                    MetricBar(
-                      label: 'Protein',
-                      value: n.proteinG,
-                      target: p.proteinTargetG,
-                      color: AppColors.protein,
-                      unit: ' g',
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    MetricBar(
-                      label: 'Carbs',
-                      value: n.carbsG,
-                      target: p.carbsTargetG,
-                      color: AppColors.carbs,
-                      unit: ' g',
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    MetricBar(
-                      label: 'Fat',
-                      value: n.fatG,
-                      target: p.fatTargetG,
-                      color: AppColors.fat,
-                      unit: ' g',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.xl,
-            runSpacing: AppSpacing.sm,
-            children: [
-              StatTile(
-                label: kcalLeft >= 0 ? 'Calories left' : 'Over target',
-                value: Fmt.kcal(kcalLeft.abs()),
-              ),
-              StatTile(
-                label: proteinLeft > 0 ? 'Protein to go' : 'Protein',
-                value: proteinLeft > 0
-                    ? Fmt.grams(proteinLeft.round())
-                    : 'Target met',
-              ),
-              StatTile(
-                label: 'Meals logged',
-                value: '${s.mealsLogged}',
-                sub: '${n.entries} items',
-              ),
-            ],
-          ),
-          if (s.nutritionLastLoggedAt != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'From your food log · last entry '
-              '${Fmt.ago(s.nutritionLastLoggedAt!, s.now)}',
-              style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _WaterCard extends StatelessWidget {
-  const _WaterCard({required this.s});
-  final TodaySnapshot s;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    final goal = s.profile.waterGoalMl;
-    if (s.waterMl <= 0) {
-      return AppCard(
-        onTap: () => context.push(AppPaths.hydration),
-        child: Row(
-          children: [
-            const Icon(Icons.water_drop_outlined, color: AppColors.water),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                'No water logged today · goal ${Fmt.ml(goal)}',
-                style: t.bodyMedium,
-              ),
-            ),
-            Text('Log', style: t.labelLarge?.copyWith(color: AppColors.water)),
-          ],
-        ),
-      );
-    }
-    return AppCard(
-      accent: AppColors.water,
-      onTap: () => context.push(AppPaths.hydration),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MetricBar(
-            label: 'Water',
-            value: s.waterMl.toDouble(),
-            target: goal.toDouble(),
-            color: AppColors.water,
-            formatter: (v) => Fmt.ml(v),
-          ),
-          if (s.waterLastLoggedAt != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Last logged ${Fmt.ago(s.waterLastLoggedAt!, s.now)}',
-              style: t.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CalendarCard extends StatelessWidget {
-  const _CalendarCard({required this.calendar, required this.now});
-  final AsyncValue<CalendarReadResult> calendar;
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.event_outlined, size: 18, color: AppColors.info),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('Calendar', style: t.titleSmall)),
-              TextButton(
-                onPressed: () => context.push(AppPaths.planner),
-                child: const Text('Plan day'),
-              ),
-            ],
-          ),
-          calendar.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(AppSpacing.md),
-              child: LinearProgressIndicator(),
-            ),
-            error: (e, _) =>
-                Text('Could not load calendar events.', style: t.bodyMedium),
-            data: (r) {
-              if (!r.connected) {
-                return NoticeBanner(
-                  message: 'Google Calendar is not connected.',
-                  icon: Icons.link_off,
-                  actionLabel: 'Connect',
-                  onAction: () => context.push(AppPaths.integrations),
-                );
-              }
-              if (r.error != null) {
-                return const NoticeBanner(
-                  message: 'Calendar could not be loaded right now.',
-                  icon: Icons.cloud_off,
-                  color: AppColors.warning,
-                );
-              }
-              final events = [...r.events]
-                ..sort((a, b) => a.start.compareTo(b.start));
-              if (events.isEmpty) {
-                return Text(
-                  'No events today.',
-                  style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                );
-              }
-              return Column(
-                children: [
-                  for (final e in events.take(5))
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 72,
-                            child: Text(
-                              e.allDay ? 'All day' : Fmt.time(e.start),
-                              style: t.labelMedium?.copyWith(
-                                color: e.end.isBefore(now)
-                                    ? scheme.onSurfaceVariant
-                                    : AppColors.info,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              e.title,
-                              style: t.bodyMedium?.copyWith(
-                                color: e.end.isBefore(now)
-                                    ? scheme.onSurfaceVariant
-                                    : null,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (events.length > 5)
-                    Text('+${events.length - 5} more', style: t.labelSmall),
-                  if (r.fetchedAt != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SourceBadge(
-                        origin: DataOrigin.googleCalendar,
-                        asOf: r.fetchedAt,
-                        now: now,
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrioritiesCard extends ConsumerWidget {
-  const _PrioritiesCard({required this.s});
-  final TodaySnapshot s;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.flag_outlined, size: 18, color: AppColors.brand),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('Top priorities', style: t.titleSmall)),
-              if (s.taskCount > 0)
-                Text(
-                  '${s.tasksDone}/${s.taskCount} done',
-                  style: t.labelMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          if (s.topTasks.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Text(
-                'No priorities set for today.',
-                style: t.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ),
-          for (final task in s.topTasks)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: task.done,
-              onChanged: (v) => ref
-                  .read(planningRepositoryProvider)
-                  .setTaskDone(task.id, v ?? false),
-              title: Text(
-                task.title,
-                style: t.bodyLarge?.copyWith(
-                  decoration: task.done ? TextDecoration.lineThrough : null,
-                  color: task.done ? scheme.onSurfaceVariant : null,
-                ),
-              ),
-              subtitle: task.project == null ? null : Text(task.project!),
-              secondary: _PriorityDot(priority: task.priority),
-            ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => context.push(AppPaths.planner),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(
-                s.topTasks.isEmpty ? 'Add priorities' : 'Open planner',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PriorityDot extends StatelessWidget {
-  const _PriorityDot({required this.priority});
-  final int priority;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (priority) {
-      1 => AppColors.danger,
-      2 => AppColors.warning,
-      _ => AppColors.info,
-    };
-    return Semantics(
-      label: 'Priority $priority',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: AppRadii.chip,
-        ),
-        child: Text(
-          'P$priority',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-        ),
-      ),
-    );
-  }
-}
-
-class _CheckInsGrid extends StatelessWidget {
-  const _CheckInsGrid({required this.s});
-  final TodaySnapshot s;
-
-  static const _moodLabels = ['Awful', 'Low', 'Okay', 'Good', 'Great'];
-
-  @override
-  Widget build(BuildContext context) {
-    final tally = s.habitTally;
-    final mood = s.moodToday;
-    return TileGrid(
-      children: [
-        MetricTile(
-          icon: Icons.check_circle_outline,
-          color: AppColors.habit,
-          label: 'Habits today',
-          value: s.habitCount == 0 || tally.total == 0
-              ? null
-              : '${tally.done} of ${tally.total} done',
-          sub: tally.total == 0
-              ? null
-              : tally.remaining == 0
-              ? 'All done'
-              : '${tally.remaining} remaining',
-          emptyText: s.habitCount == 0
-              ? 'No habits set up'
-              : 'Nothing scheduled today',
-          onTap: () => context.push(AppPaths.habits),
-        ),
-        MetricTile(
-          icon: Icons.mood,
-          color: AppColors.mood,
-          label: 'Mood check-in',
-          value: mood == null
-              ? null
-              : '${_moodLabels[(mood.mood - 1).clamp(0, 4)]} (${mood.mood}/5)',
-          sub: mood == null ? null : 'Logged ${Fmt.time(mood.recordedAt)}',
-          emptyText: 'Not checked in yet',
-          onTap: () => context.push(AppPaths.mood),
-        ),
-        MetricTile(
-          icon: Icons.menu_book_outlined,
-          color: AppColors.sleep,
-          label: 'Journal',
-          value: s.journalToday ? 'Written today' : null,
-          emptyText: 'No entry yet today',
-          onTap: () => context.push(AppPaths.journal),
-        ),
-        MetricTile(
-          icon: Icons.insights_outlined,
-          color: AppColors.brandAlt,
-          label: 'Reports',
-          value: 'Weekly & monthly',
-          sub: 'Generated from your data',
-          onTap: () => context.push(AppPaths.reports),
-        ),
-      ],
-    );
-  }
 }

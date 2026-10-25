@@ -199,13 +199,31 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     required double max,
     bool optional = false,
     bool decimal = true,
+    double? step,
   }) => TextFormField(
     controller: _c[key],
     keyboardType: TextInputType.numberWithOptions(decimal: decimal),
     inputFormatters: [
       FilteringTextInputFormatter.allow(RegExp(decimal ? r'[0-9.]' : r'[0-9]')),
     ],
-    decoration: InputDecoration(labelText: label, suffixText: suffix),
+    style: context.hud.number(size: 20),
+    decoration: InputDecoration(
+      labelText: label,
+      suffixText: suffix,
+      suffixIcon: step == null
+          ? null
+          : _Nudge(
+              label: label,
+              onStep: (dir) {
+                final c = _c[key]!;
+                final now = double.tryParse(c.text.trim()) ?? min;
+                final next = (now + step * dir).clamp(min, max);
+                c.text = _num(next.toDouble());
+                Haptics.selection();
+                setState(() {});
+              },
+            ),
+    ),
     validator: (v) => _validNum(v, min: min, max: max, optional: optional),
   );
 
@@ -342,8 +360,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               ),
               const SectionHeader(
                 'Daily targets',
-                subtitle:
-                    'Example targets — adjust with a qualified professional',
+                subtitle: 'Examples, not medical advice',
               ),
               AppCard(
                 child: Column(
@@ -352,6 +369,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                       _numField(
                         'kcal',
                         'Calories',
+                        step: 50,
                         suffix: 'kcal',
                         min: 800,
                         max: 6000,
@@ -360,6 +378,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                       _numField(
                         'protein',
                         'Protein',
+                        step: 5,
                         suffix: 'g',
                         min: 0,
                         max: 400,
@@ -369,11 +388,19 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                       _numField(
                         'carbs',
                         'Carbs',
+                        step: 5,
                         suffix: 'g',
                         min: 0,
                         max: 900,
                       ),
-                      _numField('fat', 'Fat', suffix: 'g', min: 0, max: 300),
+                      _numField(
+                        'fat',
+                        'Fat',
+                        suffix: 'g',
+                        min: 0,
+                        max: 300,
+                        step: 5,
+                      ),
                     ]),
                     row([
                       _numField(
@@ -387,6 +414,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                       _numField(
                         'steps',
                         'Step goal',
+                        step: 500,
                         min: 0,
                         max: 60000,
                         decimal: false,
@@ -395,6 +423,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                     _numField(
                       'water',
                       'Water goal',
+                      step: 250,
                       suffix: 'ml',
                       min: 0,
                       max: 8000,
@@ -465,25 +494,15 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                         hintText: 'e.g. Step on stage conditioned and healthy; 5K under 30:00',
                       ),
                     ),
-                    Text(
-                      'Coaching style',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    SegmentedButton<String>(
+                    Text('COACHING STYLE', style: context.hud.label(size: 11)),
+                    SegmentedHud<String>(
                       segments: const [
-                        ButtonSegment(value: 'direct', label: Text('Direct')),
-                        ButtonSegment(
-                          value: 'encouraging',
-                          label: Text('Encouraging'),
-                        ),
-                        ButtonSegment(
-                          value: 'analytical',
-                          label: Text('Analytical'),
-                        ),
+                        HudSegment(value: 'direct', label: 'Direct'),
+                        HudSegment(value: 'encouraging', label: 'Warm'),
+                        HudSegment(value: 'analytical', label: 'Analytical'),
                       ],
-                      selected: {_style},
-                      onSelectionChanged: (s) =>
-                          setState(() => _style = s.first),
+                      value: _style,
+                      onChanged: (v) => setState(() => _style = v),
                     ),
                   ]),
                 ),
@@ -498,8 +517,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               ),
               const SectionHeader(
                 'Injuries & restrictions',
-                subtitle:
-                    'The coach will respect these when suggesting training',
+                subtitle: 'Respected in every session',
               ),
               const _RestrictionsCard(),
               const SectionHeader('Goal history'),
@@ -520,16 +538,39 @@ class _ConfirmChangesDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final hud = context.hud;
     return AlertDialog(
+      icon: const GlowIcon(Icons.compare_arrows, framed: true, size: 20),
       title: const Text('Confirm target changes'),
       content: SizedBox(
         width: 420,
         child: ListView(
           shrinkWrap: true,
           children: [
+            Text(
+              '${changes.length} CHANGE${changes.length == 1 ? '' : 'S'} · '
+              'LOGGED TO GOAL HISTORY',
+              style: hud.mono(size: 10, color: hud.accentInk),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             for (final c in changes)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  color: (c.isTarget ? hud.accent : hud.text).withValues(
+                    alpha: c.isTarget ? 0.08 : 0.03,
+                  ),
+                  border: Border.all(
+                    color: (c.isTarget ? hud.accent : hud.hairline).withValues(
+                      alpha: c.isTarget ? 0.35 : 0.12,
+                    ),
+                  ),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -545,7 +586,10 @@ class _ConfirmChangesDialog extends StatelessWidget {
                       child: Text(
                         '${c.oldText} → ${c.newText}',
                         textAlign: TextAlign.right,
-                        style: t.bodyMedium,
+                        style: hud.mono(
+                          size: 12.5,
+                          color: c.isTarget ? hud.accentInk : hud.text,
+                        ),
                       ),
                     ),
                   ],
@@ -962,4 +1006,26 @@ class _GoalHistoryCard extends ConsumerWidget {
     'runGoalTimeS' => 'Run goal time (s)',
     _ => const ProfileDraft().fields[key]?.label ?? key,
   };
+}
+
+/// Inline −/+ nudges inside a numeric field.
+class _Nudge extends StatelessWidget {
+  const _Nudge({required this.label, required this.onStep});
+  final String label;
+  final ValueChanged<int> onStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    Widget b(int dir, IconData icon, String tip) => IconButton(
+      tooltip: '$tip $label',
+      visualDensity: VisualDensity.compact,
+      icon: Icon(icon, size: 18, color: hud.accentInk),
+      onPressed: () => onStep(dir),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [b(-1, Icons.remove, 'Decrease'), b(1, Icons.add, 'Increase')],
+    );
+  }
 }

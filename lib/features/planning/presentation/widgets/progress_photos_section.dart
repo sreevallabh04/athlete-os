@@ -133,7 +133,7 @@ class _ProgressPhotosSectionState extends ConsumerState<ProgressPhotosSection> {
           CardTitle(
             icon: Icons.photo_library_outlined,
             title: 'Progress photos',
-            color: AppColors.competition,
+            color: AppColors.gold,
             trailing: (photos.value?.length ?? 0) >= 2
                 ? TextButton(
                     onPressed: () => setState(() {
@@ -147,8 +147,8 @@ class _ProgressPhotosSectionState extends ConsumerState<ProgressPhotosSection> {
           const SizedBox(height: AppSpacing.xs),
           const Row(
             children: [
-              Icon(Icons.lock_outline, size: 14),
-              SizedBox(width: 4),
+              Icon(Icons.lock_outline, size: 14, color: AppColors.success),
+              SizedBox(width: 6),
               Expanded(
                 child: Hint(
                   'Private: stored only in app storage on this device, never '
@@ -162,31 +162,35 @@ class _ProgressPhotosSectionState extends ConsumerState<ProgressPhotosSection> {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 'Select two photos to compare (${_compare.length}/2).',
-                style: t.labelMedium?.copyWith(color: AppColors.competition),
+                style: t.labelMedium?.copyWith(color: AppColors.gold),
               ),
             ),
           const SizedBox(height: AppSpacing.md),
           photos.when(
             loading: () => const LoadingState(),
             error: (e, _) => const Hint('Could not load photos.'),
-            data: (list) => list.isEmpty
-                ? const Hint('No progress photos yet.')
-                : _grid(list),
+            data: (list) => list.isEmpty ? const _PoseSlots() : _grid(list),
           ),
           const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+          Row(
             children: [
-              FilledButton.tonalIcon(
-                onPressed: _busy ? null : () => _add(ImageSource.camera),
-                icon: const Icon(Icons.photo_camera_outlined),
-                label: const Text('Take photo'),
+              Expanded(
+                child: HudButton.secondary(
+                  label: 'Take photo',
+                  icon: Icons.photo_camera_outlined,
+                  compact: true,
+                  loading: _busy,
+                  onPressed: _busy ? null : () => _add(ImageSource.camera),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _add(ImageSource.gallery),
-                icon: const Icon(Icons.photo_outlined),
-                label: const Text('From gallery'),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: HudButton.ghost(
+                  label: 'From gallery',
+                  icon: Icons.photo_outlined,
+                  compact: true,
+                  onPressed: _busy ? null : () => _add(ImageSource.gallery),
+                ),
               ),
             ],
           ),
@@ -216,22 +220,35 @@ class _ProgressPhotosSectionState extends ConsumerState<ProgressPhotosSection> {
                   button: true,
                   selected: _compare.contains(p.id),
                   label: 'Progress photo from ${formatDateKey(p.localDate)}',
-                  child: GestureDetector(
+                  child: PressableScale(
                     onTap: () => _tap(p, list),
+                    haptic: _comparing
+                        ? PressHaptic.selection
+                        : PressHaptic.light,
                     child: Container(
                       width: 96,
                       height: 128,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(AppRadii.sm),
                         border: Border.all(
-                          width: 3,
+                          width: 2,
                           color: _compare.contains(p.id)
-                              ? AppColors.competition
-                              : Colors.transparent,
+                              ? AppColors.gold
+                              : context.hud.hairline.withValues(alpha: 0.2),
                         ),
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: _PhotoImage(path: p.localPath, cacheWidth: 300),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _PhotoImage(path: p.localPath, cacheWidth: 300),
+                          const Positioned(
+                            right: 4,
+                            top: 4,
+                            child: _LockBadge(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -324,6 +341,79 @@ class _CompareDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Small "on-device only" badge over each photo.
+class _LockBadge extends StatelessWidget {
+  const _LockBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: const Icon(Icons.lock, size: 11, color: Colors.white),
+  );
+}
+
+/// Empty state: the three standard poses to capture, as outlined slots.
+class _PoseSlots extends StatelessWidget {
+  const _PoseSlots();
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            for (final (i, pose) in const [
+              'FRONT',
+              'SIDE',
+              'BACK',
+            ].indexed) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AspectRatio(
+                  aspectRatio: 3 / 4,
+                  child: HudFrame(
+                    color: AppColors.gold.withValues(alpha: 0.6),
+                    cornerLength: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.accessibility_new,
+                            size: 30,
+                            color: hud.textMuted.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(pose, style: hud.label(size: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        const Hint(
+          'No progress photos yet. Same light, same time of day, every '
+          'two weeks.',
+        ),
+      ],
     );
   }
 }
