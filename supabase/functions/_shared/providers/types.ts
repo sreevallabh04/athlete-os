@@ -1,18 +1,31 @@
 // Normalised, provider-agnostic types shared by the AI proxy and its adapters.
 // These mirror the wire contract used by the Flutter client (ai-chat).
 
-export type ProviderId = "anthropic" | "openai" | "gemini";
-export const PROVIDER_IDS: readonly ProviderId[] = ["anthropic", "openai", "gemini"];
+export type ProviderId = "anthropic" | "openai" | "gemini" | "groq";
+export const PROVIDER_IDS: readonly ProviderId[] = ["anthropic", "openai", "gemini", "groq"];
 
 export function isProviderId(v: unknown): v is ProviderId {
-  return v === "anthropic" || v === "openai" || v === "gemini";
+  return v === "anthropic" || v === "openai" || v === "gemini" || v === "groq";
 }
+
+/** Providers whose adapters accept `image` blocks (others get a text placeholder). */
+export const IMAGE_CAPABLE_PROVIDERS: readonly ProviderId[] = ["anthropic", "openai", "gemini"];
 
 export type JsonObject = Record<string, unknown>;
 
 export interface TextBlock {
   type: "text";
   text: string;
+}
+
+/**
+ * User-only. Inline image (base64, no data: prefix). Only providers in
+ * IMAGE_CAPABLE_PROVIDERS receive the pixels; others see a text placeholder.
+ */
+export interface ImageBlock {
+  type: "image";
+  media_type: "image/jpeg" | "image/png" | "image/webp";
+  data: string;
 }
 
 /** Assistant-only. */
@@ -40,7 +53,7 @@ export interface OpaqueBlock {
   data: JsonObject;
 }
 
-export type Block = TextBlock | ToolCallBlock | ToolResultBlock | OpaqueBlock;
+export type Block = TextBlock | ImageBlock | ToolCallBlock | ToolResultBlock | OpaqueBlock;
 
 export interface NormalisedMessage {
   role: "user" | "assistant";
@@ -107,6 +120,12 @@ export type ErrorKind =
   | "rate_limited"
   | "invalid_credential"
   | "quota_exhausted"
+  /**
+   * The request is too large for this provider/tier (e.g. Groq 413 when a
+   * single request exceeds the tokens-per-minute limit). Not retried and not
+   * counted against the key or the circuit breaker; the next provider is tried.
+   */
+  | "request_too_large"
   | "bad_request";
 
 export interface ProviderErrorInfo {

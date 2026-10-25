@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/config/env.dart';
 import '../../../core/util/redact.dart';
+import '../../../data/repositories/settings_repository.dart';
 
 /// Owns Supabase initialisation for the app. Initialised only when the build
 /// was given a Supabase URL + anon key; otherwise every AI surface reports
@@ -47,6 +48,10 @@ class CoachAuthState {
 }
 
 /// Sign-in for the AI backend: anonymous (device-bound) or email OTP.
+///
+/// When the current user is anonymous, [sendEmailCode] LINKS the email to
+/// that same account (usage history is kept); if the email already belongs
+/// to another account it falls back to signing in to that account.
 abstract interface class CoachAuth {
   CoachAuthState get current;
   Stream<CoachAuthState> changes();
@@ -54,6 +59,31 @@ abstract interface class CoachAuth {
   Future<void> sendEmailCode(String email);
   Future<void> verifyEmailCode(String email, String code);
   Future<void> signOut();
+}
+
+/// App setting: sign in anonymously on launch when there is no session
+/// (default true; turned off by an explicit "Sign out").
+const autoAnonymousSignInKey = 'ai.auto_anonymous_sign_in';
+
+/// Signs in anonymously when the backend is configured, there is no session
+/// and the user has not opted out. Never throws (offline launches simply try
+/// again next time). Supabase persists the session on the device.
+Future<bool> ensureAnonymousSession(
+  CoachAuth auth,
+  SettingsRepository settings,
+) async {
+  try {
+    final s = auth.current;
+    if (!s.configured || s.signedIn) return false;
+    if ((await settings.get<bool>(autoAnonymousSignInKey)) == false) {
+      return false;
+    }
+    await auth.signInAnonymously().timeout(const Duration(seconds: 15));
+    return true;
+  } catch (e) {
+    debugPrint('Anonymous sign-in skipped: ${redactSecrets(e.toString())}');
+    return false;
+  }
 }
 
 class UnconfiguredCoachAuth implements CoachAuth {
@@ -101,23 +131,43 @@ class SupabaseCoachAuth implements CoachAuth {
   @override
   Future<void> signInAnonymously() => _guard(_auth.signInAnonymously);
 
-  @override
-  Future<void> sendEmailCode(String email) =>
-      _guard(() => _auth.signInWithOtp(email: email.trim()));
+  /// True while an email code was sent to link the current anonymous user.
+  bool _linking = false;
 
   @override
-  Future<void> verifyEmailCode(String email, String code) => _guard(
-    () => _auth.verifyOTP(
+  Future<void> sendEmailCode(String email) => _guard(() async {
+    final e = email.trim();
+    if (_auth.currentUser?.isAnonymous ?? false) {
+      try {
+        await _auth.updateUser(UserAttributes(email: e));
+        _linking = true;
+        return;
+      } on AuthException catch (err) {
+        // Email already registered: sign in to that account instead.
+        if (err.code != 'email_exists' &&
+            !err.message.toLowerCase().contains('already')) {
+          rethrow;
+        }
+      }
+    }
+    _linking = false;
+    await _auth.signInWithOtp(email: e);
+  });
+
+  @override
+  Future<void> verifyEmailCode(String email, String code) => _guard(() async {
+    await _auth.verifyOTP(
       email: email.trim(),
       token: code.trim(),
-      type: OtpType.email,
-    ),
-  );
+      type: _linking ? OtpType.emailChange : OtpType.email,
+    );
+    _linking = false;
+  });
 
   @override
   Future<void> signOut() => _guard(_auth.signOut);
 
-  Future<void> _guard(Future<Object?> Function() f) async {
+  Future<void> _guard(Future<void> Function() f) async {
     try {
       await f();
     } on AuthException catch (e) {

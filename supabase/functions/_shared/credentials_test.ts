@@ -30,11 +30,19 @@ Deno.test("credentials: key never serialised", () => {
 });
 
 Deno.test("credentials: provider order and default models", () => {
-  assertEquals(providerOrder(env({})), ["anthropic", "openai", "gemini"]);
+  assertEquals(providerOrder(env({})), ["anthropic", "openai", "gemini", "groq"]);
   assertEquals(providerOrder(env({ AI_PROVIDER_ORDER: "gemini, OPENAI,bogus,gemini" })), ["gemini", "openai"]);
-  assertEquals(providerOrder(env({ AI_PROVIDER_ORDER: "bogus" })), ["anthropic", "openai", "gemini"]);
+  assertEquals(providerOrder(env({ AI_PROVIDER_ORDER: "bogus" })), ["anthropic", "openai", "gemini", "groq"]);
+  assertEquals(providerOrder(env({ AI_PROVIDER_ORDER: "gemini,groq" })), ["gemini", "groq"]);
+  assertEquals(defaultModel("groq", env({})), "openai/gpt-oss-120b");
+  assertEquals(defaultModel("groq", env({ AI_DEFAULT_MODEL_GROQ: "openai/gpt-oss-20b" })), "openai/gpt-oss-20b");
   assertEquals(defaultModel("anthropic", env({})), "claude-sonnet-5-5");
   assertEquals(defaultModel("openai", env({})), "gpt-5.4-mini");
   assertEquals(defaultModel("gemini", env({})), "gemini-3.8-flash");
   assertEquals(defaultModel("openai", env({ AI_DEFAULT_MODEL_OPENAI: "gpt-x" })), "gpt-x");
+});
+
+Deno.test("credentials: groq primary + secondary", () => {
+  const creds = loadCredentials(env({ GROQ_API_KEY: "gsk_aaaaaaaaaaaaaaaa", GROQ_API_KEY_SECONDARY: "gsk_bbbbbbbbbbbb" }));
+  assertEquals(creds.map((c) => `${c.provider}/${c.alias}`), ["groq/primary", "groq/secondary"]);
 });

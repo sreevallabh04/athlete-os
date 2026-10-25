@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/settings_repository.dart';
 
 /// Provider ids understood by the `ai-chat` edge function.
-const aiProviderIds = ['anthropic', 'openai', 'gemini'];
+const aiProviderIds = ['anthropic', 'openai', 'gemini', 'groq'];
 
 const aiProviderLabels = {
   'anthropic': 'Anthropic Claude',
   'openai': 'OpenAI',
   'gemini': 'Google Gemini',
+  'groq': 'Groq',
 };
 
 /// Model suggestions shown in settings. The server's allowlist is the source
@@ -16,7 +17,8 @@ const aiProviderLabels = {
 const aiModelSuggestions = {
   'anthropic': ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5'],
   'openai': ['gpt-5.4-mini'],
-  'gemini': ['gemini-3.8-flash'],
+  'gemini': ['gemini-3.6-flash', 'gemini-3.8-flash'],
+  'groq': ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
 };
 
 /// User preferences sent with every AI request. Stored locally in
@@ -26,7 +28,7 @@ class AiPreferences {
   const AiPreferences({
     this.primaryProvider,
     this.model,
-    this.fallbackProviders = const ['openai', 'gemini'],
+    this.fallbackProviders = const ['gemini', 'groq'],
     this.maxTokens = 4096,
     this.timeoutMs = 60000,
     this.maxRetries = 2,
@@ -83,7 +85,37 @@ abstract final class AiSettingKeys {
   static const timeoutMs = 'ai.timeout_ms';
   static const maxRetries = 'ai.max_retries';
   static const monthlyBudgetUsd = 'ai.monthly_budget_usd';
+
+  /// Assistant persona text prepended to the coach system prompt. Unset =
+  /// [defaultAiPersona] (JARVIS); an empty string = no persona.
+  static const persona = 'ai.persona';
 }
+
+/// Max persona length kept in the system prompt (server limit is 12 000
+/// chars for the whole prompt).
+const maxPersonaChars = 1500;
+
+/// Default assistant persona.
+const defaultAiPersona =
+    'You are JARVIS, the personal AI assistant built into Athlete OS, acting '
+    "as the user's fitness, nutrition and well-being coach. Address the user "
+    'as "Sreevallabh" (naturally, not in every sentence). Tone: calm, '
+    'composed and formal, like a quietly witty British butler; dry humour is '
+    'welcome, flattery is not. Be concise.';
+
+/// Persona to use: stored value (trimmed, capped) or the default when unset.
+String resolvePersona(String? stored) {
+  if (stored == null) return defaultAiPersona;
+  final t = stored.trim();
+  return t.length > maxPersonaChars ? t.substring(0, maxPersonaChars) : t;
+}
+
+final aiPersonaProvider = StreamProvider<String>(
+  (ref) => ref
+      .watch(settingsRepositoryProvider)
+      .watch<String>(AiSettingKeys.persona)
+      .map(resolvePersona),
+);
 
 class AiPreferencesRepository {
   AiPreferencesRepository(this._settings);

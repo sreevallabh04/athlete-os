@@ -86,7 +86,7 @@ export function createStatusHandler(deps: StatusDeps): (req: Request) => Promise
         }
         if (body.provider !== undefined && body.provider !== null) {
           if (!isProviderId(body.provider)) {
-            return errorResponse("invalid_request", "provider must be anthropic, openai or gemini.");
+            return errorResponse("invalid_request", "provider must be anthropic, openai, gemini or groq.");
           }
           provider = body.provider;
         }

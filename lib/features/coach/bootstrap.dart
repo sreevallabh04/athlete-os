@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/env.dart';
 import '../../core/util/redact.dart';
 import '../../data/repositories/integration_status_repository.dart';
+import '../../data/repositories/settings_repository.dart';
 import 'data/coach_auth.dart';
 
 /// Start-up work for the coach feature. Called once from [bootstrap] before the
@@ -27,6 +30,16 @@ Future<void> coachBootstrap(ProviderContainer container) async {
         existing.status == ConnectionStates.awaitingCredentials) {
       // Configured, but never verified by a real call yet.
       await repo.setStatus(Providers.aiBackend, ConnectionStates.needsSetup);
+    }
+    if (CoachSupabase.ready) {
+      // First launch: get an anonymous session without user action. Not
+      // awaited so a slow network never delays the first frame.
+      unawaited(
+        ensureAnonymousSession(
+          container.read(coachAuthProvider),
+          container.read(settingsRepositoryProvider),
+        ),
+      );
     }
   } catch (e) {
     debugPrint('coachBootstrap: ${redactSecrets(e.toString())}');

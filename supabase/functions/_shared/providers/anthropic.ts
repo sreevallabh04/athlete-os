@@ -28,6 +28,9 @@ function mapBlock(role: NormalisedMessage["role"], b: Block): JsonObject | null 
   switch (b.type) {
     case "text":
       return b.text.length > 0 ? { type: "text", text: b.text } : null;
+    case "image":
+      if (role !== "user") return null;
+      return { type: "image", source: { type: "base64", media_type: b.media_type, data: b.data } };
     case "tool_call":
       if (role !== "assistant") return null;
       return { type: "tool_use", id: b.id, name: b.name, input: b.arguments ?? {} };

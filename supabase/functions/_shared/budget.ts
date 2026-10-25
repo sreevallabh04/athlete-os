@@ -30,7 +30,12 @@ export const DEFAULT_PRICES: PriceTable = {
   },
   "claude-opus-5-5": { provider: "anthropic", in: 4, out: 20 },
   "gpt-5.4-mini": { provider: "openai", in: 0.75, out: 4.50 },
+  // Gemini prices valid through 2026-12-31 (they double on 2027-01-01).
   "gemini-3.8-flash": { provider: "gemini", in: 0.75, out: 3.75 },
+  "gemini-3.6-flash": { provider: "gemini", in: 0.75, out: 3.75 },
+  // Groq (console.groq.com/docs/models, checked 2026-10-25).
+  "openai/gpt-oss-120b": { provider: "groq", in: 0.15, out: 0.60 },
+  "openai/gpt-oss-20b": { provider: "groq", in: 0.075, out: 0.30 },
 };
 
 /** Conservative price for allowlisted models without a known price. */
@@ -44,6 +49,8 @@ export function inferProvider(model: string): ProviderId | undefined {
   if (m.startsWith("claude")) return "anthropic";
   if (m.startsWith("gemini")) return "gemini";
   if (m.startsWith("gpt") || /^o\d/.test(m)) return "openai";
+  // Groq ids are namespaced ("openai/gpt-oss-120b", "qwen/...", "llama-...").
+  if (m.includes("/") || m.startsWith("llama")) return "groq";
   return undefined;
 }
 
@@ -82,6 +89,7 @@ const ALLOW_ENV: Record<ProviderId, string> = {
   anthropic: "AI_ALLOWED_MODELS_ANTHROPIC",
   openai: "AI_ALLOWED_MODELS_OPENAI",
   gemini: "AI_ALLOWED_MODELS_GEMINI",
+  groq: "AI_ALLOWED_MODELS_GROQ",
 };
 
 /** Priced models of the provider + AI_ALLOWED_MODELS_<PROVIDER> + the provider default. */
@@ -137,7 +145,10 @@ export function costUsd(model: string, usage: Usage, table: PriceTable = DEFAULT
 export function cheapestModel(provider: ProviderId, env: EnvFn, table: PriceTable = loadPriceTable(env)): string {
   let best: string | undefined;
   let bestPrice = Infinity;
-  for (const m of allowedModels(provider, env, table)) {
+  // The default model wins ties (it is the one known to be serving well).
+  const dflt = defaultModel(provider, env);
+  const models = [dflt, ...allowedModels(provider, env, table).filter((m) => m !== dflt)];
+  for (const m of models) {
     const { price, estimated } = priceFor(m, table);
     if (estimated) continue;
     const p = price.in + price.out;

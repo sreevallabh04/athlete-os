@@ -142,3 +142,17 @@ Deno.test("openai errors: rate limit retry hints", () => {
   const d = err(429, { error: { message: "Rate limit" } }, { "x-ratelimit-reset-requests": "20ms" });
   assertEquals(d.retryAfterMs, 20);
 });
+
+Deno.test("openai request: image block -> input_image data URL", () => {
+  const body = bodyOf(openaiAdapter.buildRequest({
+    model: "m",
+    system: "",
+    messages: [{ role: "user", content: [{ type: "image", media_type: "image/jpeg", data: "/9j/" }] }],
+    tools: [],
+    maxTokens: 256,
+  }, "k").init);
+  assertEquals(body.input, [{
+    role: "user",
+    content: [{ type: "input_image", image_url: "data:image/jpeg;base64,/9j/" }],
+  }]);
+});

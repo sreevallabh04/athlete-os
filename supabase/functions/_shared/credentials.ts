@@ -9,18 +9,22 @@ const ENV_NAMES: Record<ProviderId, Record<CredentialAlias, string>> = {
   anthropic: { primary: "ANTHROPIC_API_KEY", secondary: "ANTHROPIC_API_KEY_SECONDARY" },
   openai: { primary: "OPENAI_API_KEY", secondary: "OPENAI_API_KEY_SECONDARY" },
   gemini: { primary: "GEMINI_API_KEY", secondary: "GEMINI_API_KEY_SECONDARY" },
+  groq: { primary: "GROQ_API_KEY", secondary: "GROQ_API_KEY_SECONDARY" },
 };
 
 export const DEFAULT_MODELS: Record<ProviderId, string> = {
   anthropic: "claude-sonnet-5-5",
   openai: "gpt-5.4-mini",
   gemini: "gemini-3.8-flash",
+  // Production Groq model with tool use (console.groq.com/docs/models, 2026-10).
+  groq: "openai/gpt-oss-120b",
 };
 
 const MODEL_ENV: Record<ProviderId, string> = {
   anthropic: "AI_DEFAULT_MODEL_ANTHROPIC",
   openai: "AI_DEFAULT_MODEL_OPENAI",
   gemini: "AI_DEFAULT_MODEL_GEMINI",
+  groq: "AI_DEFAULT_MODEL_GROQ",
 };
 
 export const denoEnv: EnvFn = (name) => {

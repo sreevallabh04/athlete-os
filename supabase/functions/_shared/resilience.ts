@@ -12,6 +12,8 @@
 // * quota_exhausted / long Retry-After -> credential gets cooldown_until
 //   (quota: Retry-After / reset hint / 1 h; rate limit: Retry-After / 60 s),
 //   try the next credential of the same provider.
+// * request_too_large -> (e.g. Groq free-tier TPM smaller than the request)
+//   no retry, no key/breaker penalty; try the next provider.
 // * bad_request -> stop immediately, no rotation, no fallback.
 // * Provider fallback happens only when the current provider has no healthy
 //   credential left or its circuit is open.
@@ -28,6 +30,12 @@ export const DEFAULT_QUOTA_COOLDOWN_MS = 3_600_000;
 export const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
 export const DEFAULT_DEADLINE_MS = 45_000;
 export const MAX_ATTEMPTS_PER_CREDENTIAL = 3;
+/**
+ * Time kept back for the next provider while a non-last provider is tried, so
+ * a hanging primary (e.g. an overloaded model that never answers) cannot eat
+ * the whole deadline. Capped at a third of the total deadline.
+ */
+export const DEFAULT_FALLBACK_RESERVE_MS = 15_000;
 const UNAVAILABLE_MSG = "All AI providers are temporarily unavailable. Please try again later.";
 
 export function classifyError(info: ProviderErrorInfo): ErrorKind {
@@ -380,6 +388,8 @@ export interface FallbackOptions {
   log?: (event: Record<string, unknown>) => void;
   backoffBaseMs?: number;
   backoffCapMs?: number;
+  /** See DEFAULT_FALLBACK_RESERVE_MS. */
+  fallbackReserveMs?: number;
 }
 
 export type FallbackFailureCode =
@@ -433,8 +443,17 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
   };
   let lastFailure: Extract<FallbackResult, { ok: false }> | undefined;
   const firstProvider = configured[0].provider;
+  const reserveMs = Math.max(
+    0,
+    Math.min(
+      opts.fallbackReserveMs ?? DEFAULT_FALLBACK_RESERVE_MS,
+      Math.floor((opts.deadlineAt - clock.now()) / 3),
+    ),
+  );
 
-  for (const plan of configured) {
+  for (const [index, plan] of configured.entries()) {
+    // Non-last providers must leave time for the fallback.
+    const providerDeadline = index < configured.length - 1 ? opts.deadlineAt - reserveMs : opts.deadlineAt;
     const breaker = await breakers.get(plan.provider);
     if (!breaker.canRequest()) {
       noteWait(breaker.retryInMs());
@@ -463,6 +482,7 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
           lastError: lastFailure?.lastError,
         };
       }
+      if (now >= providerDeadline) break; // this provider's share is used up; fall back
       const outcome = await withRetry<{ response: ParsedResponse; latencyMs: number }>(
         cred.provider,
         async (_attempt, remainingMs) => {
@@ -478,7 +498,7 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
         },
         {
           maxAttempts: opts.attemptsPerCredential,
-          deadlineAt: opts.deadlineAt,
+          deadlineAt: providerDeadline,
           clock,
           baseMs: opts.backoffBaseMs,
           capMs: opts.backoffCapMs,
@@ -526,6 +546,15 @@ export async function runWithFallback(opts: FallbackOptions): Promise<FallbackRe
           code: "invalid_request",
           message: `The AI provider rejected the request: ${err.message}`,
         };
+      }
+      if (outcome.kind === "request_too_large") {
+        // The key and provider are healthy; this request just doesn't fit.
+        lastFailure = {
+          ...failure,
+          code: "upstream_error",
+          message: `The request is too large for ${plan.provider}: ${err.message}`,
+        };
+        break; // next provider
       }
       if (outcome.kind === "invalid_credential") {
         await safe(() => health.markFailure(cred.provider, cred.alias, "invalid", null, err.message));

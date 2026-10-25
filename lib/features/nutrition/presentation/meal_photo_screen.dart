@@ -38,8 +38,10 @@ class _MealPhotoScreenState extends ConsumerState<MealPhotoScreen> {
     try {
       final file = await ImagePicker().pickImage(
         source: source,
-        maxWidth: 1600,
-        imageQuality: 85,
+        // Keeps the JPEG well under the backend's 1 MB image limit.
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 80,
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();

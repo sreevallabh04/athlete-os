@@ -1,6 +1,7 @@
 // The only place that talks to provider HTTP APIs. Adapters stay pure.
 import { anthropicAdapter } from "./anthropic.ts";
 import { geminiAdapter } from "./gemini.ts";
+import { groqAdapter } from "./groq.ts";
 import { openaiAdapter } from "./openai.ts";
 import type { ParsedResponse, ProviderAdapter, ProviderErrorInfo, ProviderId, ProviderInput } from "./types.ts";
 import { redactAll } from "../redact.ts";
@@ -9,6 +10,7 @@ export const ADAPTERS: Record<ProviderId, ProviderAdapter> = {
   anthropic: anthropicAdapter,
   openai: openaiAdapter,
   gemini: geminiAdapter,
+  groq: groqAdapter,
 };
 
 export function getAdapter(id: ProviderId): ProviderAdapter {
