@@ -121,23 +121,44 @@ class FoodRepository {
       );
 
   /// Case-insensitive name/brand search over local, non-deleted foods.
-  Future<List<Food>> search(String query, {int limit = 30}) {
+  ///
+  /// Every word of [query] must appear in the name or the brand, in any
+  /// order ("saffola protein oats" finds "Saffola High Protein Oats").
+  /// Foods whose name contains the whole query rank first, then favorites.
+  Future<List<Food>> search(String query, {int limit = 30}) async {
     final q = query.trim().toLowerCase();
-    if (q.isEmpty) return Future.value(const []);
-    final pattern = '%${_escapeLike(q)}%';
-    return (_db.select(_db.foods)
-          ..where(
-            (f) =>
-                f.deletedAt.isNull() &
-                (f.name.lower().like(pattern, escapeChar: r'\') |
-                    f.brand.lower().like(pattern, escapeChar: r'\')),
-          )
-          ..orderBy([
-            (f) => OrderingTerm.desc(f.isFavorite),
-            (f) => OrderingTerm.asc(f.name),
-          ])
-          ..limit(limit))
-        .get();
+    if (q.isEmpty) return const [];
+    final tokens = q
+        .split(RegExp(r'[\s,]+'))
+        .where((t) => t.isNotEmpty)
+        .take(8)
+        .toList();
+    final rows =
+        await (_db.select(_db.foods)
+              ..where((f) {
+                Expression<bool> cond = f.deletedAt.isNull();
+                for (final t in tokens) {
+                  final pattern = '%${_escapeLike(t)}%';
+                  cond =
+                      cond &
+                      (f.name.lower().like(pattern, escapeChar: r'\') |
+                          f.brand.lower().like(pattern, escapeChar: r'\'));
+                }
+                return cond;
+              })
+              ..orderBy([
+                (f) => OrderingTerm.desc(f.isFavorite),
+                (f) => OrderingTerm.asc(f.name),
+              ])
+              ..limit(limit))
+            .get();
+    int rank(Food f) => f.name.toLowerCase().contains(q) ? 0 : 1;
+    final indexed = [for (var i = 0; i < rows.length; i++) (i, rows[i])];
+    indexed.sort((a, b) {
+      final r = rank(a.$2).compareTo(rank(b.$2));
+      return r != 0 ? r : a.$1.compareTo(b.$1);
+    });
+    return [for (final e in indexed) e.$2];
   }
 
   /// Local barcode lookup (barcode lookup is local-first).

@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../app/paths.dart';
 import 'presentation/add_food_screen.dart';
 import 'presentation/ai_food_log_screen.dart';
+import 'domain/food_models.dart';
 import 'presentation/hydration_screen.dart';
+import 'presentation/label_scan_screen.dart';
 import 'presentation/nutrition_history_screen.dart';
 import 'presentation/nutrition_screen.dart';
 
@@ -41,6 +43,19 @@ final nutritionRoutes = <RouteBase>[
       initialText: state.uri.queryParameters['q'],
       initialDate: state.uri.queryParameters['date'],
     ),
+  ),
+  GoRoute(
+    path: AppPaths.labelScan,
+    parentNavigatorKey: rootNavigatorKey,
+    builder: (context, state) {
+      final q = state.uri.queryParameters;
+      return LabelScanScreen(
+        initialName: q['name'],
+        barcode: q['barcode'],
+        meal: MealType.tryParse(q['meal']),
+        date: q['date'],
+      );
+    },
   ),
   GoRoute(
     path: AppPaths.nutritionHistory,

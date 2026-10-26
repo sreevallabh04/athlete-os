@@ -12,6 +12,7 @@ import '../../domain/nutrients.dart';
 DataOrigin originForSource(String source) => switch (source) {
   FoodSources.openFoodFacts => DataOrigin.openFoodFacts,
   FoodSources.usda => DataOrigin.usda,
+  FoodSources.indianFoodDb => DataOrigin.indianFoodDb,
   FoodSources.aiEstimate => DataOrigin.aiEstimate,
   FoodSources.recipe => DataOrigin.calculated,
   _ => DataOrigin.manual,

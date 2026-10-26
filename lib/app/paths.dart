@@ -16,6 +16,9 @@ abstract final class AppPaths {
 
   /// "Tell JARVIS what you ate": bulk AI logging (`?q=` prefill, `?date=`).
   static const aiFoodLog = '/nutrition/ai-log';
+
+  /// "Scan nutrition label" (`?name=`, `?barcode=`, `?meal=`, `?date=`).
+  static const labelScan = '/nutrition/label-scan';
   static const nutritionHistory = '/nutrition/history';
   static const hydration = '/hydration';
   static const coach = '/coach';
