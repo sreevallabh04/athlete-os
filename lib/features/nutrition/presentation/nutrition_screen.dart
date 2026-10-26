@@ -105,6 +105,10 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
     );
   }
 
+  void _openAiLog(String date) => context.push(
+    Uri(path: AppPaths.aiFoodLog, queryParameters: {'date': date}).toString(),
+  );
+
   void _shiftDay(String date, int days) {
     final next = LocalDates.addDays(date, days);
     if (next.compareTo(_today) > 0) {
@@ -119,6 +123,12 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
     final meal = _defaultMeal(date);
     final root = Navigator.of(context, rootNavigator: true);
     return [
+      QuickAction(
+        icon: Icons.auto_awesome_rounded,
+        label: 'Tell JARVIS',
+        ai: true,
+        onSelected: () => _openAiLog(date),
+      ),
       QuickAction(
         icon: Icons.search_rounded,
         label: 'Search food',
@@ -253,6 +263,8 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
                     estimateCount: totals.estimateCount,
                     onSwipe: (dir) => _shiftDay(date, dir),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  _TellJarvisCard(onTap: () => _openAiLog(date)),
                   if (date == today && proteinLeft > 0) ...[
                     const SizedBox(height: AppSpacing.md),
                     MealIdeasCard(
@@ -309,6 +321,59 @@ class _NutritionScreenState extends ConsumerState<NutritionScreen> {
         ),
         const SizedBox(height: AppSpacing.xxxl),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// "Tell JARVIS" entry card
+// ---------------------------------------------------------------------------
+
+/// Prominent glass entry to the AI bulk food logger.
+class _TellJarvisCard extends StatelessWidget {
+  const _TellJarvisCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    final t = Theme.of(context).textTheme;
+    return AppCard(
+      key: const Key('tell-jarvis-card'),
+      onTap: onTap,
+      accent: hud.accent,
+      semanticLabel: 'Paste your meals. JARVIS will log them',
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          JarvisOrb(size: 44, fps: 30, color: hud.accent),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('TELL JARVIS', style: hud.label(size: 10.5)),
+                const SizedBox(height: 2),
+                Text(
+                  'Paste your meals. JARVIS will log them',
+                  style: t.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Type, paste or dictate a whole day. Review before saving.',
+                  style: t.bodySmall?.copyWith(color: hud.textMuted),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: hud.accentInk),
+        ],
+      ),
     );
   }
 }

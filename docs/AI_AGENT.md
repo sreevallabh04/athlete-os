@@ -298,6 +298,23 @@ ESTIMATE and are saved (`verification = 'estimate'`) only after the user
 confirms each one. Photos require `ai_photo_consent`, are picked at ≤ 1280 px /
 JPEG q80 and rejected client-side above 1 MB; nothing is sent without consent.
 
+**Bulk food log ("Tell JARVIS what you ate", wired):** `/nutrition/ai-log`
+(`AiFoodLogScreen`) sends a whole pasted/dictated day (≤ 4 000 chars, wrapped
+as untrusted data between `<<<FOOD_LOG … FOOD_LOG>>>`) in ONE call with only a
+`log_food_items` tool (name, quantity, grams, kcal, protein/carbs/fat/fiber,
+`meal_type` breakfast|lunch|dinner|snack|unknown, confidence, note; plus an
+`unparsed` list), `max_tokens` 4 000. `AiFoodLogParser`
+(`lib/features/coach/data/ai_food_log_parser.dart`) implements the nutrition
+`FoodLogParser` contract; the prompt pins eggetarian defaults, Indian portions
+and "never invent items". Output then passes the pure `sanitizeFoodLog`
+(clamps, kcal recomputed from 4/4/9 when > 20 % off, time-of-day meal default,
+dedupe) and is written only on "Log all" via `FoodLogRepository.logAll` (one
+transaction, `source = ai_estimate`, `verification = estimate`). "Fast mode"
+passes `primaryProvider: 'groq'` to `AiTextService.structuredResult` for that
+call only. Live check 2026-10-26 (sample Indian day, 11 items): default order
+answered via Groq after 38.5 s (Gemini did not answer in time); forced Groq
+8.8 s, ≈ $0.002, all meals and items correct, nothing invented.
+
 **`AiTextService`** (`lib/features/coach/data/ai_text_service.dart`) is the
 reusable one-shot API — `complete({system, user, maxTokens})` →
 `AiTextResult` and `structured({system, user, toolName, schema, image?})` →

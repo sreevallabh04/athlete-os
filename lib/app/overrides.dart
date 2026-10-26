@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 
 import '../core/contracts/calendar_reader.dart';
 import '../features/assistant/application/reply_drafter.dart';
+import '../features/coach/data/ai_food_log_parser.dart';
 import '../features/coach/data/ai_nutrition_estimators.dart';
 import '../features/integrations/data/google_calendar_reader.dart';
+import '../features/nutrition/application/ai_food_log.dart';
 import '../features/nutrition/application/providers.dart';
 import 'adapters/ai_reply_adapters.dart';
+import 'adapters/speech_dictation_adapter.dart';
 
 /// Binds shared contracts (declared in `core/`) to their feature
 /// implementations. Keeping this wiring in `app/` means `core/` never
@@ -26,5 +29,12 @@ List<Override> appOverrides() => [
   replyDrafterProvider.overrideWith((ref) => ref.watch(aiReplyDrafterProvider)),
   conversationSummarizerProvider.overrideWith(
     (ref) => ref.watch(aiConversationSummarizerProvider),
+  ),
+  // "Tell JARVIS what you ate": bulk AI parsing + on-device dictation.
+  foodLogParserProvider.overrideWith(
+    (ref) => ref.watch(aiFoodLogParserProvider),
+  ),
+  foodDictationProvider.overrideWith(
+    (ref) => ref.watch(speechFoodDictationProvider),
   ),
 ];

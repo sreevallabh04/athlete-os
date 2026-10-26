@@ -95,9 +95,9 @@ class QuickActionsRow extends ConsumerWidget {
       QuickAction(
         icon: Icons.restaurant_outlined,
         label: 'Log meal',
-        sub: 'Search · scan',
+        sub: 'Tell JARVIS',
         color: AppColors.calories,
-        onTap: () => context.push(AppPaths.addFood),
+        onTap: () => context.push(AppPaths.aiFoodLog),
       ),
       QuickAction(
         icon: Icons.mood_outlined,

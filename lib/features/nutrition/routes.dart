@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/paths.dart';
 import 'presentation/add_food_screen.dart';
+import 'presentation/ai_food_log_screen.dart';
 import 'presentation/hydration_screen.dart';
 import 'presentation/nutrition_history_screen.dart';
 import 'presentation/nutrition_screen.dart';
@@ -17,10 +18,28 @@ final nutritionRoutes = <RouteBase>[
   GoRoute(
     path: AppPaths.addFood,
     parentNavigatorKey: rootNavigatorKey,
+    // Shared / pasted text goes to the AI bulk logger (which still offers
+    // the on-device parser as a fallback).
+    redirect: (context, state) {
+      final q = state.uri.queryParameters['q']?.trim();
+      if (q == null || q.isEmpty) return null;
+      return Uri(
+        path: AppPaths.aiFoodLog,
+        queryParameters: {'q': q, 'date': ?state.uri.queryParameters['date']},
+      ).toString();
+    },
     builder: (context, state) => AddFoodScreen(
       initialMeal: state.uri.queryParameters['meal'],
       initialDate: state.uri.queryParameters['date'],
       initialQuery: state.uri.queryParameters['q'],
+    ),
+  ),
+  GoRoute(
+    path: AppPaths.aiFoodLog,
+    parentNavigatorKey: rootNavigatorKey,
+    builder: (context, state) => AiFoodLogScreen(
+      initialText: state.uri.queryParameters['q'],
+      initialDate: state.uri.queryParameters['date'],
     ),
   ),
   GoRoute(
