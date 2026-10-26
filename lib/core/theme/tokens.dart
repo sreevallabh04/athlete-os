@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Design tokens. Use these instead of literal values in feature code.
 ///
-/// The visual language is "JARVIS HUD": a deep-space canvas, arc-reactor cyan
-/// as the single primary accent, Stark gold for achievements and hot-rod red
-/// for alerts. See `docs/DESIGN.md` for usage rules.
+/// The visual language is "Stark HUD": a warm charcoal canvas, Stark red as
+/// the single primary accent, gold for achievements and arc-reactor cyan
+/// reserved for JARVIS (AI) surfaces. See `docs/DESIGN.md` for usage rules.
 abstract final class AppSpacing {
   static const double xxs = 2;
   static const double xs = 4;
@@ -48,99 +48,147 @@ abstract final class AppDurations {
   static const Duration data = Duration(milliseconds: 900);
 }
 
-/// Semantic accent palette. Each metric family has a consistent hue so users
-/// learn to associate e.g. green = protein across the whole app.
+/// Semantic accent palette: "Stark" (red & gold).
 ///
-/// Metric hues are tuned for the dark HUD canvas: luminous, slightly
-/// desaturated and of similar perceived brightness so no family shouts.
+/// * **Stark red** is the one primary accent: selection, progress, primary
+///   actions, focus. It accents; it never floods a screen.
+/// * **Gold** is earned: achievements, streaks, PRs, "done".
+/// * **Arc cyan ([jarvis]) belongs to the AI only**: the orb, AI status,
+///   chat, briefing and AI-generated badges. Nothing else may be cyan, so
+///   the assistant keeps a distinct identity.
+/// * Metric families share one red → gold → titanium family with spaced
+///   luminance so adjacent series stay distinguishable (see
+///   `test/core/theme_test.dart`).
 abstract final class AppColors {
   // ── Brand ────────────────────────────────────────────────────────────────
-  /// Arc-reactor cyan. The one primary accent: focus, selection, progress.
-  static const Color cyan = Color(0xFF36E2FF);
+  /// Stark red. The primary accent (strokes, fills, glows, CTAs).
+  static const Color red = Color(0xFFDD3439);
 
-  /// Deeper cyan for fills behind light text and for the light theme.
-  static const Color cyanDeep = Color(0xFF00A9D4);
+  /// Pressed / deep red: fills behind light text, pressed states.
+  static const Color redDeep = Color(0xFFB8262B);
 
-  /// Cyan legible on porcelain (light theme text/icons, AA on white).
-  static const Color cyanInk = Color(0xFF007A99);
+  /// Red legible as text on the charcoal canvas and cards (AA).
+  static const Color redInk = Color(0xFFF04A4F);
 
-  /// Stark gold: achievements, streaks, personal records. Use sparingly.
-  static const Color gold = Color(0xFFFFC24B);
+  /// Red legible as text on porcelain (light theme, AA).
+  static const Color redInkLight = Color(0xFFB4232A);
 
-  /// Hot-rod red: alerts and destructive actions only.
-  static const Color red = Color(0xFFFF4D3D);
+  /// Stark gold: achievements, streaks, personal records, "done".
+  static const Color gold = Color(0xFFF2B544);
 
-  /// Primary brand colour (kept for existing call sites) = [cyan].
-  static const Color brand = cyan;
+  /// Light gold for gold text and highlights on dark.
+  static const Color goldLight = Color(0xFFFFD27A);
 
-  /// Secondary brand colour (kept for existing call sites) = [gold].
+  /// Gold legible as text on porcelain (light theme, AA).
+  static const Color goldInk = Color(0xFF8A5A00);
+
+  /// Arc-reactor cyan. **JARVIS / AI surfaces only** (orb, AI status, AI
+  /// chat, briefing, AI-generated badges and estimate glyphs).
+  static const Color jarvis = Color(0xFF3FD0FF);
+
+  /// Deeper AI cyan for fills behind light text.
+  static const Color jarvisDeep = Color(0xFF0E9FCC);
+
+  /// AI cyan legible on porcelain (light theme text/icons, AA).
+  static const Color jarvisInk = Color(0xFF006F92);
+
+  /// Legacy alias of [jarvis]. AI surfaces only; prefer [jarvis].
+  static const Color cyan = jarvis;
+
+  /// Titanium: neutral information (tags, "auto", disconnected, calendar).
+  static const Color titanium = Color(0xFFB7B0A6);
+
+  /// Primary brand colour = [red].
+  static const Color brand = red;
+
+  /// Secondary brand colour = [gold].
   static const Color brandAlt = gold;
 
-  // ── Metric families ──────────────────────────────────────────────────────
-  static const Color calories = Color(0xFFFF8F4D);
-  static const Color protein = Color(0xFF3EE6A0);
-  static const Color carbs = Color(0xFF6E9BFF);
-  static const Color fat = Color(0xFFFFCF5C);
-  static const Color fiber = Color(0xFFB4EC5A);
-  static const Color water = Color(0xFF45C4FF);
-  static const Color steps = Color(0xFFB07CFF);
-  static const Color heart = Color(0xFFFF5A76);
-  static const Color sleep = Color(0xFF8F94FF);
-  static const Color strength = Color(0xFFFF72B6);
-  static const Color running = Color(0xFFFF6A2B);
-  static const Color mood = Color(0xFFFFD84D);
-  static const Color habit = Color(0xFF3DE0C8);
-  static const Color competition = Color(0xFFE47BFF);
+  // ── Metric families (one warm family + titanium/steel) ───────────────────
+  static const Color calories = red;
+  static const Color protein = Color(0xFFFFD06E);
+  static const Color carbs = Color(0xFFE8822A);
+  static const Color fat = Color(0xFFC9466A);
+  static const Color fiber = Color(0xFFDCC48A);
+  static const Color water = Color(0xFF5F7A90);
+  static const Color steps = Color(0xFFDCCDB8);
+  static const Color heart = Color(0xFFE85A78);
+  static const Color sleep = Color(0xFFB9AE9F);
+  static const Color strength = red;
+  static const Color running = Color(0xFFF2782F);
+  static const Color mood = goldLight;
+  static const Color habit = gold;
+  static const Color competition = Color(0xFFFF8A3D);
 
   // ── Status ───────────────────────────────────────────────────────────────
-  static const Color success = Color(0xFF3EE68B);
-  static const Color warning = Color(0xFFFFB547);
-  static const Color danger = red;
-  static const Color info = cyan;
+  /// Connected / completed: gold ("done" is earned).
+  static const Color success = gold;
 
-  // ── Dark surfaces (deep space) ───────────────────────────────────────────
-  /// App canvas. Near-black blue.
-  static const Color darkBg = Color(0xFF04060B);
+  /// Stale, estimate, needs attention. Always paired with a label.
+  static const Color warning = Color(0xFFFF9A3D);
 
-  /// Second canvas stop for vertical gradients.
-  static const Color darkBgAlt = Color(0xFF070B14);
-  static const Color darkSurface = Color(0xFF0A101B);
-  static const Color darkSurfaceHigh = Color(0xFF111A28);
-  static const Color darkOutline = Color(0xFF1D2B3D);
-  static const Color darkText = Color(0xFFE8F1FA);
-  static const Color darkTextMuted = Color(0xFF8EA3B8);
+  /// Errors, destructive actions and "over target": a hotter coral, brighter
+  /// than [red]. Always pair it with an icon and a label, never colour alone.
+  static const Color danger = Color(0xFFFF6A4D);
+
+  /// "Over target" (= [danger]).
+  static const Color over = danger;
+  static const Color info = titanium;
+
+  // ── Dark surfaces (warm charcoal) ────────────────────────────────────────
+  /// App canvas (bottom stop).
+  static const Color darkBg = Color(0xFF0A0A0C);
+
+  /// Second canvas stop for vertical gradients (top).
+  static const Color darkBgAlt = Color(0xFF131215);
+  static const Color darkSurface = Color(0xFF151417);
+  static const Color darkSurfaceHigh = Color(0xFF1D1B1F);
+  static const Color darkOutline = Color(0xFF2E2A2B);
+  static const Color darkText = Color(0xFFF4F1EC);
+  static const Color darkTextMuted = Color(0xFFA8A299);
+
+  /// Decorative text only (tick labels, disabled): not for content.
+  static const Color darkTextFaint = Color(0xFF6A655F);
 
   // ── Light surfaces ("Stark lab" porcelain) ───────────────────────────────
-  static const Color lightBg = Color(0xFFF3F5F8);
+  static const Color lightBg = Color(0xFFF6F3EE);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceHigh = Color(0xFFE9EDF2);
-  static const Color lightOutline = Color(0xFFD3DAE3);
-  static const Color lightText = Color(0xFF11161D);
-  static const Color lightTextMuted = Color(0xFF55606E);
+  static const Color lightSurfaceHigh = Color(0xFFECE6DE);
+  static const Color lightOutline = Color(0xFFDDD5CB);
+  static const Color lightText = Color(0xFF1A1719);
+  static const Color lightTextMuted = Color(0xFF5E5850);
 }
 
 abstract final class AppGradients {
-  /// Arc-reactor gradient for primary fills and hero accents.
+  /// Stark red gradient for primary fills and hero accents.
   static const LinearGradient brand = LinearGradient(
-    colors: [Color(0xFF36E2FF), Color(0xFF2F7BFF)],
+    colors: [Color(0xFFF0484C), Color(0xFFB8262B)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  /// Stark gold → ember, for achievements.
+  /// Stark gold → amber, for achievements.
   static const LinearGradient gold = LinearGradient(
-    colors: [Color(0xFFFFD873), Color(0xFFFF9F3D)],
+    colors: [Color(0xFFFFD27A), Color(0xFFE8962E)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
+  /// Red → gold (hot-rod), for competition.
   static const LinearGradient competition = LinearGradient(
-    colors: [Color(0xFF7B4DFF), Color(0xFFE47BFF)],
+    colors: [Color(0xFFDD3439), Color(0xFFF2B544)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  /// Deep-space canvas (top → bottom).
+  /// Arc-reactor cyan, for JARVIS surfaces only.
+  static const LinearGradient jarvis = LinearGradient(
+    colors: [Color(0xFF7FE3FF), Color(0xFF0E9FCC)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Charcoal canvas (top → bottom).
   static const LinearGradient canvas = LinearGradient(
     colors: [AppColors.darkBgAlt, AppColors.darkBg],
     begin: Alignment.topCenter,
@@ -149,7 +197,7 @@ abstract final class AppGradients {
 
   /// Soft accent wash used by accent cards.
   static LinearGradient subtle(Color c) => LinearGradient(
-    colors: [c.withValues(alpha: 0.16), c.withValues(alpha: 0.03)],
+    colors: [c.withValues(alpha: 0.13), c.withValues(alpha: 0.02)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

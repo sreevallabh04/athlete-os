@@ -341,7 +341,7 @@ class _TellJarvisCard extends StatelessWidget {
     return AppCard(
       key: const Key('tell-jarvis-card'),
       onTap: onTap,
-      accent: hud.accent,
+      accent: hud.jarvis,
       semanticLabel: 'Paste your meals. JARVIS will log them',
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -351,7 +351,7 @@ class _TellJarvisCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          JarvisOrb(size: 44, fps: 30, color: hud.accent),
+          const JarvisOrb(size: 44, fps: 30),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -462,13 +462,28 @@ class _ReactorCard extends StatelessWidget {
           style: hud.number(size: 46, color: over ? overColor : hud.text),
         ),
         const SizedBox(height: 2),
-        Text(
-          !kcal.hasTarget
-              ? 'KCAL EATEN'
-              : over
-              ? 'KCAL OVER'
-              : 'KCAL LEFT',
-          style: hud.label(size: 11.5, color: over ? overColor : null),
+        // "Over" never relies on colour alone (the coral is close to the
+        // brand red): it carries a warning glyph and its own label.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (over) ...[
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 13,
+                color: hud.ink(overColor),
+              ),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              !kcal.hasTarget
+                  ? 'KCAL EATEN'
+                  : over
+                  ? 'KCAL OVER'
+                  : 'KCAL LEFT',
+              style: hud.label(size: 11.5, color: over ? overColor : null),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
@@ -690,6 +705,14 @@ class _MacroTile extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
+                if (over) ...[
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 13,
+                    color: hud.ink(overColor),
+                  ),
+                  const SizedBox(width: 3),
+                ],
                 if (hit) ...[
                   Icon(
                     Icons.military_tech_rounded,
@@ -1125,17 +1148,17 @@ class _EntryRow extends ConsumerWidget {
           borderRadius: BorderRadius.circular(AppRadii.md),
           gradient: LinearGradient(
             colors: [
-              AppColors.red.withValues(alpha: 0.0),
-              AppColors.red.withValues(alpha: 0.35),
+              AppColors.danger.withValues(alpha: 0.0),
+              AppColors.danger.withValues(alpha: 0.35),
             ],
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('DELETE', style: hud.label(size: 11, color: AppColors.red)),
+            Text('DELETE', style: hud.label(size: 11, color: AppColors.danger)),
             const SizedBox(width: 6),
-            const Icon(Icons.delete_outline, color: AppColors.red),
+            const Icon(Icons.delete_outline, color: AppColors.danger),
           ],
         ),
       ),
@@ -1300,7 +1323,7 @@ class _WaterCard extends ConsumerWidget {
                       .number(size: 15, color: Colors.white)
                       .copyWith(
                         shadows: const [
-                          Shadow(color: Color(0xCC04060B), blurRadius: 6),
+                          Shadow(color: Color(0xCC0A0A0C), blurRadius: 6),
                         ],
                       ),
                 ),

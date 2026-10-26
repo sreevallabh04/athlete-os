@@ -149,4 +149,4 @@ Color inkFor(BuildContext context, Color c) {
 
 /// Gold text that stays AA on porcelain.
 Color goldInk(BuildContext context) =>
-    context.hud.isDark ? AppColors.gold : const Color(0xFF8A5A00);
+    context.hud.isDark ? AppColors.gold : AppColors.goldInk;

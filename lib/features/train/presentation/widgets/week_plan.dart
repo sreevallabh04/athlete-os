@@ -344,10 +344,10 @@ class _Node extends StatelessWidget {
         ? AppColors.warning.withValues(alpha: 0.7)
         : hud.hairline.withValues(alpha: 0.28);
     final fill = done
-        ? color.withValues(alpha: hud.isDark ? 0.26 : 0.18)
+        ? color.withValues(alpha: hud.isDark ? 0.16 : 0.14)
         : selected
         ? hud.accent.withValues(alpha: 0.14)
-        : (hud.isDark ? const Color(0xFF0A111C) : Colors.white);
+        : (hud.isDark ? AppColors.darkSurface : Colors.white);
     return AnimatedContainer(
       duration: AppMotion.medium,
       curve: AppMotion.standard,
@@ -364,7 +364,7 @@ class _Node extends StatelessWidget {
             ? [
                 BoxShadow(
                   color: (done && !selected ? color : hud.accent).withValues(
-                    alpha: 0.45 * hud.glowStrength,
+                    alpha: 0.28 * hud.glowStrength,
                   ),
                   blurRadius: 12,
                   spreadRadius: -1,
@@ -405,7 +405,7 @@ class _Node extends StatelessWidget {
                 child: const Icon(
                   Icons.check,
                   size: 9,
-                  color: Color(0xFF02140A),
+                  color: Color(0xFF1F1400),
                 ),
               ),
             ),

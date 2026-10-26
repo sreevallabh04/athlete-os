@@ -28,7 +28,7 @@ class HudIconAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
-    final c = color ?? hud.accent;
+    final c = color ?? hud.jarvis;
     final enabled = onTap != null;
     return Semantics(
       button: true,
@@ -111,7 +111,7 @@ class _MicButtonState extends State<MicButton> {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final live = widget.listening;
-    final c = hud.accent;
+    final c = hud.jarvis;
     final core = AnimatedContainer(
       duration: AppMotion.medium,
       curve: AppMotion.emphasizedDecelerate,
@@ -249,11 +249,11 @@ class CoachComposer extends StatelessWidget {
             color: hud.glassFillStrong,
             border: Border.all(
               color: listening
-                  ? hud.accent.withValues(alpha: 0.8)
+                  ? hud.jarvis.withValues(alpha: 0.8)
                   : hud.hairline.withValues(alpha: hud.isDark ? 0.2 : 0.35),
             ),
             boxShadow: listening
-                ? AppGlows.soft(hud.accent, strength: hud.glowStrength)
+                ? AppGlows.soft(hud.jarvis, strength: hud.glowStrength)
                 : null,
           ),
           child: Row(
@@ -283,7 +283,7 @@ class CoachComposer extends StatelessWidget {
                           textCapitalization: TextCapitalization.sentences,
                           textInputAction: TextInputAction.send,
                           style: t.bodyLarge,
-                          cursorColor: hud.accent,
+                          cursorColor: hud.jarvis,
                           decoration: InputDecoration(
                             hintText: hint,
                             counterText: '',
@@ -353,7 +353,7 @@ class _LiveTranscript extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   'Listening',
-                  style: hud.label(size: 13, color: hud.accentInk),
+                  style: hud.label(size: 13, color: hud.jarvisInk),
                 ),
               ],
             )
@@ -394,7 +394,7 @@ class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final c = HudTheme.of(context).accent;
+    final c = HudTheme.of(context).jarvis;
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) => Row(

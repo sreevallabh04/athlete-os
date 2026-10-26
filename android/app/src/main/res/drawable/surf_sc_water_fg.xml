@@ -11,6 +11,6 @@
         android:translateY="36"
         android:scaleX="1.5"
         android:scaleY="1.5">
-        <path android:fillColor="#FF36E2FF" android:pathData="M12,2c-5.33,4.55 -8,8.48 -8,11.8c0,4.98 3.8,8.2 8,8.2s8,-3.22 8,-8.2C20,10.48 17.33,6.55 12,2z" />
+        <path android:fillColor="#FFDD3439" android:pathData="M12,2c-5.33,4.55 -8,8.48 -8,11.8c0,4.98 3.8,8.2 8,8.2s8,-3.22 8,-8.2C20,10.48 17.33,6.55 12,2z" />
     </group>
 </vector>

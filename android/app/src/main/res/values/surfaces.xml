@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home-screen surfaces: JARVIS Today widget, launcher shortcuts, Quick
-     Settings tile (docs/SURFACES.md). Colours mirror lib/core/theme/tokens.dart. -->
+     Settings tile (docs/SURFACES.md). Colours mirror lib/core/theme/tokens.dart ("Stark": charcoal, red
+     accent, gold highlights, cyan only for JARVIS labels/icons). -->
 <resources>
-    <color name="surf_navy">#FF04060B</color>
-    <color name="surf_surface">#FF0A101B</color>
-    <color name="surf_cyan">#FF36E2FF</color>
-    <color name="surf_cyan_deep">#FF00A9D4</color>
-    <color name="surf_gold">#FFFFC24B</color>
-    <color name="surf_text">#FFE8F1FA</color>
-    <color name="surf_text_muted">#FF8EA3B8</color>
-    <color name="surf_track">#2636E2FF</color>
-    <color name="surf_steps">#FFB07CFF</color>
-    <color name="surf_protein">#FF3EE6A0</color>
-    <color name="surf_calories">#FFFF8F4D</color>
-    <color name="surf_water">#FF45C4FF</color>
+    <color name="surf_navy">#FF0A0A0C</color>
+    <color name="surf_surface">#FF151417</color>
+    <color name="surf_cyan">#FF3FD0FF</color>
+    <color name="surf_cyan_deep">#FF0E9FCC</color>
+    <color name="surf_red">#FFDD3439</color>
+    <color name="surf_red_deep">#FFB8262B</color>
+    <color name="surf_on_accent">#FFFFFFFF</color>
+    <color name="surf_gold">#FFF2B544</color>
+    <color name="surf_text">#FFF4F1EC</color>
+    <color name="surf_text_muted">#FFA8A299</color>
+    <color name="surf_track">#26DD3439</color>
+    <color name="surf_steps">#FFDCCDB8</color>
+    <color name="surf_protein">#FFFFD06E</color>
+    <color name="surf_calories">#FFDD3439</color>
+    <color name="surf_water">#FF5F7A90</color>
 
     <string name="surf_widget_label">JARVIS Today</string>
     <string name="surf_widget_description">Steps, protein, calories and water vs your targets, today\'s session and next routine block. One tap logs +250 ml water.</string>

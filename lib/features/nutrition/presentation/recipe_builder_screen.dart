@@ -325,7 +325,10 @@ class _RecipeBuilderScreenState extends ConsumerState<RecipeBuilderScreen> {
           ],
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(_error!, style: t.bodyMedium?.copyWith(color: AppColors.red)),
+            Text(
+              _error!,
+              style: t.bodyMedium?.copyWith(color: AppColors.danger),
+            ),
           ],
           const SizedBox(height: AppSpacing.xl),
           HudButton(

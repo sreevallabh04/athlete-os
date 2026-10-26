@@ -210,7 +210,7 @@ class _CommandPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final t = Theme.of(context).textTheme;
-    final c = hud.accent;
+    final c = hud.jarvis;
     final pill = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       alignment: Alignment.center,

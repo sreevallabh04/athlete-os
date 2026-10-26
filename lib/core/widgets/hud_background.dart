@@ -265,7 +265,7 @@ abstract final class HudBackgroundFallback {
       rect,
       Paint()
         ..shader = ui.Gradient.radial(Offset(w * 0.5, -h * 0.06), w * 1.05, [
-          a.withValues(alpha: 0.13 * intensity),
+          a.withValues(alpha: 0.09 * intensity),
           a.withValues(alpha: 0),
         ]),
     );
@@ -279,7 +279,7 @@ abstract final class HudBackgroundFallback {
       w * 0.75,
       Paint()
         ..shader = ui.Gradient.radial(p1, w * 0.75, [
-          a.withValues(alpha: 0.06 * intensity),
+          a.withValues(alpha: 0.04 * intensity),
           a.withValues(alpha: 0),
         ]),
     );
@@ -287,13 +287,13 @@ abstract final class HudBackgroundFallback {
       w * (0.92 - 0.05 * math.cos(t * 0.045)),
       h * (0.72 + 0.03 * math.sin(t * 0.05)),
     );
-    const deep = Color(0xFF2448B8);
+    const deep = Color(0xFFB8741E);
     canvas.drawCircle(
       p2,
       w * 0.85,
       Paint()
         ..shader = ui.Gradient.radial(p2, w * 0.85, [
-          deep.withValues(alpha: 0.10 * intensity),
+          deep.withValues(alpha: 0.05 * intensity),
           deep.withValues(alpha: 0),
         ]),
     );

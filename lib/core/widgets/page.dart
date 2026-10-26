@@ -290,7 +290,7 @@ class _LargeTitle extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
             eyebrow!,
-            style: hud.mono(size: 10.5, color: hud.accentInk),
+            style: hud.mono(size: 10.5, color: hud.textMuted),
             maxLines: 1,
           ),
         ),

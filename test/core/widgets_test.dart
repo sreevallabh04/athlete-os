@@ -556,8 +556,8 @@ void main() {
         light: true,
         const Column(
           children: [
-            AppCard(accent: AppColors.cyan, child: Text('Light')),
-            ProgressRing(progress: 0.4, color: AppColors.cyan),
+            AppCard(accent: AppColors.red, child: Text('Light')),
+            ProgressRing(progress: 0.4, color: AppColors.red),
             HudButton(label: 'CTA', onPressed: null),
           ],
         ),

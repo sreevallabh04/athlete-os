@@ -50,7 +50,7 @@ class HealthOverviewScreen extends ConsumerWidget {
           accent: AppColors.sleep,
         ),
         _SleepCard(access: access(HealthGroup.sleep)),
-        const SectionHeader('Weight', accent: AppColors.cyan),
+        const SectionHeader('Weight', accent: AppColors.brand),
         _WeightCard(access: access(HealthGroup.body)),
         const SectionHeader('Heart', accent: AppColors.heart),
         _HeartCard(access: access(HealthGroup.heart)),
@@ -433,7 +433,7 @@ class _WeightCard extends ConsumerWidget {
         if (list.isEmpty) {
           return _CompactState(
             icon: Icons.monitor_weight_outlined,
-            color: AppColors.cyan,
+            color: AppColors.brand,
             title: 'No weight entries in the last 90 days',
             message: access == GroupAccess.granted
                 ? 'Add one manually or weigh in with a scale that syncs to '
@@ -499,7 +499,7 @@ class _WeightBodyState extends ConsumerState<_WeightBody> {
     final change = list.length >= 4 ? avgOf(lastWeek) - avgOf(firstWeek) : null;
     final spanDays = latest.startAt.difference(list.first.startAt).inDays;
     return AppCard(
-      accent: AppColors.cyan,
+      accent: AppColors.brand,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -532,7 +532,7 @@ class _WeightBodyState extends ConsumerState<_WeightBody> {
             const SizedBox(height: AppSpacing.md),
             HudLineChart(
               values: [for (final s in list) s.value],
-              color: AppColors.cyan,
+              color: AppColors.brand,
               height: 150,
               rollingWindow: list.length >= 6 ? 4 : null,
               rollingLabel: 'avg',

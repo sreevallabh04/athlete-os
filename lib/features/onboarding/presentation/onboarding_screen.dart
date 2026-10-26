@@ -410,7 +410,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                       'JARVIS · ${step.kicker}',
                                       style: hud.mono(
                                         size: 10.5,
-                                        color: hud.accentInk,
+                                        color: hud.jarvisInk,
                                       ),
                                     ),
                                   ],
@@ -422,7 +422,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             Typewriter(
                               step.title,
                               style: t.headlineSmall,
-                              caret: hud.accent,
+                              caret: hud.jarvis,
                               charDelay: const Duration(milliseconds: 22),
                               delay: const Duration(milliseconds: 160),
                             ),
@@ -946,11 +946,11 @@ class _PreviewPill extends StatelessWidget {
       duration: AppMotion.medium,
       child: GlassPanel(
         key: ValueKey(text),
-        accent: hud.accent,
+        accent: hud.jarvis,
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
-            GlowIcon(Icons.auto_awesome, size: 18, color: hud.accent),
+            GlowIcon(Icons.auto_awesome, size: 18, color: hud.jarvis),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
@@ -1021,7 +1021,7 @@ class _PowerUp extends StatelessWidget {
             children: [
               CelebrationBurst(
                 controller: burst,
-                color: hud.accent,
+                color: hud.jarvis,
                 child: JarvisOrb(
                   size: 200,
                   state: online ? OrbState.speaking : OrbState.thinking,
@@ -1031,7 +1031,7 @@ class _PowerUp extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl),
               Text(
                 online ? 'SYSTEMS ONLINE' : 'ENGAGING',
-                style: hud.label(size: 13, color: hud.accentInk),
+                style: hud.label(size: 13, color: hud.jarvisInk),
               ),
               const SizedBox(height: AppSpacing.sm),
               AnimatedSwitcher(

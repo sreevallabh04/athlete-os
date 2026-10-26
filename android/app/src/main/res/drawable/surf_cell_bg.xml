@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Transparent tap target with a cyan press ripple. -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="#2936E2FF">
+    android:color="#29DD3439">
     <item android:id="@android:id/mask">
         <shape android:shape="rectangle">
             <corners android:radius="10dp" />

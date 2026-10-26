@@ -139,10 +139,10 @@ abstract final class HudChartStyle {
   );
 
   static Color _tooltipBg(HudTheme hud) =>
-      hud.isDark ? const Color(0xF20A111D) : const Color(0xF7FFFFFF);
+      hud.isDark ? const Color(0xF2151417) : const Color(0xF7FFFFFF);
 
   static BorderSide _tooltipBorder(HudTheme hud) =>
-      BorderSide(color: hud.accent.withValues(alpha: 0.45));
+      BorderSide(color: hud.hairline.withValues(alpha: 0.3));
 
   /// Frosted HUD tooltip for line charts. [format] builds the label.
   static LineTouchData lineTouch(
@@ -160,7 +160,7 @@ abstract final class HudChartStyle {
         for (final _ in indexes)
           TouchedSpotIndicatorData(
             FlLine(
-              color: hud.accent.withValues(alpha: 0.4),
+              color: hud.hairline.withValues(alpha: 0.35),
               strokeWidth: 1,
               dashArray: const [2, 3],
             ),

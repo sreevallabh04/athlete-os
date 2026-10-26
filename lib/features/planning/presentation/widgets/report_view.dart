@@ -21,7 +21,7 @@ class _ReportViewState extends State<ReportView> {
   static Color _color(String key) => switch (key) {
     'kcal' => AppColors.calories,
     'protein' => AppColors.protein,
-    'weight' => AppColors.cyan,
+    'weight' => AppColors.brand,
     'steps' => AppColors.steps,
     'run_km' => AppColors.running,
     _ => AppColors.brand,

@@ -224,7 +224,13 @@ class SectionHeader extends StatelessWidget {
           ),
           if (action != null) ...[
             const SizedBox(width: AppSpacing.xs),
-            TextButton(onPressed: onAction, child: Text(action!)),
+            TextButton(
+              onPressed: onAction,
+              // Neutral, not red: section actions repeat down a screen and
+              // a column of red links would flood it.
+              style: TextButton.styleFrom(foregroundColor: hud.text),
+              child: Text(action!),
+            ),
           ],
         ],
       ),

@@ -16,7 +16,7 @@ abstract final class AppTheme {
     final hud = isDark ? HudTheme.dark : HudTheme.light;
     final text = isDark ? AppColors.darkText : AppColors.lightText;
     final muted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final primary = isDark ? AppColors.cyan : AppColors.cyanDeep;
+    final primary = isDark ? AppColors.red : hud.accent;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final surfaceHigh = isDark
         ? AppColors.darkSurfaceHigh
@@ -25,20 +25,18 @@ abstract final class AppTheme {
 
     final scheme =
         ColorScheme.fromSeed(
-          seedColor: AppColors.cyan,
+          seedColor: AppColors.red,
           brightness: brightness,
         ).copyWith(
           primary: primary,
-          onPrimary: isDark ? const Color(0xFF02141C) : Colors.white,
+          onPrimary: Colors.white,
           primaryContainer: primary.withValues(alpha: isDark ? 0.18 : 0.14),
-          onPrimaryContainer: isDark ? AppColors.cyan : AppColors.cyanInk,
+          onPrimaryContainer: hud.accentInk,
           secondary: AppColors.gold,
           onSecondary: const Color(0xFF1F1400),
           secondaryContainer: AppColors.gold.withValues(alpha: 0.18),
-          onSecondaryContainer: isDark
-              ? AppColors.gold
-              : const Color(0xFF6B4A00),
-          tertiary: AppColors.protein,
+          onSecondaryContainer: isDark ? AppColors.gold : AppColors.goldInk,
+          tertiary: AppColors.jarvis,
           surface: surface,
           onSurface: text,
           onSurfaceVariant: muted,
@@ -46,16 +44,16 @@ abstract final class AppTheme {
               ? AppColors.darkBg
               : AppColors.lightSurface,
           surfaceContainerLow: isDark
-              ? const Color(0xFF080D16)
-              : const Color(0xFFF8F9FB),
+              ? const Color(0xFF100F12)
+              : const Color(0xFFFAF8F5),
           surfaceContainer: surface,
           surfaceContainerHigh: isDark
-              ? const Color(0xFF0E1622)
-              : const Color(0xFFEEF1F5),
+              ? const Color(0xFF19181B)
+              : const Color(0xFFF1EDE7),
           surfaceContainerHighest: surfaceHigh,
-          outline: isDark ? const Color(0xFF3A4D63) : const Color(0xFF8A96A5),
+          outline: isDark ? const Color(0xFF4A4542) : const Color(0xFF9A9087),
           outlineVariant: outline,
-          error: AppColors.red,
+          error: isDark ? AppColors.danger : const Color(0xFFC2361F),
           onError: Colors.white,
           surfaceTint: Colors.transparent,
           shadow: Colors.black,
@@ -111,7 +109,7 @@ abstract final class AppTheme {
         actionsIconTheme: IconThemeData(color: muted),
       ),
       cardTheme: CardThemeData(
-        color: isDark ? const Color(0xB30B121E) : Colors.white,
+        color: isDark ? const Color(0xB3151417) : Colors.white,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -165,7 +163,7 @@ abstract final class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(color: AppColors.red),
+          borderSide: BorderSide(color: scheme.error),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -247,9 +245,7 @@ abstract final class AppTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? (isDark ? const Color(0xFFD9FAFF) : Colors.white)
-              : muted,
+          (s) => s.contains(WidgetState.selected) ? Colors.white : muted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
@@ -283,7 +279,7 @@ abstract final class AppTheme {
       sliderTheme: SliderThemeData(
         activeTrackColor: primary,
         inactiveTrackColor: primary.withValues(alpha: 0.16),
-        thumbColor: isDark ? const Color(0xFFD9FAFF) : primary,
+        thumbColor: isDark ? const Color(0xFFFFE9E4) : primary,
         overlayColor: primary.withValues(alpha: 0.12),
         valueIndicatorColor: surfaceHigh,
         valueIndicatorTextStyle: tt.labelLarge,
@@ -296,8 +292,8 @@ abstract final class AppTheme {
         refreshBackgroundColor: surfaceHigh,
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: isDark ? const Color(0xFF0A111C) : Colors.white,
-        modalBackgroundColor: isDark ? const Color(0xFF0A111C) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF141316) : Colors.white,
+        modalBackgroundColor: isDark ? const Color(0xFF141316) : Colors.white,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         dragHandleColor: muted.withValues(alpha: 0.5),
@@ -306,22 +302,22 @@ abstract final class AppTheme {
           borderRadius: const BorderRadius.vertical(
             top: Radius.circular(AppRadii.xl),
           ),
-          side: BorderSide(color: hud.accent.withValues(alpha: 0.25)),
+          side: BorderSide(color: hud.hairline.withValues(alpha: 0.18)),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: isDark ? const Color(0xF20B121E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xF2151417) : Colors.white,
         surfaceTintColor: Colors.transparent,
         barrierColor: Colors.black.withValues(alpha: 0.6),
         titleTextStyle: tt.titleLarge,
         contentTextStyle: tt.bodyMedium?.copyWith(color: muted),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          side: BorderSide(color: hud.accent.withValues(alpha: 0.25)),
+          side: BorderSide(color: hud.hairline.withValues(alpha: 0.18)),
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: isDark ? const Color(0xF20D1522) : Colors.white,
+        color: isDark ? const Color(0xF219181B) : Colors.white,
         surfaceTintColor: Colors.transparent,
         textStyle: tt.bodyMedium,
         shape: RoundedRectangleBorder(
@@ -332,29 +328,29 @@ abstract final class AppTheme {
       menuTheme: MenuThemeData(
         style: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(
-            isDark ? const Color(0xF20D1522) : Colors.white,
+            isDark ? const Color(0xF219181B) : Colors.white,
           ),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isDark ? const Color(0xFF101A28) : AppColors.lightText,
+        backgroundColor: isDark ? const Color(0xFF1D1B1F) : AppColors.lightText,
         contentTextStyle: tt.bodyMedium?.copyWith(
           color: isDark ? text : Colors.white,
         ),
-        actionTextColor: isDark ? AppColors.cyan : AppColors.cyan,
+        actionTextColor: isDark ? AppColors.goldLight : AppColors.goldLight,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          side: BorderSide(color: AppColors.cyan.withValues(alpha: 0.3)),
+          side: BorderSide(color: hud.hairline.withValues(alpha: 0.22)),
         ),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xF2101A28) : AppColors.lightText,
+          color: isDark ? const Color(0xF21D1B1F) : AppColors.lightText,
           borderRadius: BorderRadius.circular(AppRadii.xs),
-          border: Border.all(color: AppColors.cyan.withValues(alpha: 0.3)),
+          border: Border.all(color: hud.hairline.withValues(alpha: 0.22)),
         ),
         textStyle: tt.labelMedium?.copyWith(
           color: isDark ? text : Colors.white,
@@ -389,14 +385,14 @@ abstract final class AppTheme {
         textStyle: tt.labelSmall,
       ),
       datePickerTheme: DatePickerThemeData(
-        backgroundColor: isDark ? const Color(0xFF0B121E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF151417) : Colors.white,
         surfaceTintColor: Colors.transparent,
         headerBackgroundColor: isDark
-            ? const Color(0xFF0E1826)
+            ? const Color(0xFF1D1B1F)
             : AppColors.lightSurfaceHigh,
       ),
       timePickerTheme: TimePickerThemeData(
-        backgroundColor: isDark ? const Color(0xFF0B121E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF151417) : Colors.white,
       ),
       expansionTileTheme: ExpansionTileThemeData(
         iconColor: hud.accentInk,

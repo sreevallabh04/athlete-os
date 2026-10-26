@@ -194,10 +194,12 @@ class _Check extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check,
                   size: 15,
-                  color: Color(0xFF02141C),
+                  color: color.computeLuminance() > 0.4
+                      ? const Color(0xFF1F1400)
+                      : Colors.white,
                 ),
               ),
             ),

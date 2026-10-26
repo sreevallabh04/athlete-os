@@ -38,7 +38,7 @@ Future<bool> explainBeforeSettings(
                     children: [
                       Text(
                         'BEFORE ANDROID ASKS',
-                        style: hud.label(size: 11, color: hud.accentInk),
+                        style: hud.label(size: 11, color: hud.jarvisInk),
                       ),
                       Text(title, style: t.titleLarge),
                     ],
@@ -203,7 +203,7 @@ class InitialsAvatar extends StatelessWidget {
   final String? badge;
 
   static const _palette = [
-    AppColors.cyan,
+    AppColors.titanium,
     AppColors.protein,
     AppColors.steps,
     AppColors.water,
@@ -285,7 +285,7 @@ class InitialsAvatar extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: hud.isDark ? const Color(0xFF0A101B) : Colors.white,
+                  color: hud.isDark ? AppColors.darkSurface : Colors.white,
                   border: Border.all(color: c.withValues(alpha: 0.7)),
                 ),
                 child: Text(

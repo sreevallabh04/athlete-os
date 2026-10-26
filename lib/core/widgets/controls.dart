@@ -164,8 +164,8 @@ class HudChip extends StatelessWidget {
 
 enum HudButtonVariant { primary, secondary, ghost, danger }
 
-/// The HUD call-to-action. Primary = luminous cyan slab with bloom;
-/// secondary = glass with a cyan hairline; ghost = text only; danger = red.
+/// The HUD call-to-action. Primary = luminous Stark-red slab with bloom;
+/// secondary = glass with a red hairline; ghost = text only; danger = vermilion.
 /// Springs on press and fires a haptic (medium for primary/danger).
 class HudButton extends StatelessWidget {
   const HudButton({
@@ -216,24 +216,27 @@ class HudButton extends StatelessWidget {
     final hud = HudTheme.of(context);
     final t = Theme.of(context).textTheme;
     final enabled = onPressed != null && !loading;
+    // Destructive buttons use a deep vermilion (white text, AA) that reads
+    // hotter than the brand red; the label says what gets destroyed.
     final base = variant == HudButtonVariant.danger
-        ? AppColors.red
+        ? const Color(0xFFC2361F)
         : hud.accent;
     final Color fg;
     final Decoration deco;
     switch (variant) {
       case HudButtonVariant.primary:
       case HudButtonVariant.danger:
-        fg = variant == HudButtonVariant.danger
-            ? Colors.white
-            : const Color(0xFF02141C);
+        fg = Colors.white;
         deco = BoxDecoration(
           borderRadius: AppRadii.button,
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: enabled
-                ? [Color.lerp(base, Colors.white, 0.18)!, base]
+                ? [
+                    Color.lerp(base, Colors.white, 0.06)!,
+                    Color.lerp(base, Colors.black, 0.14)!,
+                  ]
                 : [
                     hud.text.withValues(alpha: 0.12),
                     hud.text.withValues(alpha: 0.08),

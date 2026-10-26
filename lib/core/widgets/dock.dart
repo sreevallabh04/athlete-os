@@ -193,8 +193,8 @@ class _DockGlassPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: hud.isDark
-              ? const [Color(0xC0101A2A), Color(0xD9070C16)]
-              : const [Color(0xE6FFFFFF), Color(0xD9F3F6FA)],
+              ? const [Color(0xC71B191D), Color(0xE00C0B0E)]
+              : const [Color(0xEBFFFFFF), Color(0xE0F6F2EC)],
         ).createShader(rect),
     );
     canvas.drawRRect(

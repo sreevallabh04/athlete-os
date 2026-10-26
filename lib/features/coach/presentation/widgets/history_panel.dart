@@ -73,7 +73,7 @@ class _HistoryPanel extends ConsumerWidget {
                   color: hud.glassFillStrong,
                   border: Border(
                     right: BorderSide(
-                      color: hud.accent.withValues(alpha: 0.35),
+                      color: hud.jarvis.withValues(alpha: 0.35),
                     ),
                   ),
                 ),
@@ -94,7 +94,7 @@ class _HistoryPanel extends ConsumerWidget {
                                     'SESSION ARCHIVE',
                                     style: hud.label(
                                       size: 11,
-                                      color: hud.accentInk,
+                                      color: hud.jarvisInk,
                                     ),
                                   ),
                                   Text('History', style: t.headlineSmall),
@@ -241,11 +241,11 @@ class _SessionTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.md),
               color: selected
-                  ? hud.accent.withValues(alpha: 0.10)
+                  ? hud.jarvis.withValues(alpha: 0.10)
                   : Colors.transparent,
               border: Border.all(
                 color: selected
-                    ? hud.accent.withValues(alpha: 0.5)
+                    ? hud.jarvis.withValues(alpha: 0.5)
                     : Colors.transparent,
               ),
             ),
@@ -260,7 +260,7 @@ class _SessionTile extends StatelessWidget {
                       ? Icons.nights_stay_outlined
                       : Icons.wb_twilight_rounded,
                   size: 18,
-                  color: selected ? hud.accent : hud.textMuted,
+                  color: selected ? hud.jarvis : hud.textMuted,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

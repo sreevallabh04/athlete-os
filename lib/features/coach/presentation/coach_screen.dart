@@ -850,11 +850,11 @@ class LinkStatusLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final color = switch (link.tone) {
-      LinkTone.online => AppColors.success,
+      LinkTone.online => hud.jarvis,
       LinkTone.fallback => AppColors.warning,
       LinkTone.degraded => AppColors.warning,
       LinkTone.offline => AppColors.danger,
-      LinkTone.linking => hud.accent,
+      LinkTone.linking => hud.jarvis,
     };
     final latency = link.latency == null || link.latency!.inMilliseconds < 100
         ? ''
@@ -872,7 +872,7 @@ class LinkStatusLine extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _PulseDot(
-              color: voiceText != null ? hud.accent : color,
+              color: voiceText != null ? hud.jarvis : color,
               pulse: voiceText != null || link.tone == LinkTone.linking,
             ),
             const SizedBox(width: 8),
@@ -1399,7 +1399,7 @@ class _BriefingBlock extends StatelessWidget {
                   HudChip(
                     label: 'AI-polished',
                     icon: Icons.auto_awesome_rounded,
-                    color: hud.accent,
+                    color: hud.jarvis,
                   ),
               ],
             ),

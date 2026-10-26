@@ -8,7 +8,7 @@ import '../../domain/countdown.dart';
 
 /// Gold text that stays legible on porcelain.
 Color _goldInk(BuildContext context) =>
-    context.hud.isDark ? AppColors.gold : const Color(0xFF8A5A00);
+    context.hud.isDark ? AppColors.gold : AppColors.goldInk;
 
 /// The competition countdown as a gold arc reactor: days in the core, prep
 /// progress on the ring, event facts underneath.

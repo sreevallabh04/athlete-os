@@ -46,11 +46,11 @@ class GlassPainter extends CustomPainter {
               ? [
                   Color.alphaBlend(
                     (a ?? Colors.white).withValues(
-                      alpha: a == null ? 0.05 : 0.09,
+                      alpha: a == null ? 0.05 : 0.055,
                     ),
-                    const Color(0xB30B121E),
+                    const Color(0xB3151417),
                   ),
-                  const Color(0x990A101B),
+                  const Color(0x99100F12),
                 ]
               : [
                   Colors.white.withValues(alpha: 0.92),
@@ -68,7 +68,7 @@ class GlassPainter extends CustomPainter {
         rect,
         Paint()
           ..shader = ui.Gradient.radial(Offset.zero, r, [
-            a.withValues(alpha: dark ? 0.16 : 0.10),
+            a.withValues(alpha: dark ? 0.08 : 0.06),
             a.withValues(alpha: 0),
           ]),
       );
@@ -96,7 +96,9 @@ class GlassPainter extends CustomPainter {
     );
 
     // Luminous hairline.
-    final base = a ?? hud.hairline;
+    // Accent hairlines are tempered toward the warm neutral hairline so a
+    // saturated accent (Stark red) frames a card without flooding it.
+    final base = a == null ? hud.hairline : Color.lerp(a, hud.hairline, 0.3)!;
     final strength = borderStrength * (pressed ? 1.8 : 1) * (dark ? 1 : 0.9);
     canvas.drawRRect(
       rr.deflate(0.5),

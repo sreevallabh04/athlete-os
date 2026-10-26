@@ -422,7 +422,7 @@ class _LegendRow extends StatelessWidget {
     final statusColor = !r.available
         ? hud.textMuted
         : r.reached
-        ? (hud.isDark ? AppColors.gold : const Color(0xFF8A5A00))
+        ? (hud.isDark ? AppColors.gold : AppColors.goldInk)
         : hud.textMuted;
     final semantics = r.available
         ? '${r.label.toLowerCase()}: ${r.valueText} of ${r.targetText}, '

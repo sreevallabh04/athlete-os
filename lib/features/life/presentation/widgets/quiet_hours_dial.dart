@@ -196,7 +196,7 @@ class _QuietDialPainter extends CustomPainter {
     final c = size.center(Offset.zero);
     final r = s * ringFactor;
     final accent = hud.accent;
-    const night = Color(0xFF8F94FF);
+    const night = AppColors.sleep;
 
     // Hour ticks + labels at 00/06/12/18.
     final tick = Paint()..strokeCap = StrokeCap.round;
@@ -316,7 +316,7 @@ class _QuietDialPainter extends CustomPainter {
       canvas.drawCircle(
         p,
         hr,
-        Paint()..color = hud.isDark ? const Color(0xFF0A111D) : Colors.white,
+        Paint()..color = hud.isDark ? AppColors.darkSurface : Colors.white,
       );
       canvas.drawCircle(
         p,

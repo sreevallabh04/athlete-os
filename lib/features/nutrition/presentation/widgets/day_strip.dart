@@ -237,7 +237,7 @@ class _MicroRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round
-      ..color = over ? const Color(0xFFFF6A4D) : AppColors.calories;
+      ..color = over ? AppColors.over : AppColors.calories;
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi / 2,

@@ -126,7 +126,10 @@ class _WaterQuickAddSheetState extends ConsumerState<WaterQuickAddSheet> {
           Text('AMOUNTS IN ML · LOGS INSTANTLY', style: hud.mono(size: 10.5)),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(_error!, style: t.bodySmall?.copyWith(color: AppColors.red)),
+            Text(
+              _error!,
+              style: t.bodySmall?.copyWith(color: AppColors.danger),
+            ),
           ],
         ],
       ),

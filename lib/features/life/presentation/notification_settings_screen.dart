@@ -190,9 +190,7 @@ class _NotificationSettingsScreenState
                 leading: GlowIcon(
                   Icons.bedtime_outlined,
                   size: 20,
-                  color: quiet == null
-                      ? hud.textMuted
-                      : const Color(0xFF8F94FF),
+                  color: quiet == null ? hud.textMuted : AppColors.sleep,
                   glow: quiet == null ? 0 : 1,
                 ),
                 title: 'Quiet hours',
@@ -278,7 +276,7 @@ class _NotificationSettingsScreenState
                                 label: 'WAKE ${formatMinutes(wake)}',
                               ),
                               _Legend(
-                                color: const Color(0xFF8F94FF),
+                                color: AppColors.sleep,
                                 label: 'SLEEP ${formatMinutes(sleep)}',
                               ),
                             ],

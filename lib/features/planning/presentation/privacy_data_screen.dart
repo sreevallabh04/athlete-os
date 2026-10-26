@@ -37,7 +37,7 @@ class PrivacyDataScreen extends ConsumerWidget {
         SectionHeader(
           'Delete data',
           subtitle: 'Permanent',
-          accent: AppColors.red,
+          accent: AppColors.danger,
         ),
         _DeleteCard(),
         SectionHeader('Connected services'),
@@ -102,7 +102,7 @@ class _Inventory extends StatelessWidget {
                 'Health data, journal text and meal photos are included only if '
                 'you switch on the matching consent below. Strava data is never '
                 'sent to AI.',
-            AppColors.cyan,
+            AppColors.jarvis,
           ),
           item(
             Icons.block,

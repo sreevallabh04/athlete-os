@@ -544,7 +544,7 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
         AppCard(
           brackets: true,
           glow: _listening,
-          accent: _listening ? hud.accent : null,
+          accent: _listening ? hud.jarvis : null,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
             AppSpacing.md,
@@ -559,7 +559,7 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
                   GlowIcon(
                     Icons.auto_awesome_rounded,
                     size: 14,
-                    color: hud.accent,
+                    color: hud.jarvis,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -720,7 +720,7 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
         Center(
           child: Text(
             _fast ? 'ANALYSING · FAST MODE' : 'ANALYSING',
-            style: hud.label(size: 12, color: hud.accentInk),
+            style: hud.label(size: 12, color: hud.jarvisInk),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -1380,9 +1380,9 @@ class _SwipeBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.red.withValues(alpha: 0.14),
+        color: AppColors.danger.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: AppColors.red.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1391,13 +1391,13 @@ class _SwipeBackground extends StatelessWidget {
             'REMOVE',
             style: context.hud.label(
               size: 11,
-              color: context.hud.ink(AppColors.red),
+              color: context.hud.ink(AppColors.danger),
             ),
           ),
           const SizedBox(width: 6),
           Icon(
             Icons.delete_outline_rounded,
-            color: context.hud.ink(AppColors.red),
+            color: context.hud.ink(AppColors.danger),
           ),
         ],
       ),
@@ -1496,7 +1496,7 @@ class _DateRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          GlowIcon(Icons.event_rounded, size: 18, color: hud.accent),
+          GlowIcon(Icons.event_rounded, size: 18, color: hud.jarvis),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -1510,9 +1510,9 @@ class _DateRow extends StatelessWidget {
           ),
           Text(
             isToday ? 'Change' : 'Change date',
-            style: t.labelLarge?.copyWith(color: hud.accentInk),
+            style: t.labelLarge?.copyWith(color: hud.jarvisInk),
           ),
-          Icon(Icons.chevron_right_rounded, color: hud.accentInk),
+          Icon(Icons.chevron_right_rounded, color: hud.jarvisInk),
         ],
       ),
     );
@@ -1576,13 +1576,13 @@ class _ExampleChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.sm),
-            color: hud.accent.withValues(alpha: 0.06),
-            border: Border.all(color: hud.accent.withValues(alpha: 0.22)),
+            color: hud.jarvis.withValues(alpha: 0.06),
+            border: Border.all(color: hud.jarvis.withValues(alpha: 0.22)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: hud.accentInk),
+              Icon(icon, size: 14, color: hud.jarvisInk),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -1641,18 +1641,18 @@ class _MicButton extends StatelessWidget {
               : Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: hud.accent.withValues(alpha: 0.1),
+                    color: hud.jarvis.withValues(alpha: 0.1),
                     border: Border.all(
-                      color: hud.accent.withValues(alpha: 0.55),
+                      color: hud.jarvis.withValues(alpha: 0.55),
                     ),
                     boxShadow: AppGlows.soft(
-                      hud.accent,
+                      hud.jarvis,
                       strength: hud.glowStrength * 0.6,
                     ),
                   ),
                   child: Icon(
                     Icons.mic_rounded,
-                    color: hud.accentInk,
+                    color: hud.jarvisInk,
                     size: 22,
                   ),
                 ),

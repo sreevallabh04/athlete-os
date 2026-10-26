@@ -318,7 +318,7 @@ class _PaceLine extends StatelessWidget {
       style: hud.mono(
         size: 10.5,
         color: behind > 100 && f > 0 && totalMl > 0
-            ? (hud.isDark ? AppColors.warning : const Color(0xFF8A5300))
+            ? (hud.isDark ? AppColors.warning : AppColors.goldInk)
             : null,
       ),
       textAlign: TextAlign.center,
@@ -412,7 +412,7 @@ class _SipRow extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: AppSpacing.lg),
-        child: const Icon(Icons.delete_outline, color: AppColors.red),
+        child: const Icon(Icons.delete_outline, color: AppColors.danger),
       ),
       confirmDismiss: (_) async {
         await _delete(context, ref);
@@ -720,4 +720,4 @@ class _WeekChart extends StatelessWidget {
   }
 }
 
-const _legible = [Shadow(color: Color(0xB304060B), blurRadius: 8)];
+const _legible = [Shadow(color: Color(0xB30A0A0C), blurRadius: 8)];
