@@ -192,7 +192,9 @@ void main() {
     await settleAndDispose(tester);
   });
 
-  testWidgets('failure offers retry and fast mode', (tester) async {
+  testWidgets('fast mode is the default; failure offers precise mode', (
+    tester,
+  ) async {
     useTallView(tester);
     final db = newTestDb();
     addTearDown(db.close);
@@ -204,9 +206,11 @@ void main() {
     await tester.tap(find.byKey(const Key('ai-log-analyse')));
     await _pump(tester);
     expect(find.text('That took too long'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('ai-log-fast')));
+    expect(parser.calls.first.$2, isTrue, reason: 'Groq first by default');
+    expect(find.byKey(const Key('ai-log-fast')), findsNothing);
+    await tester.tap(find.byKey(const Key('ai-log-precise')));
     await _pump(tester);
-    expect(parser.calls.last.$2, isTrue);
+    expect(parser.calls.last.$2, isFalse, reason: 'precise = Gemini first');
     await settleAndDispose(tester);
   });
 
@@ -221,7 +225,7 @@ void main() {
     await _pump(tester);
     await tester.tap(find.byKey(const Key('ai-log-analyse')));
     await _pump(tester);
-    expect(find.text('ANALYSING'), findsOneWidget);
+    expect(find.textContaining('ANALYSING'), findsOneWidget);
     await tester.tap(find.byKey(const Key('ai-log-cancel')));
     await _pump(tester);
     expect(find.byKey(const Key('ai-log-field')), findsOneWidget);

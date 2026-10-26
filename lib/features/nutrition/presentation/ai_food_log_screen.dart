@@ -120,7 +120,10 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
   // Actions
   // -------------------------------------------------------------------------
 
-  Future<void> _analyse({bool fast = false}) async {
+  /// Fast mode (Groq, ~9 s) is the default: live testing showed Gemini taking
+  /// ~40 s for a full-day log with no better parsing. The server still falls
+  /// back to Gemini if Groq is unavailable; "precise mode" asks Gemini first.
+  Future<void> _analyse({bool fast = true}) async {
     final text = _ctrl.text.trim();
     if (text.isEmpty) {
       Haptics.warning();
@@ -816,6 +819,16 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
             expand: true,
             onPressed: () => _analyse(fast: _fast),
           ),
+        if (retryable && parser.supportsFastMode && _fast) ...[
+          const SizedBox(height: AppSpacing.sm),
+          HudButton.secondary(
+            key: const Key('ai-log-precise'),
+            label: 'Try precise mode (Gemini)',
+            icon: Icons.psychology_alt_rounded,
+            expand: true,
+            onPressed: () => _analyse(fast: false),
+          ),
+        ],
         if (retryable && parser.supportsFastMode && !_fast) ...[
           const SizedBox(height: AppSpacing.sm),
           HudButton.secondary(
