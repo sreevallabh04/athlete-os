@@ -94,6 +94,22 @@ class FoodLogRepository {
     return rowId;
   }
 
+  /// Logs every draft for [localDate] in ONE transaction (all or nothing).
+  /// Returns the new row ids in order.
+  Future<List<String>> logAll(
+    List<LogDraft> drafts, {
+    required String localDate,
+  }) async {
+    if (drafts.isEmpty) return const [];
+    final ids = <String>[];
+    await _db.transaction(() async {
+      for (final d in drafts) {
+        ids.add(await log(d, localDate: localDate));
+      }
+    });
+    return ids;
+  }
+
   /// Logs [amount] of a local [food] (snapshot computed now).
   Future<String> logFood(
     Food food, {

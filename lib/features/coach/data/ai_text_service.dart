@@ -30,6 +30,22 @@ class AiTextResult {
   bool get truncated => stopReason == 'max_tokens';
 }
 
+/// Result of [AiTextService.structuredResult].
+class AiStructuredResult {
+  const AiStructuredResult({
+    required this.arguments,
+    this.provider,
+    this.model,
+    this.truncated = false,
+  });
+
+  /// Tool arguments, or null when the model did not call the tool.
+  final Map<String, dynamic>? arguments;
+  final String? provider;
+  final String? model;
+  final bool truncated;
+}
+
 /// An inline image for [AiTextService.structured]. Only image-capable
 /// providers receive it (the server never routes images to text-only models).
 class AiImage {
@@ -98,6 +114,30 @@ class AiTextService {
     String toolDescription = 'Return the result in structured form.',
     AiImage? image,
     int maxTokens = 2048,
+    String? primaryProvider,
+  }) async => (await structuredResult(
+    system: system,
+    user: user,
+    toolName: toolName,
+    schema: schema,
+    toolDescription: toolDescription,
+    image: image,
+    maxTokens: maxTokens,
+    primaryProvider: primaryProvider,
+  )).arguments;
+
+  /// Like [structured], plus which provider/model answered and whether the
+  /// answer was cut off. [primaryProvider] overrides the user's provider
+  /// choice for this call only (e.g. `'groq'` for a fast retry).
+  Future<AiStructuredResult> structuredResult({
+    required String system,
+    required String user,
+    required String toolName,
+    required Map<String, Object?> schema,
+    String toolDescription = 'Return the result in structured form.',
+    AiImage? image,
+    int maxTokens = 2048,
+    String? primaryProvider,
   }) async {
     if (image != null) {
       if (!AiImage.supportedMimeTypes.contains(image.mimeType)) {
@@ -132,14 +172,24 @@ class AiTextService {
         },
       ],
       maxTokens: maxTokens,
+      primaryProvider: primaryProvider,
     );
+    Map<String, dynamic>? args;
     for (final call in res.toolCalls) {
       if (call['name'] == toolName) {
-        final args = call['arguments'];
-        if (args is Map) return args.cast<String, dynamic>();
+        final a = call['arguments'];
+        if (a is Map) {
+          args = a.cast<String, dynamic>();
+          break;
+        }
       }
     }
-    return null;
+    return AiStructuredResult(
+      arguments: args,
+      provider: res.provider,
+      model: res.model,
+      truncated: res.stopReason == 'max_tokens',
+    );
   }
 
   Future<AiChatResponse> _send({
@@ -147,8 +197,20 @@ class AiTextService {
     required List<Map<String, Object?>> content,
     required List<Map<String, Object?>> tools,
     required int maxTokens,
+    String? primaryProvider,
   }) async {
-    final prefs = await _loadPreferences();
+    var prefs = await _loadPreferences();
+    if (primaryProvider != null && aiProviderIds.contains(primaryProvider)) {
+      prefs = prefs.copyWith(
+        primaryProvider: () => primaryProvider,
+        // The stored model belongs to the user's usual provider.
+        model: () => null,
+        fallbackProviders: {
+          for (final p in [...prefs.fallbackProviders, ?prefs.primaryProvider])
+            if (p != primaryProvider) p,
+        }.toList(),
+      );
+    }
     return _backend.chat(
       AiChatRequest(
         requestId: 'txt_${_newId()}',

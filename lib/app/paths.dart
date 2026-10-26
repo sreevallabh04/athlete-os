@@ -13,6 +13,9 @@ abstract final class AppPaths {
   static const workoutDetail = '/workout/:id';
   static const nutrition = '/nutrition';
   static const addFood = '/nutrition/add';
+
+  /// "Tell JARVIS what you ate": bulk AI logging (`?q=` prefill, `?date=`).
+  static const aiFoodLog = '/nutrition/ai-log';
   static const nutritionHistory = '/nutrition/history';
   static const hydration = '/hydration';
   static const coach = '/coach';
