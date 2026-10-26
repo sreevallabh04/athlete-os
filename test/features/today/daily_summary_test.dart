@@ -85,7 +85,7 @@ void main() {
       'Water: 1.2 L of 3 L — 1.8 L to go.',
       'Next event: Team sync at ${Fmt.time(DateTime(2026, 10, 25, 15))}.',
       'Planned workout: Push day.',
-      'You slept 7 h 12 m last night (Health Connect).',
+      'You slept 7 h 12 min last night (Health Connect).',
     ]);
   });
 

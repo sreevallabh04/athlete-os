@@ -25,9 +25,11 @@ void main() {
       expect(hud, isNotNull);
       expect(theme.textTheme.bodyMedium!.fontFamily, AppFonts.ui);
       expect(theme.textTheme.headlineMedium!.fontFamily, AppFonts.display);
+      // Prose uses proportional figures (Inter's tnum widens hyphens);
+      // tickers force tabular figures themselves.
       expect(
-        theme.textTheme.bodyMedium!.fontFeatures,
-        contains(const FontFeature.tabularFigures()),
+        theme.textTheme.bodyMedium!.fontFeatures ?? const [],
+        isNot(contains(const FontFeature.tabularFigures())),
       );
       expect(theme.scaffoldBackgroundColor, Colors.transparent);
     }

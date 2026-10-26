@@ -275,24 +275,33 @@ class SystemStatusRow extends StatelessWidget {
       button: true,
       label: 'System status: $label. Open integrations.',
       excludeSemantics: true,
+      onTap: () => context.push(AppPaths.integrations),
       child: PressableScale(
         onTap: () => context.push(AppPaths.integrations),
         pressedScale: 0.97,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const SizedBox(width: AppSpacing.md),
-                StatusDot(color: states[i].$1, size: 5),
-                const SizedBox(width: 5),
-                Text(
-                  items[i].$1,
-                  style: hud.mono(size: 10, color: hud.textMuted),
-                ),
-              ],
-            ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppSpacing.touchTarget),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < items.length; i++) ...[
+                    if (i > 0) const SizedBox(width: AppSpacing.md),
+                    StatusDot(color: states[i].$1, size: 5),
+                    const SizedBox(width: 5),
+                    Text(
+                      items[i].$1,
+                      style: hud.mono(size: 10, color: hud.textMuted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

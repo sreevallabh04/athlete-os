@@ -32,10 +32,14 @@ abstract final class Fmt {
     return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')} /km';
   }
 
-  static String time(DateTime t) => DateFormat.jm().format(t.toLocal());
-  static String dayMonth(DateTime t) => DateFormat.MMMd().format(t.toLocal());
+  /// 24-hour clock everywhere ("06:30", "21:40"): the HUD convention, and
+  /// the same format the Today header, briefings and the mood log use.
+  static String time(DateTime t) => DateFormat('HH:mm').format(t.toLocal());
+
+  /// "25 Oct" (day first, like [weekdayDayMonth]).
+  static String dayMonth(DateTime t) => DateFormat('d MMM').format(t.toLocal());
   static String weekdayDayMonth(DateTime t) =>
-      DateFormat('EEE, d MMM').format(t.toLocal());
+      DateFormat('EEE d MMM').format(t.toLocal());
 
   /// "just now", "12 min ago", "3 h ago", "2 days ago".
   static String ago(DateTime t, DateTime now) {

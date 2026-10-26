@@ -59,6 +59,7 @@ class QuickAddFab extends StatelessWidget {
       button: true,
       label: '$label: open quick add menu',
       excludeSemantics: true,
+      onTap: () => _open(context),
       child: Builder(
         builder: (context) => PressableScale(
           haptic: PressHaptic.none,
@@ -241,6 +242,7 @@ class _SpeedDial extends StatelessWidget {
             button: true,
             label: action.ai ? '${action.label}, AI assisted' : action.label,
             excludeSemantics: true,
+            onTap: () => Navigator.of(context).pop(action),
             child: PressableScale(
               onTap: () => Navigator.of(context).pop(action),
               child: Row(

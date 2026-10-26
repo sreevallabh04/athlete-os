@@ -25,6 +25,7 @@ class AppPage extends StatefulWidget {
     this.subtitle,
     this.onRefresh,
     this.floatingActionButton,
+    this.bottomAction,
     this.showBack,
     this.eyebrow,
   });
@@ -35,6 +36,12 @@ class AppPage extends StatefulWidget {
   final List<Widget>? actions;
   final Future<void> Function()? onRefresh;
   final Widget? floatingActionButton;
+
+  /// The screen's primary action, docked in a frosted bar at the bottom.
+  /// Use it on pushed screens (Journal "Write", Mood "Check in"…): unlike a
+  /// floating button it never covers content, because the list ends above
+  /// it. Pass an expanded `HudButton`.
+  final Widget? bottomAction;
 
   /// Defaults to automatic (shows when the route can pop).
   final bool? showBack;
@@ -97,7 +104,10 @@ class _AppPageState extends State<AppPage> {
             AppSpacing.gutter,
             AppSpacing.md,
             AppSpacing.gutter,
-            mq.padding.bottom + AppSpacing.xxxl,
+            // The bottom action bar already clears the system inset.
+            widget.bottomAction != null
+                ? AppSpacing.xl
+                : mq.padding.bottom + AppSpacing.xxxl,
           ),
           sliver: SliverList.list(children: widget.children),
         ),
@@ -114,6 +124,9 @@ class _AppPageState extends State<AppPage> {
       backgroundColor: Colors.transparent,
       body: EntranceScope(coordinator: _entrances, child: scroll),
       floatingActionButton: widget.floatingActionButton,
+      bottomNavigationBar: widget.bottomAction == null
+          ? null
+          : _BottomActionBar(child: widget.bottomAction!),
     );
   }
 }
@@ -349,4 +362,37 @@ List<Widget> spaced(List<Widget> children, {double gap = AppSpacing.md}) {
     out.add(children[i]);
   }
   return out;
+}
+
+class _BottomActionBar extends StatelessWidget {
+  const _BottomActionBar({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = HudTheme.of(context);
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: hud.glassFillStrong,
+            border: Border(
+              top: BorderSide(color: hud.hairline.withValues(alpha: 0.14)),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.md,
+              AppSpacing.gutter,
+              AppSpacing.md + bottom,
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
 }

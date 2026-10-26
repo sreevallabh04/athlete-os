@@ -135,7 +135,12 @@ void main() {
       );
       await pumpUntil(tester, find.text('No habits yet'));
       await pumpUntil(tester, find.text('No check-in yet today'));
-      await pumpUntil(tester, find.text('Nothing written today — optional'));
+      // 48 dp touch targets push the journal card below the 600 px test
+      // viewport: scroll to it like a person would.
+      await tester.scrollUntilVisible(
+        find.text('Nothing written today — optional'),
+        200,
+      );
       for (final label in [
         'Planner',
         'Competition prep',
@@ -166,7 +171,8 @@ void main() {
   ) async {
     await tester.pumpWidget(testHarness(const MoodScreen(), db: db, now: now));
     await pumpUntil(tester, find.text('No check-in yet today'));
-    await pumpUntil(tester, find.text('Not enough check-ins yet'));
+    // The docked "Check in" bar shortens the 600 px test viewport.
+    await tester.scrollUntilVisible(find.text('Not enough check-ins yet'), 200);
     await tester.scrollUntilVisible(find.text('Mood vs sleep quality'), 200);
     expect(find.textContaining('Not enough data yet'), findsWidgets);
     await settle(tester);

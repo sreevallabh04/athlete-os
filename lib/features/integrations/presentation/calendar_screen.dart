@@ -127,7 +127,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           },
         ),
       ],
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Plan block',
         icon: Icons.add,
         onPressed: () => _plan(),
@@ -232,6 +233,7 @@ class _NavButton extends StatelessWidget {
     button: true,
     label: icon == Icons.chevron_left ? 'Previous' : 'Next',
     excludeSemantics: true,
+    onTap: onTap,
     child: PressableScale(
       onTap: onTap,
       haptic: PressHaptic.none,
@@ -561,22 +563,29 @@ class _BlockView extends StatelessWidget {
           : null,
       child: ClipRect(
         child: tall
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: titleStyle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    free ? 'Tap to plan · $time' : time,
-                    style: hud.mono(size: 9.5),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            // Large text can make a 40-min block shorter than two lines:
+            // let the time line clip instead of overflowing.
+            ? OverflowBox(
+                alignment: Alignment.topLeft,
+                maxHeight: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: titleStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      free ? 'Tap to plan · $time' : time,
+                      style: hud.mono(size: 9.5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               )
             : Row(
                 children: [
@@ -597,6 +606,7 @@ class _BlockView extends StatelessWidget {
       button: b.onTap != null,
       label: free ? 'Free from $time, ${_dur(mins)}' : '${b.title}, $time',
       excludeSemantics: true,
+      onTap: b.onTap,
       child: b.onTap == null
           ? body
           : PressableScale(onTap: b.onTap, pressedScale: 0.97, child: body),
@@ -894,6 +904,7 @@ class _WeekView extends StatelessWidget {
                     '${Fmt.weekdayDayMonth(d)}: ${dayEvents.length} events, '
                     '${_dur(freeMin).toLowerCase()} free',
                 excludeSemantics: true,
+                onTap: () => onTapDay(key),
                 child: PressableScale(
                   onTap: () => onTapDay(key),
                   child: Padding(

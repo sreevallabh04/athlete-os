@@ -48,9 +48,10 @@ class HabitsScreen extends ConsumerWidget {
           ),
         ),
       ],
-      floatingActionButton: b == null || b.habits.isEmpty
+      bottomAction: b == null || b.habits.isEmpty
           ? null
           : HudButton(
+              expand: true,
               label: 'New habit',
               icon: Icons.add,
               onPressed: () => openHabitEditor(context),
@@ -74,8 +75,7 @@ class HabitsScreen extends ConsumerWidget {
             _TodaySummary(board: b),
             LifeSection(
               'Today',
-              hint: DateFormat('EEEE, d MMMM')
-                  .format(LocalDates.parse(b.today)),
+              hint: DateFormat('EEEE d MMMM').format(LocalDates.parse(b.today)),
               accent: AppColors.habit,
             ),
             if (b.dueToday.isEmpty)
@@ -422,6 +422,7 @@ class HabitTodayTile extends ConsumerWidget {
                   label: action,
                   hint: mark == null ? 'Long press to skip today' : null,
                   excludeSemantics: true,
+                  onTap: () => HabitActions.toggle(context, ref, view),
                   child: PressableScale(
                     key: Key('habit-check-${view.id}'),
                     haptic: PressHaptic.none,

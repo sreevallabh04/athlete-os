@@ -247,7 +247,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           content: Text('Calibration complete. At your service, $_addr.'),
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       Haptics.warning();
       setState(() {
@@ -255,7 +255,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _online = false;
       });
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('Calibration could not be saved: $e')),
+        const SnackBar(
+          content: Text(
+            'Calibration could not be saved. Nothing was changed; '
+            'try Engage again.',
+          ),
+        ),
       );
     }
   }
@@ -284,12 +289,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        tooltip: 'Back',
-                        onPressed: _step == 0 || _engaging
-                            ? null
-                            : () => _go(_step - 1),
-                        icon: const Icon(Icons.arrow_back),
+                      // Hidden (not just disabled) on the first step; the
+                      // slot keeps the progress arc centred.
+                      Visibility(
+                        visible: _step > 0,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: IconButton(
+                          tooltip: 'Back',
+                          onPressed: _step == 0 || _engaging
+                              ? null
+                              : () => _go(_step - 1),
+                          icon: const Icon(Icons.arrow_back),
+                        ),
                       ),
                       Expanded(
                         child: Column(
@@ -306,14 +319,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ],
                         ),
                       ),
-                      TextButton(
-                        onPressed: last || _engaging
-                            ? null
-                            : () {
-                                Haptics.light();
-                                _go(steps.length - 1);
-                              },
-                        child: const Text('Skip'),
+                      Visibility(
+                        visible: !last,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: TextButton(
+                          onPressed: last || _engaging
+                              ? null
+                              : () {
+                                  Haptics.light();
+                                  _go(steps.length - 1);
+                                },
+                          child: const Text('Skip'),
+                        ),
                       ),
                     ],
                   ),
@@ -499,7 +518,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           for (final opt in {a.name, 'Sir', 'Boss'})
             OptionCard(
-              title: opt == a.name ? 'By name — "$opt"' : '"$opt"',
+              title: opt == a.name ? 'By name — “$opt”' : '“$opt”',
               icon: Icons.record_voice_over_outlined,
               selected: a.addressAs == opt,
               onTap: () => _set(_a.copyWith(addressAs: opt)),
@@ -513,7 +532,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               subtitle: switch (g) {
                 NutritionGoal.cut => 'Lose fat, keep muscle',
                 NutritionGoal.leanBulk => 'Slow, controlled gain',
-                NutritionGoal.recomp => 'Small deficit, recomposition',
+                NutritionGoal.recomp => 'Small deficit, trade fat for muscle',
                 NutritionGoal.contestPrep => 'Get stage-lean for a show',
               },
               icon: switch (g) {
@@ -784,7 +803,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           OptionCard(
             title: 'Voice responses',
-            subtitle: 'Spoken briefings when the voice feature ships',
+            subtitle: 'Briefings and coach replies, read aloud',
             icon: Icons.graphic_eq,
             multi: true,
             selected: a.voiceEnabled,
@@ -829,7 +848,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           for (final m in messagingAppChoices)
             OptionCard(
               title: m.label,
-              icon: Icons.chat_bubble_outline,
+              icon: switch (m.packageName) {
+                'com.google.android.gm' => Icons.mail_outline,
+                'com.google.android.apps.messaging' => Icons.sms_outlined,
+                'com.instagram.android' => Icons.photo_camera_outlined,
+                'com.twitter.android' => Icons.alternate_email,
+                'org.telegram.messenger' => Icons.send_outlined,
+                'com.Slack' => Icons.tag,
+                _ => Icons.chat_bubble_outline,
+              },
               multi: true,
               selected: a.messagingApps.contains(m.packageName),
               onTap: () => _set(

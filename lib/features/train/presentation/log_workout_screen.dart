@@ -692,32 +692,34 @@ class _SetEditor extends StatelessWidget {
                 label: set.warmup
                     ? 'Set $number, warm-up. Tap to make it a working set'
                     : 'Set $number. Tap to mark as warm-up',
-                excludeSemantics: true,
+                container: true,
                 child: PressableScale(
                   haptic: PressHaptic.selection,
                   onTap: () {
                     set.warmup = !set.warmup;
                     onChanged();
                   },
-                  child: Container(
-                    height: 36,
-                    margin: const EdgeInsets.only(right: 8),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadii.xs),
-                      border: Border.all(
-                        color: (set.warmup ? AppColors.warning : hud.hairline)
-                            .withValues(alpha: 0.4),
+                  child: ExcludeSemantics(
+                    child: Container(
+                      height: 36,
+                      margin: const EdgeInsets.only(right: 8),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadii.xs),
+                        border: Border.all(
+                          color: (set.warmup ? AppColors.warning : hud.hairline)
+                              .withValues(alpha: 0.4),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      set.warmup ? 'W' : '$number',
-                      style: hud
-                          .mono(
-                            size: 12,
-                            color: set.warmup ? AppColors.warning : hud.text,
-                          )
-                          .copyWith(fontWeight: FontWeight.w600),
+                      child: Text(
+                        set.warmup ? 'W' : '$number',
+                        style: hud
+                            .mono(
+                              size: 12,
+                              color: set.warmup ? AppColors.warning : hud.text,
+                            )
+                            .copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                 ),
@@ -760,6 +762,7 @@ class _SetEditor extends StatelessWidget {
                     checked: set.done,
                     label: 'Set $number done',
                     excludeSemantics: true,
+                    onTap: onToggleDone,
                     child: PressableScale(
                       haptic: PressHaptic.none,
                       pressedScale: 0.88,
@@ -948,6 +951,7 @@ class _TimerButton extends StatelessWidget {
       button: true,
       label: '$label seconds',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.none,

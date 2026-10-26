@@ -50,10 +50,12 @@ class AiMemoryScreen extends ConsumerWidget {
       subtitle:
           'Only approved memories are shared with the coach (most recent '
           '$maxPromptMemories).',
-      floatingActionButton: FloatingActionButton.extended(
+      // Same docked primary action as Journal, Mood and Planner.
+      bottomAction: HudButton(
+        expand: true,
+        label: 'Add memory',
+        icon: Icons.add,
         onPressed: () => _edit(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add memory'),
       ),
       children: memories.when(
         loading: () => const [LoadingState()],

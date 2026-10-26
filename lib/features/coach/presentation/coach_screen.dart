@@ -53,10 +53,15 @@ final coachLinkProvider = Provider.autoDispose<CoachLink>((ref) {
 /// readouts and context-aware quick commands. Once a session starts, the
 /// orb glides up into the header and the HUD transcript takes over.
 class CoachScreen extends ConsumerStatefulWidget {
-  const CoachScreen({super.key, this.initialPrompt});
+  const CoachScreen({super.key, this.initialPrompt, this.listen = false});
 
   /// Prefills the composer (from `/coach?prompt=...`). Never auto-sent.
   final String? initialPrompt;
+
+  /// Start listening on arrival (`/coach?listen=1`, the "Ask JARVIS"
+  /// launcher shortcut). Goes through the same mic explainer and permission
+  /// flow as a tap on the mic; does nothing while the AI core is offline.
+  final bool listen;
 
   @override
   ConsumerState<CoachScreen> createState() => _CoachScreenState();
@@ -79,7 +84,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     _animateFrom = s.entries.length;
     ref.listenManual(coachControllerProvider, _onCoach);
     ref.listenManual(voiceControllerProvider, _onVoice);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeWake());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.listen ? _listenOnArrival() : _maybeWake(),
+    );
   }
 
   @override
@@ -88,6 +95,9 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     final p = _clean(widget.initialPrompt);
     if (widget.initialPrompt != old.initialPrompt && p.isNotEmpty) {
       _input.text = p;
+    }
+    if (widget.listen && !old.listen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _listenOnArrival());
     }
   }
 
@@ -242,9 +252,30 @@ class _CoachScreenState extends ConsumerState<CoachScreen> {
     await _listen();
   }
 
+  /// `/coach?listen=1`: the person explicitly asked to talk, so this behaves
+  /// like a mic tap (explainer first, then Android's permission prompt).
+  Future<void> _listenOnArrival() async {
+    if (!mounted) return;
+    final vs = ref.read(voiceControllerProvider);
+    if (vs.listening || vs.phase == VoicePhase.starting) return;
+    if (ref.read(aiBackendStateProvider) != AiBackendState.ready) {
+      _snack('The AI core is offline, so voice is unavailable. Typing works.');
+      return;
+    }
+    final v = await ref.read(voiceSettingsRepositoryProvider).load();
+    if (!mounted) return;
+    if (!v.enabled) {
+      _snack('Voice is switched off in voice settings.');
+      return;
+    }
+    if (ref.read(coachControllerProvider).busy) return;
+    if (!await _ensureMicExplained(v)) return;
+    await _listen();
+  }
+
   /// First tap ever: explain why the mic is needed before Android asks.
-  Future<bool> _ensureMicExplained() async {
-    final v = _voiceSettings;
+  Future<bool> _ensureMicExplained([VoiceSettings? loaded]) async {
+    final v = loaded ?? _voiceSettings;
     if (v.micExplained) return true;
     final voice = ref.read(voiceControllerProvider.notifier);
     if (await voice.hasPermission()) return true;
@@ -787,6 +818,7 @@ class _HeaderButton extends StatelessWidget {
         enabled: onTap != null,
         label: label,
         excludeSemantics: true,
+        onTap: onTap,
         child: PressableScale(
           onTap: onTap,
           pressedScale: 0.9,
@@ -1050,15 +1082,15 @@ class _OfflineCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  unconfigured ? 'AI backend not configured' : 'Not signed in',
+                  unconfigured ? 'AI core not configured' : 'Not signed in',
                   style: t.titleSmall,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   unconfigured
                       ? 'No answers are generated until it is connected. '
-                            '"Brief me" works offline.'
-                      : 'Sign in to your AI backend to start.',
+                            '“Brief me” works offline.'
+                      : 'Sign in to the AI core to start.',
                   style: t.bodySmall?.copyWith(color: hud.textMuted),
                 ),
               ],
@@ -1081,7 +1113,7 @@ class _Readouts extends StatelessWidget {
   final CoachTelemetry telemetry;
 
   static String _k(int v) =>
-      v >= 1000 && v % 1000 == 0 ? '${v ~/ 1000}K' : Fmt.integer(v);
+      v >= 1000 && v % 1000 == 0 ? '${v ~/ 1000}k' : Fmt.integer(v);
 
   @override
   Widget build(BuildContext context) {
@@ -1103,14 +1135,12 @@ class _Readouts extends StatelessWidget {
       if (telemetry.waterLeftMl != null)
         (
           'WATER LEFT',
-          telemetry.waterLeftMl! <= 0
-              ? 'DONE'
-              : '${(telemetry.waterLeftMl! / 1000).toStringAsFixed(1)} L',
+          telemetry.waterLeftMl! <= 0 ? 'DONE' : Fmt.ml(telemetry.waterLeftMl!),
           AppColors.water,
         ),
       if (telemetry.daysToCompetition != null &&
           telemetry.daysToCompetition! >= 0)
-        ('MEET IN', '${telemetry.daysToCompetition} d', AppColors.competition),
+        ('MEET IN', '${telemetry.daysToCompetition} d', AppColors.gold),
       if (telemetry.pendingDrafts > 0)
         ('REPLIES', '${telemetry.pendingDrafts} waiting', AppColors.gold),
     ].take(3).toList();

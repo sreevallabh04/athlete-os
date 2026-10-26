@@ -177,6 +177,7 @@ class _ActionTileState extends State<_ActionTile>
       button: true,
       label: a.semanticLabel ?? a.label,
       excludeSemantics: true,
+      onTap: _tap,
       child: PressableScale(
         onTap: _tap,
         haptic: a.pulseOnTap ? PressHaptic.none : PressHaptic.light,

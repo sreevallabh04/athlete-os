@@ -74,6 +74,7 @@ class CountdownHero extends StatelessWidget {
       button: onTap != null,
       label: semantics,
       excludeSemantics: true,
+      onTap: onTap,
       child: AppCard(
         accent: AppColors.gold,
         brackets: true,
@@ -309,6 +310,7 @@ class CompetitionCta extends StatelessWidget {
       button: true,
       label: 'Set your competition date',
       excludeSemantics: true,
+      onTap: onTap,
       child: AppCard(
         accent: AppColors.gold,
         onTap: onTap,

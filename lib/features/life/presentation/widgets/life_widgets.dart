@@ -270,7 +270,7 @@ class WeekdayPicker extends StatelessWidget {
                 label: weekdayShort[d - 1],
                 selected: maskHasWeekday(mask, d),
                 button: true,
-                excludeSemantics: true,
+                container: true,
                 child: PressableScale(
                   haptic: PressHaptic.selection,
                   pressedScale: 0.9,
@@ -289,11 +289,13 @@ class WeekdayPicker extends StatelessWidget {
                       Haptics.warning();
                     }
                   },
-                  child: _DayDot(
-                    letter: weekdayShort[d - 1].substring(0, 2),
-                    on: maskHasWeekday(mask, d),
-                    color: c,
-                    size: size,
+                  child: ExcludeSemantics(
+                    child: _DayDot(
+                      letter: weekdayShort[d - 1].substring(0, 2),
+                      on: maskHasWeekday(mask, d),
+                      color: c,
+                      size: size,
+                    ),
                   ),
                 ),
               ),
@@ -397,7 +399,7 @@ class HudTimeChip extends StatelessWidget {
           button: true,
           label: '${label == null ? '' : '$label '}${formatMinutes(minutes)}',
           hint: 'Change time',
-          excludeSemantics: true,
+          container: true,
           child: PressableScale(
             haptic: PressHaptic.selection,
             pressedScale: 0.94,
@@ -405,39 +407,41 @@ class HudTimeChip extends StatelessWidget {
               final v = await pickMinutes(context, minutes);
               if (v != null) onChanged(v);
             },
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 40),
-              padding: EdgeInsets.only(
-                left: 12,
-                right: onDelete == null ? 12 : 4,
-              ),
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.07),
-                borderRadius: onDelete == null
-                    ? BorderRadius.circular(AppRadii.sm)
-                    : const BorderRadius.horizontal(
-                        left: Radius.circular(AppRadii.sm),
-                      ),
-                border: Border.all(color: c.withValues(alpha: 0.35)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (label != null) ...[
-                    Text(label!, style: hud.label(size: 11)),
-                    const SizedBox(width: 8),
-                  ] else ...[
-                    Icon(Icons.schedule, size: 14, color: ink),
-                    const SizedBox(width: 6),
+            child: ExcludeSemantics(
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 40),
+                padding: EdgeInsets.only(
+                  left: 12,
+                  right: onDelete == null ? 12 : 4,
+                ),
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.07),
+                  borderRadius: onDelete == null
+                      ? BorderRadius.circular(AppRadii.sm)
+                      : const BorderRadius.horizontal(
+                          left: Radius.circular(AppRadii.sm),
+                        ),
+                  border: Border.all(color: c.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (label != null) ...[
+                      Text(label!, style: hud.label(size: 11)),
+                      const SizedBox(width: 8),
+                    ] else ...[
+                      Icon(Icons.schedule, size: 14, color: ink),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      formatMinutes(minutes),
+                      style: hud
+                          .mono(size: 15, color: hud.text)
+                          .copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    if (onDelete != null) const SizedBox(width: 8),
                   ],
-                  Text(
-                    formatMinutes(minutes),
-                    style: hud
-                        .mono(size: 15, color: hud.text)
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  if (onDelete != null) const SizedBox(width: 8),
-                ],
+                ),
               ),
             ),
           ),
@@ -1056,6 +1060,7 @@ class LifePill extends StatelessWidget {
       selected: selected,
       label: label,
       excludeSemantics: true,
+      onTap: onTap,
       child: onTap == null
           ? pill
           : PressableScale(

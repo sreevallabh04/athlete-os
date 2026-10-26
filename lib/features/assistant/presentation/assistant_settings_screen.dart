@@ -971,6 +971,7 @@ class _BriefingCard extends ConsumerWidget {
             value: b.morningEnabled,
             onChanged: (v) => ctl.setBriefing(b.copyWith(morningEnabled: v)),
             secondary: IconButton(
+              tooltip: 'Change morning briefing time',
               icon: const Icon(Icons.schedule),
               onPressed: () => pick(true),
             ),
@@ -982,6 +983,7 @@ class _BriefingCard extends ConsumerWidget {
             value: b.eveningEnabled,
             onChanged: (v) => ctl.setBriefing(b.copyWith(eveningEnabled: v)),
             secondary: IconButton(
+              tooltip: 'Change evening review time',
               icon: const Icon(Icons.schedule),
               onPressed: () => pick(false),
             ),

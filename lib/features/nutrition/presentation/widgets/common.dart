@@ -69,6 +69,8 @@ class EstimateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Amber text darkened on porcelain so it stays readable (AA).
+    final ink = context.hud.ink(AppColors.warning);
     return Semantics(
       label: 'Estimated values',
       excludeSemantics: true,
@@ -82,16 +84,9 @@ class EstimateBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.auto_awesome_outlined,
-              size: 10,
-              color: AppColors.warning,
-            ),
+            Icon(Icons.auto_awesome_outlined, size: 10, color: ink),
             const SizedBox(width: 3),
-            Text(
-              label,
-              style: AppTypography.hudLabel(AppColors.warning, size: 10.5),
-            ),
+            Text(label, style: AppTypography.hudLabel(ink, size: 10.5)),
           ],
         ),
       ),

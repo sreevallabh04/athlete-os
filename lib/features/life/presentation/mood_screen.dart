@@ -44,7 +44,8 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
     return AppPage(
       title: 'Mood',
       eyebrow: 'PRIVATE CHECK-INS · ON THIS DEVICE',
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Check in',
         icon: Icons.add_reaction_outlined,
         onPressed: () => showMoodCheckIn(context),

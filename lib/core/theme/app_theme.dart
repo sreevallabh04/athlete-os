@@ -100,9 +100,13 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
-        centerTitle: false,
+        // Matches AppPage's collapsed bar (centred titleMedium), so the few
+        // screens with a plain AppBar (pickers, editors) read as the same
+        // header in its compact state.
+        centerTitle: true,
         foregroundColor: text,
-        titleTextStyle: tt.titleLarge,
+        titleTextStyle: tt.titleMedium,
+        actionsPadding: const EdgeInsets.only(right: AppSpacing.xs),
         iconTheme: IconThemeData(color: text),
         actionsIconTheme: IconThemeData(color: muted),
       ),

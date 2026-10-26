@@ -424,7 +424,7 @@ Future<void> _shotWidget(WidgetTester t, Widget child, String name) async {
   await t.runAsync(() async {
     final image = await boundary.toImage(pixelRatio: shotDpr);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    File('build/shots/$_dir/$name.png')
+    File('$shotDir/$_dir/$name.png')
       ..createSync(recursive: true)
       ..writeAsBytesSync(data!.buffer.asUint8List());
     image.dispose();

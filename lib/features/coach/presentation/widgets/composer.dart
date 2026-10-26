@@ -35,6 +35,7 @@ class HudIconAction extends StatelessWidget {
       enabled: enabled,
       label: semanticLabel,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.9,
@@ -142,6 +143,7 @@ class _MicButtonState extends State<MicButton> {
       label: live ? 'Stop listening' : 'Talk to JARVIS',
       hint: 'Tap to toggle, or press and hold to talk',
       excludeSemantics: true,
+      onTap: widget.enabled ? widget.onTap : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.enabled ? widget.onTap : null,

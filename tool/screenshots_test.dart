@@ -32,7 +32,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../test/helpers/test_app.dart';
 
-const _outDir = 'build/shots';
+/// Output root; `--dart-define=SHOT_DIR=build/shots/qa` redirects a run.
+const shotDir = String.fromEnvironment('SHOT_DIR', defaultValue: 'build/shots');
+const _outDir = shotDir;
 
 /// Reference device: OPPO CPH2251, 1080×2400, DPR 2.75.
 const shotPhysicalSize = Size(1080, 2400);

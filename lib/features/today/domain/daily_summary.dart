@@ -251,7 +251,7 @@ DailySummary buildDailySummary(SummaryInput i) {
     lines.add(
       SummaryLine(
         SummaryTopic.sleep,
-        'You slept ${sl.minutes ~/ 60} h ${sl.minutes % 60} m last night '
+        'You slept ${sl.minutes ~/ 60} h ${sl.minutes % 60} min last night '
         '(${sourceLabel(sl.origin)}).',
       ),
     );

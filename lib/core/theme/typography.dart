@@ -16,8 +16,14 @@ abstract final class AppFonts {
   static const mono = 'JetBrainsMono';
 }
 
-/// Type scale. All styles use tabular figures so metrics never jitter while
-/// they animate or update.
+/// Type scale.
+///
+/// Figures: the HUD faces (Rajdhani labels/numerals, JetBrains Mono) are
+/// tabular, and [AnimatedTicker] forces tabular figures on whatever style it
+/// is given, so changing numbers never jitter. The Inter text styles use
+/// proportional figures: Inter's `tnum` also widens the hyphen by ~40 %,
+/// which made prose like "heart-rate" or "End-of-day" look letter-spaced.
+/// Add [tabular] to an Inter style when a column of numbers must align.
 abstract final class AppTypography {
   static const List<FontFeature> tabular = [FontFeature.tabularFigures()];
 
@@ -38,7 +44,6 @@ abstract final class AppTypography {
       letterSpacing: ls,
       height: h,
       color: color ?? text,
-      fontFeatures: tabular,
       leadingDistribution: TextLeadingDistribution.even,
     );
 

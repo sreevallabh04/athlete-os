@@ -304,12 +304,14 @@ abstract final class ReportBuilder {
                 ),
                 ReportMetric(
                   'Protein target hit',
-                  '${n['nutrition.proteinDays']} of $logged logged days',
+                  '${n['nutrition.proteinDays']} of $logged logged '
+                      '${logged == 1 ? 'day' : 'days'}',
                   detail: pct(n['nutrition.proteinAdherencePct']),
                 ),
                 ReportMetric(
                   'Calories within ±10%',
-                  '${n['nutrition.calorieDays']} of $logged logged days',
+                  '${n['nutrition.calorieDays']} of $logged logged '
+                      '${logged == 1 ? 'day' : 'days'}',
                 ),
               ],
             ),
@@ -374,7 +376,8 @@ abstract final class ReportBuilder {
               'First → last',
               '${weights.first.kg.toStringAsFixed(1)} → '
                   '${weights.last.kg.toStringAsFixed(1)} kg',
-              detail: '${weights.length} readings',
+              detail:
+                  '${weights.length} reading${weights.length == 1 ? '' : 's'}',
               source: src,
             ),
             ReportMetric(
@@ -882,5 +885,5 @@ abstract final class ReportBuilder {
     );
   }
 
-  static String _hm(int minutes) => '${minutes ~/ 60} h ${minutes % 60} m';
+  static String _hm(int minutes) => '${minutes ~/ 60} h ${minutes % 60} min';
 }

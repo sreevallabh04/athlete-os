@@ -108,7 +108,8 @@ class _AddFoodScreenState extends ConsumerState<AddFoodScreen> {
           title: const Text('Add food'),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              // With the bar's 4 dp actions padding: on the 20 dp gutter.
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: HudChip(
                 label: friendlyDate(_date, today),
                 icon: Icons.event_rounded,
@@ -286,6 +287,7 @@ class _ShortcutTile extends StatelessWidget {
       button: true,
       label: ai ? '$label, AI assisted' : label,
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         pressedScale: 0.93,

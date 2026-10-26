@@ -46,8 +46,8 @@ class PlanSummaryView extends StatelessWidget {
                 'Maintenance ≈ ${_thousands(p.maintenanceLow)}–'
                 '${_thousands(p.maintenanceHigh)} kcal · '
                 '${p.dailyDeficit >= 0 ? '−' : '+'}'
-                '${p.dailyDeficit.abs()} kcal/day '
-                '(${p.deficitPct.abs().toStringAsFixed(0)} %)',
+                '${p.dailyDeficit.abs()} kcal/day '
+                '(${p.deficitPct.abs().toStringAsFixed(0)} %)',
                 textAlign: TextAlign.center,
                 style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -81,7 +81,7 @@ class PlanSummaryView extends StatelessWidget {
               ),
               _Row(
                 'BMR (Katch-McArdle)',
-                '${p.bmr.round()} kcal',
+                '${_thousands(p.bmr.round())} kcal',
                 '370 + 21.6 × LBM',
               ),
               _Row(

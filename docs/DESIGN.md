@@ -48,11 +48,11 @@ Contrast is enforced by `test/core/theme_test.dart` (body ≥ 7:1, muted, cyan a
 
 Gradients (`AppGradients`): `brand` (cyan → blue), `gold`, `competition`, `canvas`, `subtle(c)` (accent wash) and `hairline(c)` (luminous border). Glows (`AppGlows`): `soft(c)`, `strong(c)` (outer-only box shadows, so they never show through glass) and `text(c)` (for `Icon.shadows` / `TextStyle.shadows`).
 
-Theme-dependent values live in **`HudTheme`** (`context.hud`): `accent`, `accentInk`, `glassFill(Strong)`, `hairline`, `text(Muted)`, `gridColor`, `glowStrength` (1.0 dark / 0.45 light) and `nebulaIntensity`. Prefer these over raw constants whenever the value should change with the theme.
+Theme-dependent values live in **`HudTheme`** (`context.hud`): `accent`, `accentInk`, `glassFill(Strong)`, `hairline`, `text(Muted)`, `gridColor`, `glowStrength` (1.0 dark / 0.45 light) and `nebulaIntensity`. Prefer these over raw constants whenever the value should change with the theme. `hud.label/mono/number(color: …)` pass the colour through `hud.ink(c)`, which darkens luminous metric hues on the light theme so coloured HUD text stays AA (dark theme and neutrals are untouched); use `hud.ink` yourself for any other coloured text.
 
 ## 3. Typography (`AppTypography`, `AppFonts`)
 
-Bundled OFL fonts (`assets/fonts/`, licences in `OFL.txt`, registered with `LicenseRegistry`). Every style uses **tabular figures**.
+Bundled OFL fonts (`assets/fonts/`, licences in `OFL.txt`, registered with `LicenseRegistry`). The HUD faces (Rajdhani, JetBrains Mono) and every `AnimatedTicker` use **tabular figures**; the Inter text styles keep proportional figures because Inter's `tnum` also widens the hyphen (prose like "heart-rate" looked letter-spaced). Add `AppTypography.tabular` to an Inter style when a column of numbers must align.
 
 | Role | Family | Style |
 |---|---|---|
@@ -69,7 +69,9 @@ Scale: display 56/44/36 · headline 32/28/24 · title 20/16/14 · body 16/14/12.
 `AppSpacing`: 2 · 4 · 8 · **12** (default gap) · 16 (card padding) · 24 · 32 · 48; `gutter` = 20; `touchTarget` = 48.
 `AppRadii`: xs 6 (chips/badges) · sm 10 · md 14 (buttons, inputs) · **lg 20 (cards)** · xl 28 (sheets) · dock 26.
 
-* Page content sits inside `AppPage` with the 20 dp gutter. Cards stack with 12 dp gaps, and sections start with `SectionHeader` (24 dp above).
+* Page content sits inside `AppPage` with the 20 dp gutter. Headers come in two states only: the large AppPage title (every list/overview screen) and its collapsed bar (centred `titleMedium`). Pickers and editors that use a plain `AppBar` get that same compact bar from the theme; only Today, the AI coach, onboarding, the journal editor and the camera scanner have bespoke headers.
+* Times are 24-hour (`Fmt.time` → `21:40`) and dates day-first (`Fmt.dayMonth` → `25 Oct`, `Fmt.weekdayDayMonth` → `Sun 25 Oct`). Durations read `6 h 52 min`.
+* Every tappable is at least 48 dp (compact `HudButton`s keep a 40 px look inside a 48 dp target). A `Semantics(excludeSemantics: true)` wrapper drops its child's tap action: pass `onTap:` to it too (`test/app/accessibility_test.dart` fails otherwise). Cards stack with 12 dp gaps, and sections start with `SectionHeader` (24 dp above).
 * Tap targets are at least 48 dp. Components are verified at 1.3× text scale on a 360 dp phone (`widgets_test.dart`).
 * Bottom insets: the shell uses `Scaffold.extendBody`, so **`MediaQuery.padding.bottom` already includes the floating dock**. `AppPage`, `ListView` and FABs respect it automatically. If you hand-roll a bottom bar or composer in a tab, pad it with `MediaQuery.paddingOf(context).bottom`.
 
@@ -117,7 +119,7 @@ All components are exported from `core/widgets/widgets.dart`, and every one is s
   `AppCard(accent: AppColors.protein, onTap: …, brackets: true, glow: true, child: …)`. `accent` adds a tinted wash and light spill. `brackets` adds HUD corner brackets (hero/focus cards only, at most one or two per screen). `glow` adds an accent bloom. `gradient` replaces the fill. `onLongPress` and `animateEntrance` are also available. Contains a transparent `Material`, so `ListTile`/`InkWell` ink works inside.
 * **`GlassPanel`**: the same glass without card semantics. Set `blur:` only for chrome floating over moving content.
 * **`HudFrame`**: corner brackets around any child, with optional `ticks` and a mono `tag` (`'SYS·01'`).
-* **`AppPage`** (existing API, plus `eyebrow`): large Inter Display title that blurs in, a HUD rule underneath, and a collapse into a frosted bar. Transparent over the background. Pull-to-refresh, back/close button and actions as before.
+* **`AppPage`** (existing API, plus `eyebrow`): large Inter Display title that blurs in, a HUD rule underneath, and a collapse into a frosted bar. Transparent over the background. Pull-to-refresh, back/close button and actions as before. A pushed screen's primary action goes in `bottomAction:` (a docked frosted bar the list ends above, so it never covers content); keep `floatingActionButton` for tab roots that float over the dock (Nutrition's quick-add).
 * **`SectionHeader`** (existing API, plus `accent`): glowing marker, title, and a tick line that fades out.
 
 ### Data

@@ -139,7 +139,11 @@ class StatusPill extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 5),
-          Text(label, style: AppTypography.hudLabel(color, size: 11.5)),
+          // Rajdhani is an UPPERCASE face; ink keeps it AA on porcelain.
+          Text(
+            label.toUpperCase(),
+            style: AppTypography.hudLabel(hud.ink(color), size: 11.5),
+          ),
         ],
       ),
     );
@@ -342,6 +346,7 @@ class KillSwitchCard extends ConsumerWidget {
             toggled: killed,
             label: killed ? 'Resume assistant' : 'Emergency stop',
             excludeSemantics: true,
+            onTap: flip,
             child: PressableScale(
               key: const Key('kill_switch_button'),
               onTap: flip,

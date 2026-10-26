@@ -185,16 +185,19 @@ class _SummaryCard extends StatelessWidget {
                       dot: true,
                       color: AppColors.success,
                     ),
-                    HudChip(
-                      label: '$setup to set up',
-                      dot: true,
-                      color: AppColors.info,
-                    ),
-                    HudChip(
-                      label: '$awaiting awaiting keys',
-                      dot: true,
-                      color: AppColors.warning,
-                    ),
+                    // Zero counts are noise; only show what needs action.
+                    if (setup > 0)
+                      HudChip(
+                        label: '$setup to set up',
+                        dot: true,
+                        color: AppColors.info,
+                      ),
+                    if (awaiting > 0)
+                      HudChip(
+                        label: '$awaiting awaiting keys',
+                        dot: true,
+                        color: AppColors.warning,
+                      ),
                   ],
                 ),
               ],

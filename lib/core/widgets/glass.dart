@@ -214,7 +214,7 @@ class HudFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final c = color ?? hud.accent;
-    return CustomPaint(
+    final frame = CustomPaint(
       foregroundPainter: HudFramePainter(
         color: c,
         cornerLength: cornerLength,
@@ -225,6 +225,13 @@ class HudFrame extends StatelessWidget {
         tagStyle: AppTypography.mono(c.withValues(alpha: 0.8), size: 9),
       ),
       child: Padding(padding: padding, child: child),
+    );
+    // The tag straddles the top edge: reserve room so it never touches
+    // whatever sits above the frame.
+    if (tag == null) return frame;
+    return Padding(
+      padding: EdgeInsets.only(top: 8 + (inset < 0 ? -inset : 0)),
+      child: frame,
     );
   }
 }

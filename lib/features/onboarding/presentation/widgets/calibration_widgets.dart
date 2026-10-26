@@ -52,6 +52,7 @@ class OptionCard extends StatelessWidget {
       button: true,
       label: subtitle == null ? title : '$title. $subtitle',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.selection,
@@ -469,7 +470,7 @@ class TimeTile extends StatelessWidget {
     return Semantics(
       button: true,
       label: '$label, $text. Change',
-      excludeSemantics: true,
+      container: true,
       child: PressableScale(
         onTap: () async {
           final picked = await showTimePicker(
@@ -481,20 +482,22 @@ class TimeTile extends StatelessWidget {
             onChanged(picked.hour * 60 + picked.minute);
           }
         },
-        child: GlassPanel(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm + 2,
-          ),
-          child: Row(
-            children: [
-              GlowIcon(icon, size: 17, framed: true),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(child: Text(label, style: t.titleSmall)),
-              Text(text, style: hud.number(size: 26)),
-              const SizedBox(width: AppSpacing.xs),
-              Icon(Icons.chevron_right, size: 18, color: hud.textMuted),
-            ],
+        child: ExcludeSemantics(
+          child: GlassPanel(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm + 2,
+            ),
+            child: Row(
+              children: [
+                GlowIcon(icon, size: 17, framed: true),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Text(label, style: t.titleSmall)),
+                Text(text, style: hud.number(size: 26)),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(Icons.chevron_right, size: 18, color: hud.textMuted),
+              ],
+            ),
           ),
         ),
       ),

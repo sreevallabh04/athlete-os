@@ -206,7 +206,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     inputFormatters: [
       FilteringTextInputFormatter.allow(RegExp(decimal ? r'[0-9.]' : r'[0-9]')),
     ],
-    style: context.hud.number(size: 20),
+    // Same input text as every other form (Custom food, Habit editor…).
     decoration: InputDecoration(
       labelText: label,
       suffixText: suffix,

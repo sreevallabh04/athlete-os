@@ -263,7 +263,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                DateFormat('EEE, d MMM')
+                                DateFormat('EEE d MMM')
                                     .format(LocalDates.parse(_localDate)),
                                 style: t.titleMedium,
                               ),

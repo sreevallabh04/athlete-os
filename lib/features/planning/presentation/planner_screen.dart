@@ -49,7 +49,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         ref.invalidate(calendarDayProvider(_date));
         ref.invalidate(tasksForDateProvider(_date));
       },
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Add priority',
         icon: Icons.add_task,
         onPressed: () => _editTask(context),
@@ -129,8 +130,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               ),
               const SizedBox(height: AppSpacing.xs),
               const Hint(
-                'Coming soon: AI-generated schedules. Suggestions above are '
-                'deterministic and only become tasks when you add them.',
+                'Suggestions above come from your calendar and routine, and '
+                'only become tasks when you add them.',
               ),
             ],
           ),
@@ -232,6 +233,7 @@ class _DateStrip extends StatelessWidget {
                     button: true,
                     label: formatDateKey(d),
                     excludeSemantics: true,
+                    onTap: d == selected ? null : () => _pick(d),
                     child: PressableScale(
                       onTap: d == selected ? null : () => _pick(d),
                       haptic: PressHaptic.none,
@@ -531,10 +533,11 @@ class _PlannerTaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = context.hud;
     final t = Theme.of(context).textTheme;
+    // Priority is rank, not alarm: red stays reserved for alerts.
     final pColor = switch (task.priority) {
-      1 => AppColors.red,
-      2 => AppColors.warning,
-      _ => hud.accent,
+      1 => hud.accentInk,
+      2 => hud.text,
+      _ => hud.textMuted,
     };
     final sub = [
       ?task.project,
@@ -856,7 +859,7 @@ class _FreeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final m = slot.duration.inMinutes;
-    final dur = m >= 60 ? '${m ~/ 60} h ${m % 60} m' : '$m min';
+    final dur = m >= 60 ? '${m ~/ 60} h ${m % 60} min' : '$m min';
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
@@ -1059,7 +1062,7 @@ class DayRibbon extends StatelessWidget {
                 Text('FREE TIME', style: hud.label(size: 10.5)),
                 const Spacer(),
                 Text(
-                  '${freeMin ~/ 60} H ${freeMin % 60} M',
+                  '${freeMin ~/ 60} h ${freeMin % 60} min',
                   style: hud.mono(size: 10.5, color: AppColors.success),
                 ),
               ],

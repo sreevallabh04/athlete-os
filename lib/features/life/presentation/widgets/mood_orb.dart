@@ -387,6 +387,7 @@ class MoodFaceButton extends StatelessWidget {
       selected: selected,
       label: 'Mood ${moodLabels[mood]}',
       excludeSemantics: true,
+      onTap: onTap,
       child: PressableScale(
         onTap: onTap,
         haptic: PressHaptic.selection,

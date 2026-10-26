@@ -63,7 +63,7 @@ class _StrengthEmpty extends StatelessWidget {
                 (
                   Icons.show_chart,
                   'Estimated 1RM per lift',
-                  'Interactive trend for every exercise (Epley, 1–12 reps).',
+                  'Interactive trend for every exercise (Epley, sets of 1 to 12 reps).',
                 ),
                 (
                   Icons.emoji_events_outlined,
@@ -426,7 +426,7 @@ class _LeaderRow extends StatelessWidget {
           '${history.name}, best e1RM '
           '${best == null ? 'none' : '${Fmt.oneDp(best)} kg'}, '
           'trend ${prog.trend.label}',
-      excludeSemantics: true,
+      container: true,
       child: PressableScale(
         pressedScale: 0.975,
         onTap: () => Navigator.of(context).push(
@@ -434,102 +434,106 @@ class _LeaderRow extends StatelessWidget {
             builder: (_) => ExerciseDetailScreen(exerciseKey: history.key),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 28,
-                child: Text(
-                  rank.toString().padLeft(2, '0'),
-                  style: hud.mono(
-                    size: 12,
-                    color: rank <= 3 ? AppColors.gold : hud.textMuted,
+        child: ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    rank.toString().padLeft(2, '0'),
+                    style: hud.mono(
+                      size: 12,
+                      color: rank <= 3 ? AppColors.gold : hud.textMuted,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Hero(
-                      tag: 'exercise-${history.key}',
-                      child: Material(
-                        type: MaterialType.transparency,
-                        child: Text(
-                          history.name,
-                          style: t.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          prog.trend.label,
-                          style: t.labelSmall?.copyWith(color: c),
-                        ),
-                        Flexible(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Hero(
+                        tag: 'exercise-${history.key}',
+                        child: Material(
+                          type: MaterialType.transparency,
                           child: Text(
-                            ' · ${history.sessions.length} sessions',
+                            history.name,
+                            style: t.titleSmall,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: t.labelSmall?.copyWith(color: hud.textMuted),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              SizedBox(
-                width: 64,
-                child: spark.length >= 2
-                    ? HudSparkline(
-                        values: spark,
-                        color: AppColors.strength,
-                        height: 26,
-                        strokeWidth: 1.6,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              SizedBox(
-                width: 66,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (showGain && _gainPct(history) != null) ...[
-                      Text(
-                        '${signed(_gainPct(history)!)}%',
-                        style: hud.number(
-                          size: 19,
-                          color: _gainPct(history)! >= 0
-                              ? AppColors.success
-                              : AppColors.warning,
-                        ),
                       ),
-                      Text(
-                        'e1RM ${Fmt.oneDp(best!)}',
-                        style: hud.mono(size: 9.5),
-                      ),
-                    ] else ...[
-                      Text(
-                        best == null ? '—' : Fmt.oneDp(best),
-                        style: hud.number(size: 20),
-                      ),
-                      Text(
-                        best == null ? 'no e1RM' : 'kg e1RM',
-                        style: hud.mono(size: 9.5),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(
+                            prog.trend.label,
+                            style: t.labelSmall?.copyWith(color: c),
+                          ),
+                          Flexible(
+                            child: Text(
+                              ' · ${history.sessions.length} sessions',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.labelSmall?.copyWith(
+                                color: hud.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  width: 64,
+                  child: spark.length >= 2
+                      ? HudSparkline(
+                          values: spark,
+                          color: AppColors.strength,
+                          height: 26,
+                          strokeWidth: 1.6,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                SizedBox(
+                  width: 66,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (showGain && _gainPct(history) != null) ...[
+                        Text(
+                          '${signed(_gainPct(history)!)}%',
+                          style: hud.number(
+                            size: 19,
+                            color: _gainPct(history)! >= 0
+                                ? AppColors.success
+                                : AppColors.warning,
+                          ),
+                        ),
+                        Text(
+                          'e1RM ${Fmt.oneDp(best!)}',
+                          style: hud.mono(size: 9.5),
+                        ),
+                      ] else ...[
+                        Text(
+                          best == null ? '—' : Fmt.oneDp(best),
+                          style: hud.number(size: 20),
+                        ),
+                        Text(
+                          best == null ? 'no e1RM' : 'kg e1RM',
+                          style: hud.mono(size: 9.5),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

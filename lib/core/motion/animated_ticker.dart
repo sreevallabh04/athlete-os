@@ -123,7 +123,17 @@ class _AnimatedTickerState extends State<AnimatedTicker>
 
   @override
   Widget build(BuildContext context) {
-    final style = DefaultTextStyle.of(context).style.merge(widget.style);
+    final base = DefaultTextStyle.of(context).style.merge(widget.style);
+    // Rolling digits must keep their width, whatever face the caller uses.
+    final style = base.copyWith(
+      fontFeatures: [
+        ...?base.fontFeatures,
+        if (!(base.fontFeatures ?? const []).contains(
+          const FontFeature.tabularFigures(),
+        ))
+          const FontFeature.tabularFigures(),
+      ],
+    );
     final text = Text(
       widget.text,
       style: style,
