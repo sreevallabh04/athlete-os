@@ -64,3 +64,6 @@ android/local.properties
 google-services.json
 # Claude Code worktrees
 .claude/worktrees/
+
+# Locally built installable APKs
+/release/
