@@ -66,3 +66,8 @@ tier. Paid: **Hevy Pro** (required for its API) and **AI provider usage** (per t
 
 Food data from [Open Food Facts](https://world.openfoodfacts.org) (ODbL). Activity data
 "Powered by Strava". Nutrient data from USDA FoodData Central (public domain).
+
+## License
+
+MIT for the source code — see [LICENSE](LICENSE). Third-party data, fonts and integrations keep their own terms — see [CREDITS.md](CREDITS.md).
+
