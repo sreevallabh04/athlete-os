@@ -44,6 +44,9 @@ abstract final class FoodSources {
   static const quickAdd = 'quick_add';
   static const recipe = 'recipe';
 
+  /// Bundled, user-supplied Indian dish CSV (per 100 g, offline).
+  static const indianFoodDb = 'indian_food_db';
+
   static String label(String source) => switch (source) {
     openFoodFacts => 'Open Food Facts',
     usda => 'USDA FoodData Central',
@@ -51,6 +54,7 @@ abstract final class FoodSources {
     aiEstimate => 'AI estimate',
     quickAdd => 'Quick add',
     recipe => 'Recipe',
+    indianFoodDb => 'Indian Food DB',
     _ => source,
   };
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/domain/provenance.dart';
 import '../../../core/util/redact.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
@@ -11,6 +10,7 @@ import '../data/mappers.dart';
 import '../domain/food_models.dart';
 import 'barcode_scan_screen.dart';
 import 'custom_food_screen.dart';
+import 'label_scan_screen.dart';
 import 'widgets/amount_sheet.dart';
 import 'widgets/common.dart';
 
@@ -116,7 +116,7 @@ Future<bool> openCandidate(
     subtitle: candidate.brand,
     basis: basis,
     verification: verification,
-    origin: isOff ? DataOrigin.openFoodFacts : DataOrigin.usda,
+    origin: originForSource(candidate.source),
     initialMeal: meal,
     actionLabel: 'Save & log',
     showOffAttribution: isOff,
@@ -198,8 +198,9 @@ Future<void> lookupAndLogBarcode(
         date: date,
         title: 'Product not found',
         message:
-            'Barcode $code is not in Open Food Facts yet. You can add it '
-            'yourself from the package label.',
+            'Barcode $code is not in Open Food Facts yet. Scan the nutrition '
+            'table on the pack (or type it) and it is saved to My foods, so '
+            'this barcode finds it instantly next time.',
       );
     case BarcodeLookupFailed(:final message):
       await _offerManual(
@@ -214,6 +215,8 @@ Future<void> lookupAndLogBarcode(
   }
 }
 
+enum _NotFoundChoice { label, manual }
+
 Future<void> _offerManual(
   BuildContext context,
   WidgetRef ref, {
@@ -223,24 +226,37 @@ Future<void> _offerManual(
   required String title,
   required String message,
 }) async {
-  final manual = await showDialog<bool>(
+  final choice = await showDialog<_NotFoundChoice>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
       content: Text(message),
+      actionsOverflowButtonSpacing: 4,
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
+          onPressed: () => Navigator.pop(ctx),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
+        TextButton(
+          key: const Key('barcode-enter-manually'),
+          onPressed: () => Navigator.pop(ctx, _NotFoundChoice.manual),
           child: const Text('Enter manually'),
+        ),
+        FilledButton.icon(
+          key: const Key('barcode-scan-label'),
+          onPressed: () => Navigator.pop(ctx, _NotFoundChoice.label),
+          icon: const Icon(Icons.document_scanner_outlined, size: 18),
+          label: const Text('Scan nutrition label'),
         ),
       ],
     ),
   );
-  if (manual != true || !context.mounted) return;
+  if (choice == null || !context.mounted) return;
+  if (choice == _NotFoundChoice.label) {
+    // The label screen offers "Save & log" itself; "Save" only saves.
+    await openLabelScan(context, barcode: code, meal: meal, date: date);
+    return;
+  }
   final food = await Navigator.of(context).push<Food>(
     MaterialPageRoute(builder: (_) => CustomFoodScreen(barcode: code)),
   );

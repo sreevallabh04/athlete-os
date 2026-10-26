@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import '../core/contracts/calendar_reader.dart';
 import '../features/assistant/application/reply_drafter.dart';
 import '../features/coach/data/ai_food_log_parser.dart';
+import '../features/coach/data/ai_label_reader.dart';
 import '../features/coach/data/ai_nutrition_estimators.dart';
 import '../features/integrations/data/google_calendar_reader.dart';
 import '../features/nutrition/application/ai_food_log.dart';
@@ -23,6 +24,10 @@ List<Override> appOverrides() => [
   ),
   mealPhotoAnalyzerProvider.overrideWith(
     (ref) => ref.watch(aiMealPhotoAnalyzerProvider),
+  ),
+  // "Scan nutrition label": the multimodal model transcribes the table.
+  nutritionLabelReaderProvider.overrideWith(
+    (ref) => ref.watch(aiNutritionLabelReaderProvider),
   ),
   // Messaging assistant drafts/summaries via the same backend. Sending is
   // still decided by the assistant's code-enforced policy engine.

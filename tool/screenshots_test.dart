@@ -15,6 +15,7 @@
 //   orb render their painter fallbacks (which are designed to look right).
 // * Time is fixed to 2026-10-25 21:40 (local) unless you pass `now:`.
 // * View the PNGs with any image viewer (or the Read tool in an agent).
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -23,12 +24,19 @@ import 'package:athlete_os/app/boot/boot_sequence.dart';
 import 'package:athlete_os/app/paths.dart';
 import 'package:athlete_os/app/router.dart';
 import 'package:athlete_os/data/repositories/settings_repository.dart';
+import 'package:athlete_os/features/nutrition/application/providers.dart';
+import 'package:athlete_os/features/nutrition/data/indian_food_db.dart';
+import 'package:athlete_os/features/nutrition/data/label_photo.dart';
+import 'package:athlete_os/features/nutrition/domain/nutrition_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:image/image.dart' as img;
 
 import '../test/helpers/test_app.dart';
 
@@ -172,6 +180,92 @@ Future<void> _capture(WidgetTester tester, GlobalKey key, String name) async {
   print('shot → $_outDir/$name.png');
 }
 
+/// OFF/USDA that know nothing (search-a-licious `hits: []`).
+MockClient _emptyFoodApis() => MockClient((req) async {
+  final body = req.url.host == 'api.nal.usda.gov'
+      ? {'foods': []}
+      : req.url.host == 'search.openfoodfacts.org'
+      ? {'hits': []}
+      : {'products': []};
+  return http.Response(
+    jsonEncode(body),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+});
+
+/// Example extraction (made-up values) with one unreadable field.
+class _FakeLabelReader implements NutritionLabelReader {
+  @override
+  bool get isConfigured => true;
+
+  @override
+  Future<LabelReadResult> read(
+    Uint8List imageBytes, {
+    String mimeType = 'image/jpeg',
+  }) async => LabelReadSuccess(
+    parseNutritionLabel({
+      'product_name': 'Example Protein Oats',
+      'brand': 'Example',
+      'basis': 'both',
+      'unit': 'g',
+      'per_100g': {
+        'kcal': 380,
+        'protein_g': 25,
+        'carbs_g': 55,
+        'fat_g': 6.5,
+        'sugar_g': 1.2,
+      },
+      'serving': {
+        'size_g': 40,
+        'kcal': 152,
+        'protein_g': 10,
+        'carbs_g': 22,
+        'fat_g': 2.6,
+      },
+      'confidence': 0.86,
+      'unreadable_fields': ['per_100g.fiber_g', 'serving.fiber_g'],
+    }),
+    provider: 'gemini',
+  );
+}
+
+/// A label-like JPEG for the thumbnail.
+Future<Uint8List> _fakeLabelPhoto() async {
+  final image = img.Image(width: 360, height: 480)
+    ..clear(img.ColorRgb8(244, 241, 232));
+  const lines = [
+    'NUTRITION INFORMATION',
+    '              per 100g  per 40g',
+    'Energy (kcal)    380      152',
+    'Protein (g)       25       10',
+    'Total Carb. (g)   55       22',
+    'Total Sugars (g) 1.2      0.5',
+    'Total Fat (g)    6.5      2.6',
+    'Dietary Fibre (g)  -        -',
+  ];
+  for (var i = 0; i < lines.length; i++) {
+    img.drawString(
+      image,
+      lines[i],
+      font: img.arial14,
+      x: 16,
+      y: 24 + i * 34,
+      color: img.ColorRgb8(20, 20, 20),
+    );
+  }
+  img.drawLine(
+    image,
+    x1: 12,
+    y1: 50,
+    x2: 348,
+    y2: 50,
+    color: img.ColorRgb8(20, 20, 20),
+    thickness: 2,
+  );
+  return img.encodeJpg(image, quality: 85);
+}
+
 void main() {
   setUpAll(loadShotFonts);
 
@@ -222,6 +316,73 @@ void main() {
       scrolls: 2,
     ),
   );
+  // Food coverage: "Can't find it?" after a search with no results, and the
+  // nutrition-label review with a fake AI extraction (example values).
+  testWidgets('food-cov indian', (t) async {
+    final indian = IndianFoodDb.fromCsv(
+      File(indianFoodCsvAsset).readAsStringSync(),
+    );
+    await t.runAsync(indian.index);
+    await shotRoute(
+      t,
+      '${AppPaths.addFood}?meal=lunch',
+      'food-cov/search_indian',
+      overrides: [indianFoodDbProvider.overrideWithValue(indian)],
+      prepare: (t) async {
+        await _advance(t, const Duration(milliseconds: 600));
+        await t.enterText(find.byKey(const Key('food-search-field')), 'paneer');
+      },
+    );
+  });
+  testWidgets('food-cov search', (t) async {
+    await shotRoute(
+      t,
+      '${AppPaths.addFood}?meal=breakfast',
+      'food-cov/search_cantfind',
+      overrides: [
+        nutritionHttpClientProvider.overrideWithValue(_emptyFoodApis()),
+      ],
+      prepare: (t) async {
+        await _advance(t, const Duration(milliseconds: 600));
+        await t.enterText(
+          find.byKey(const Key('food-search-field')),
+          'Saffola High Protein Oats',
+        );
+        await t.testTextInput.receiveAction(TextInputAction.search);
+      },
+    );
+  });
+  testWidgets('food-cov label review', (t) async {
+    final photo = await t.runAsync(_fakeLabelPhoto);
+    await shotRoute(
+      t,
+      '${AppPaths.labelScan}?name=Example%20Protein%20Oats'
+          '&barcode=8900000000000&meal=breakfast',
+      'food-cov/label_review',
+      scrolls: 1,
+      overrides: [
+        nutritionLabelReaderProvider.overrideWithValue(_FakeLabelReader()),
+        labelPhotoPickerProvider.overrideWithValue(
+          (_) async => LabelPhoto(photo!),
+        ),
+        aiPhotoConsentProvider.overrideWith((ref) => Stream.value(true)),
+      ],
+      prepare: (t) async {
+        await _advance(t, const Duration(milliseconds: 600));
+        await t.tap(find.byKey(const Key('label-take-photo')));
+      },
+    );
+  });
+  testWidgets('food-cov label capture', (t) async {
+    await shotRoute(
+      t,
+      '${AppPaths.labelScan}?name=Example%20Protein%20Oats&meal=breakfast',
+      'food-cov/label_capture',
+      overrides: [
+        nutritionLabelReaderProvider.overrideWithValue(_FakeLabelReader()),
+      ],
+    );
+  });
   testWidgets('boot', (t) async {
     BootGate.debugReset();
     await shotRoute(

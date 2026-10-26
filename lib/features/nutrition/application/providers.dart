@@ -18,6 +18,7 @@ import '../data/saved_meal_repository.dart';
 import '../data/usda_client.dart';
 import '../data/weight_query.dart';
 import '../domain/ai_contracts.dart';
+import '../domain/nutrition_label.dart';
 import '../domain/nutrition_calc.dart';
 import 'food_lookup_service.dart';
 
@@ -91,6 +92,12 @@ final foodTextEstimatorProvider = Provider<FoodTextEstimator>(
 /// Meal photo analysis. Default reports "not configured".
 final mealPhotoAnalyzerProvider = Provider<MealPhotoAnalyzer>(
   (ref) => const UnconfiguredMealPhotoAnalyzer(),
+);
+
+/// Nutrition-label photo reader (transcribes, never estimates). Default
+/// reports "not configured"; the AI feature overrides it.
+final nutritionLabelReaderProvider = Provider<NutritionLabelReader>(
+  (ref) => const UnconfiguredNutritionLabelReader(),
 );
 
 // ---------------------------------------------------------------------------

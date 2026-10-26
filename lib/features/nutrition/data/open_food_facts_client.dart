@@ -10,11 +10,16 @@ import 'food_api.dart';
 /// Official Open Food Facts API client (no scraping).
 ///
 /// * Barcode: `GET /api/v3/product/{barcode}.json?fields=...`
-/// * Search:  `GET /cgi/search.pl?search_terms=...&json=1&page_size=20`
+/// * Search, in order (the next one is tried only when the previous fails
+///   with 5xx / timeout / unreadable data, e.g. during an OFF outage):
+///   1. search-a-licious `GET https://search.openfoodfacts.org/search?q=...`
+///   2. legacy `GET /cgi/search.pl?search_terms=...&json=1`
+///   3. `GET /api/v2/search?search_terms=...`
 ///
 /// OFF requires a descriptive User-Agent and asks clients to stay under
 /// 15 product reads/min and 10 searches/min per IP; both are enforced
-/// client-side here. Searches must be triggered on submit only.
+/// client-side here (one search slot per user search, fallbacks included).
+/// Searches must be triggered on submit only.
 class OpenFoodFactsClient {
   OpenFoodFactsClient({
     required http.Client client,
@@ -22,6 +27,7 @@ class OpenFoodFactsClient {
     Future<void> Function(Duration)? sleep,
     String contactEmail = Env.offContactEmail,
     Uri? baseUri,
+    Uri? searchBaseUri,
     Duration timeout = const Duration(seconds: 12),
   }) : _getter = ResilientGetter(
          client: client,
@@ -29,7 +35,17 @@ class OpenFoodFactsClient {
          sleep: sleep,
          timeout: timeout,
        ),
+       // Search falls back to another endpoint instead of retrying one.
+       _searchGetter = ResilientGetter(
+         client: client,
+         serviceName: 'Open Food Facts',
+         sleep: sleep,
+         timeout: timeout,
+         maxRetries: 0,
+       ),
        _base = baseUri ?? Uri.parse('https://world.openfoodfacts.org'),
+       _searchBase =
+           searchBaseUri ?? Uri.parse('https://search.openfoodfacts.org'),
        userAgent = 'AthleteOS/${Env.appVersion} ($contactEmail)',
        productLimiter = RateLimiter(
          maxCalls: 15,
@@ -43,7 +59,9 @@ class OpenFoodFactsClient {
        );
 
   final ResilientGetter _getter;
+  final ResilientGetter _searchGetter;
   final Uri _base;
+  final Uri _searchBase;
   final String userAgent;
   final RateLimiter productLimiter;
   final RateLimiter searchLimiter;
@@ -102,9 +120,57 @@ class OpenFoodFactsClient {
   }
 
   /// Text search. Call only on explicit submit.
+  ///
+  /// Tries search-a-licious, then `cgi/search.pl`, then `/api/v2/search`.
+  /// Throws one compact [FoodApiException] only when all of them fail.
   Future<List<FoodCandidate>> search(String query, {int pageSize = 20}) async {
     final q = query.trim();
     if (q.length < 2) return const [];
+    final wait = searchLimiter.tryAcquire();
+    if (wait != null) {
+      throw FoodApiException(
+        FoodApiErrorKind.rateLimited,
+        'Too many Open Food Facts searches. Try again in '
+        '${wait.inSeconds < 1 ? 1 : wait.inSeconds} s.',
+        retryAfter: wait,
+      );
+    }
+    final failures = <FoodApiException>[];
+    for (final endpoint in [_searchALicious, _searchLegacy, _searchV2]) {
+      try {
+        return await endpoint(q, pageSize);
+      } on FoodApiException catch (e) {
+        failures.add(e);
+      }
+    }
+    if (failures.every((e) => e.kind == FoodApiErrorKind.offline)) {
+      throw failures.last;
+    }
+    throw FoodApiException(
+      FoodApiErrorKind.server,
+      'Open Food Facts search is down right now. Your foods, barcode scan '
+      'and label scan still work.',
+    );
+  }
+
+  /// search-a-licious: `{hits: [...]}`; `brands` is a list there.
+  Future<List<FoodCandidate>> _searchALicious(String q, int pageSize) async {
+    final uri = _searchBase.replace(
+      path: '/search',
+      queryParameters: {
+        'q': q,
+        'page_size': '$pageSize',
+        'fields': _fields.join(','),
+      },
+    );
+    final body = await _searchJson(uri);
+    final hits = body['hits'];
+    if (hits is! List) throw _unreadable();
+    return _mapAll(hits);
+  }
+
+  /// Legacy full-text search: `{products: [...]}`.
+  Future<List<FoodCandidate>> _searchLegacy(String q, int pageSize) async {
     final uri = _base.replace(
       path: '/cgi/search.pl',
       queryParameters: {
@@ -116,15 +182,42 @@ class OpenFoodFactsClient {
         'fields': _fields.join(','),
       },
     );
-    final res = await _getter.get(
-      uri,
-      headers: _headers,
-      limiter: searchLimiter,
-    );
-    if (res.statusCode == 404) return const [];
-    final body = _decode(res);
+    final body = await _searchJson(uri);
     final products = body['products'];
-    if (products is! List) return const [];
+    if (products is! List) throw _unreadable();
+    return _mapAll(products);
+  }
+
+  /// API v2 search: `{products: [...]}`.
+  Future<List<FoodCandidate>> _searchV2(String q, int pageSize) async {
+    final uri = _base.replace(
+      path: '/api/v2/search',
+      queryParameters: {
+        'search_terms': q,
+        'page_size': '$pageSize',
+        'fields': _fields.join(','),
+      },
+    );
+    final body = await _searchJson(uri);
+    final products = body['products'];
+    if (products is! List) throw _unreadable();
+    return _mapAll(products);
+  }
+
+  /// GET + decode for search endpoints. A 404 means "endpoint unavailable"
+  /// here (searches never 404 for "no results"), so the next one is tried.
+  Future<Map<String, Object?>> _searchJson(Uri uri) async {
+    final res = await _searchGetter.get(uri, headers: _headers);
+    if (res.statusCode == 404) throw _unreadable();
+    return _decode(res);
+  }
+
+  FoodApiException _unreadable() => FoodApiException(
+    FoodApiErrorKind.badResponse,
+    'Open Food Facts returned data the app could not read.',
+  );
+
+  static List<FoodCandidate> _mapAll(List<Object?> products) {
     final out = <FoodCandidate>[];
     for (final p in products) {
       if (p is! Map) continue;
@@ -165,7 +258,12 @@ class OpenFoodFactsClient {
         str(p['product_name_en']) ??
         str(p['generic_name']);
     if (name == null || code == null) return null;
-    final brands = str(p['brands']);
+    // `brands` is "A, B" on the product APIs and ["A", "B"] on
+    // search-a-licious.
+    final brandsRaw = p['brands'];
+    final brands = brandsRaw is List
+        ? str(brandsRaw.whereType<String>().join(', '))
+        : str(brandsRaw);
     final brand = brands?.split(',').first.trim();
 
     final nRaw = p['nutriments'];

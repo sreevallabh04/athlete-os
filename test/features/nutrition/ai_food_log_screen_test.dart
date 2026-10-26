@@ -2,6 +2,7 @@ import 'package:athlete_os/core/theme/app_theme.dart';
 import 'package:athlete_os/data/db/database.dart';
 import 'package:athlete_os/features/nutrition/application/ai_food_log.dart';
 import 'package:athlete_os/features/nutrition/data/food_log_repository.dart';
+import 'package:athlete_os/features/nutrition/data/indian_food_db.dart';
 import 'package:athlete_os/core/time/clock.dart';
 import 'package:athlete_os/features/nutrition/domain/food_log_parser.dart';
 import 'package:athlete_os/features/nutrition/domain/food_models.dart';
@@ -95,17 +96,22 @@ final sampleParse = FoodLogParseSuccess(
   provider: 'gemini',
 );
 
-Widget _app(AppDatabase db, FoodLogParser? parser, {String? text}) =>
-    ProviderScope(
-      overrides: [
-        ...testOverrides(db, now: _now),
-        if (parser != null) foodLogParserProvider.overrideWithValue(parser),
-      ],
-      child: MaterialApp(
-        theme: AppTheme.dark(),
-        home: AiFoodLogScreen(initialText: text),
-      ),
-    );
+Widget _app(
+  AppDatabase db,
+  FoodLogParser? parser, {
+  String? text,
+}) => ProviderScope(
+  overrides: [
+    ...testOverrides(db, now: _now),
+    if (parser != null) foodLogParserProvider.overrideWithValue(parser),
+    // AI values only here (grounding is covered in indian_food_db_test).
+    indianFoodDbProvider.overrideWithValue(IndianFoodDb.fromCsv('Dish Name')),
+  ],
+  child: MaterialApp(
+    theme: AppTheme.dark(),
+    home: AiFoodLogScreen(initialText: text),
+  ),
+);
 
 Future<void> _pump(WidgetTester t, [int frames = 6]) async {
   for (var i = 0; i < frames; i++) {

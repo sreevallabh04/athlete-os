@@ -60,6 +60,8 @@ dependencies:
   supabase_flutter: ^2.18.3
   share_plus: ^13.3.1
   image_picker: ^1.2.4
+  # Label photos: downscale + re-encode to a <=1 MB JPEG before AI upload.
+  image: ^4.5.0
   collection: ^1.19.1
   # Voice (docs/VOICE.md): on-device speech recognition + Android TTS.
   speech_to_text: 7.5.0
@@ -95,6 +97,8 @@ flutter:
 
   assets:
     - assets/fonts/OFL.txt
+    # User-supplied Indian dish nutrition (per 100 g), see docs/integrations/food-data.md
+    - assets/data/indian_food_nutrition.csv
 
   # Bundled, OFL-licensed (assets/fonts/OFL.txt; registered with
   # LicenseRegistry in lib/app/app.dart). Static instances subset to Latin.

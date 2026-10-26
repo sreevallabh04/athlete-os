@@ -34,6 +34,8 @@ final foodDictationProvider = Provider<FoodDictation?>((ref) => null);
 
 /// Log drafts for reviewed AI items: `source = ai_estimate`,
 /// `verification = estimate`, the item's meal, portion + assumptions as note.
+/// Items grounded in the Indian Food DB (and not switched back to the AI
+/// estimate) are `indian_food_db` / `database` and name the matched dish.
 List<LogDraft> logDraftsFor(Iterable<ReviewItem> items) => [
   for (final i in items)
     LogDraft(
@@ -41,9 +43,14 @@ List<LogDraft> logDraftsFor(Iterable<ReviewItem> items) => [
       mealType: i.mealType,
       nutrients: i.nutrients,
       grams: i.grams,
-      source: FoodSources.aiEstimate,
-      verification: Verifications.estimate,
-      note: i.logNote,
+      source: i.usesDb ? FoodSources.indianFoodDb : FoodSources.aiEstimate,
+      verification: i.usesDb ? Verifications.database : Verifications.estimate,
+      note: i.usesDb
+          ? [
+              ?i.logNote,
+              'Indian Food DB: ${i.grounding!.dish.name}',
+            ].join(' · ')
+          : i.logNote,
     ),
 ];
 

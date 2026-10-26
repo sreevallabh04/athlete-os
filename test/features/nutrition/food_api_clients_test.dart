@@ -287,6 +287,7 @@ void main() {
         }),
         sleep: noSleep,
       );
+      // No `hits` from search-a-licious → the legacy endpoint is used.
       final r = await client.search('paneer');
       expect(url.path, '/cgi/search.pl');
       expect(url.queryParameters['search_terms'], 'paneer');
@@ -320,6 +321,139 @@ void main() {
       );
       expect(await client.search(' a '), isEmpty);
       expect(calls, 0);
+    });
+  });
+
+  group('OpenFoodFactsClient search fallbacks', () {
+    Map<String, Object?> hit() => {
+      'code': '8901088050562',
+      'product_name': 'Saffola Oats',
+      'brands': ['Saffola', 'Marico'],
+      'quantity': '400g',
+      'nutriments': {
+        'energy-kcal_100g': 345,
+        'proteins_100g': 12.6,
+        'carbohydrates_100g': 66.8,
+        'fat_100g': 5.3,
+        'fiber_100g': 10.4,
+      },
+    };
+
+    test('search-a-licious first: maps hits incl. the brands array', () async {
+      final reqs = <http.Request>[];
+      final client = OpenFoodFactsClient(
+        client: MockClient((req) async {
+          reqs.add(req);
+          return jsonRes({
+            'hits': [
+              hit(),
+              {'code': '1', 'nutriments': {}},
+            ],
+            'page': 1,
+            'page_size': 20,
+            'page_count': 1,
+          });
+        }),
+        contactEmail: 'me@example.com',
+        sleep: noSleep,
+      );
+      final r = await client.search('saffola oats');
+      final req = reqs.single;
+      expect(req.url.host, 'search.openfoodfacts.org');
+      expect(req.url.path, '/search');
+      expect(req.url.queryParameters['q'], 'saffola oats');
+      expect(req.url.queryParameters['page_size'], '20');
+      expect(req.url.queryParameters['fields'], contains('nutriments'));
+      expect(req.headers['User-Agent'], 'AthleteOS/1.0.0 (me@example.com)');
+      expect(r, hasLength(1));
+      expect(r.single.name, 'Saffola Oats');
+      expect(r.single.brand, 'Saffola');
+      expect(r.single.raw['brands'], 'Saffola, Marico');
+      expect(r.single.kcal100g, 345);
+      expect(r.single.isComplete, isTrue);
+    });
+
+    test('503 falls back to cgi/search.pl', () async {
+      final urls = <Uri>[];
+      final client = OpenFoodFactsClient(
+        client: MockClient((req) async {
+          urls.add(req.url);
+          if (req.url.host == 'search.openfoodfacts.org') {
+            return http.Response('Service Unavailable', 503);
+          }
+          return jsonRes({
+            'products': [completeProduct()['product']],
+          });
+        }),
+        sleep: noSleep,
+      );
+      final r = await client.search('paneer');
+      expect(urls.map((u) => u.path), ['/search', '/cgi/search.pl']);
+      expect(r.single.name, 'Amul Malai Paneer');
+    });
+
+    test('503 + 503 falls back to /api/v2/search', () async {
+      final urls = <Uri>[];
+      final client = OpenFoodFactsClient(
+        client: MockClient((req) async {
+          urls.add(req.url);
+          if (req.url.path != '/api/v2/search') {
+            return http.Response('down', 503);
+          }
+          return jsonRes({
+            'products': [completeProduct()['product']],
+          });
+        }),
+        sleep: noSleep,
+      );
+      final r = await client.search('paneer');
+      expect(urls.map((u) => u.path), [
+        '/search',
+        '/cgi/search.pl',
+        '/api/v2/search',
+      ]);
+      expect(urls.last.queryParameters['search_terms'], 'paneer');
+      expect(r, hasLength(1));
+    });
+
+    test('all endpoints failing gives one honest, compact error', () async {
+      var calls = 0;
+      final client = OpenFoodFactsClient(
+        client: MockClient((_) async {
+          calls++;
+          return http.Response('down', 503);
+        }),
+        sleep: noSleep,
+      );
+      try {
+        await client.search('saffola high protein oats');
+        fail('should throw');
+      } on FoodApiException catch (e) {
+        expect(e.kind, FoodApiErrorKind.server);
+        expect(e.message, contains('Open Food Facts search is down'));
+        expect(e.message, contains('label scan'));
+        expect(e.message, isNot(contains('HTTP')));
+      }
+      expect(calls, 3); // one per endpoint, no per-endpoint retries
+      // A fallback chain costs one courtesy slot, not three.
+      expect(client.searchLimiter.remaining, 9);
+    });
+
+    test('offline everywhere stays an offline error', () async {
+      final client = OpenFoodFactsClient(
+        client: MockClient((_) async => throw const SocketException('no net')),
+        sleep: noSleep,
+      );
+      await expectLater(
+        client.search('oats'),
+        throwsA(
+          isA<FoodApiException>().having(
+            (e) => e.kind,
+            'kind',
+            FoodApiErrorKind.offline,
+          ),
+        ),
+      );
     });
   });
 

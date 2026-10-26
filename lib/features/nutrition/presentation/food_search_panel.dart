@@ -2,14 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/paths.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../data/db/database.dart';
 import '../application/food_lookup_service.dart';
 import '../application/providers.dart';
+import '../data/indian_food_db.dart';
 import '../domain/food_models.dart';
+import '../domain/indian_food_db.dart';
+import 'ai_food_log_screen.dart';
+import 'custom_food_screen.dart';
 import 'food_actions.dart';
+import 'label_scan_screen.dart';
+import 'widgets/cant_find_panel.dart';
 import 'widgets/common.dart';
 import 'widgets/food_tiles.dart';
 import 'widgets/nutrition_hud.dart';
@@ -41,6 +49,7 @@ class FoodSearchPanel extends ConsumerStatefulWidget {
 class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
   late final TextEditingController _ctrl;
   List<Food> _local = const [];
+  List<IndianDish> _indian = const [];
   RemoteSearchResult? _remote;
   String? _remoteQuery;
   bool _searching = false;
@@ -68,6 +77,27 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
     final seq = ++_localSeq;
     final r = await ref.read(foodRepositoryProvider).search(q);
     if (mounted && seq == _localSeq) setState(() => _local = r);
+    // Indian Food DB: offline, in memory, no rate limit → as you type.
+    final db = ref.read(indianFoodDbProvider);
+    var index = db.readyIndex;
+    if (index == null) {
+      try {
+        index = await db.index();
+      } catch (_) {
+        return; // the bundled table could not be read; other sources work
+      }
+    }
+    if (!mounted || seq != _localSeq) return;
+    final saved = {
+      for (final f in _local)
+        if (f.source == FoodSources.indianFoodDb) f.sourceId,
+    };
+    setState(() {
+      _indian = [
+        for (final h in index!.search(q, limit: 12))
+          if (!saved.contains('row${h.dish.id}')) h.dish,
+      ];
+    });
   }
 
   Future<void> _submit() async {
@@ -91,6 +121,55 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
     } else {
       Haptics.selection();
     }
+  }
+
+  bool get _offFailed =>
+      _remote?.errors.any((e) => e.startsWith('Open Food Facts')) ?? false;
+
+  Future<void> _scanLabel(String q) async {
+    final out = await openLabelScan(
+      context,
+      name: q,
+      meal: widget.meal,
+      date: widget.date,
+    );
+    if (out != null && mounted) unawaited(_searchLocal(_ctrl.text));
+  }
+
+  Future<void> _enterLabel(String q) async {
+    final food = await Navigator.of(context).push<Food>(
+      MaterialPageRoute(builder: (_) => CustomFoodScreen(initialName: q)),
+    );
+    if (food == null || !mounted) return;
+    unawaited(_searchLocal(_ctrl.text));
+    await logLocalFood(
+      context,
+      ref,
+      food: food,
+      meal: widget.meal,
+      date: widget.date,
+    );
+  }
+
+  /// Prefills the AI food log with the meal and the query.
+  void _askJarvis(String q) {
+    final text = '${widget.meal.label}: $q';
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.push(
+        Uri(
+          path: AppPaths.aiFoodLog,
+          queryParameters: {'q': text, 'date': widget.date},
+        ).toString(),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            AiFoodLogScreen(initialText: text, initialDate: widget.date),
+      ),
+    );
   }
 
   @override
@@ -124,6 +203,7 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
                     onPressed: () => setState(() {
                       _ctrl.clear();
                       _local = const [];
+                      _indian = const [];
                       _remote = null;
                     }),
                   ),
@@ -180,7 +260,42 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
               ),
           ]),
         ],
-        if (q.isNotEmpty && _local.isEmpty && remote == null && !_searching)
+        if (q.length >= 2 && _indian.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          HudCaption(
+            'Indian dishes · Indian Food DB · ${_indian.length}',
+            color: AppColors.success,
+            trailing: Text('OFFLINE', style: hud.mono(size: 10)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Home-style recipes, values per 100 g',
+            style: t.bodySmall?.copyWith(color: hud.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ...staggered([
+            for (final d in _indian)
+              CandidateTile(
+                key: ValueKey('indian-${d.id}'),
+                candidate: d.toCandidate(),
+                onTap: () async {
+                  final logged = await openCandidate(
+                    context,
+                    ref,
+                    candidate: d.toCandidate(),
+                    meal: widget.meal,
+                    date: widget.date,
+                  );
+                  if (logged && mounted) unawaited(_searchLocal(_ctrl.text));
+                },
+              ),
+          ]),
+        ],
+        if (q.isNotEmpty &&
+            _local.isEmpty &&
+            _indian.isEmpty &&
+            remote == null &&
+            !_searching)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.lg),
             child: Text(
@@ -195,6 +310,19 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
           const ScanlineLoader(lines: 3),
         ],
         if (!_searching && remote != null) ..._remoteResults(remote),
+        if (q.length >= 2 && !_searching) ...[
+          const SizedBox(height: AppSpacing.lg),
+          CantFindPanel(
+            query: q,
+            prominent:
+                remote != null &&
+                ((remote.isEmpty && _local.isEmpty && _indian.isEmpty) ||
+                    _offFailed),
+            onScanLabel: () => _scanLabel(q),
+            onEnterLabel: () => _enterLabel(q),
+            onAskJarvis: () => _askJarvis(q),
+          ),
+        ],
         if (q.isEmpty && remote == null)
           const Padding(
             padding: EdgeInsets.only(top: AppSpacing.lg),
@@ -225,13 +353,12 @@ class _FoodSearchPanelState extends ConsumerState<FoodSearchPanel> {
         ),
       ],
       if (r.isEmpty && r.errors.isEmpty)
-        EmptyState(
-          compact: true,
-          icon: Icons.search_off,
-          title: 'No database results for "$_remoteQuery"',
-          message:
-              'Indian and regional products are only partly covered. You can '
-              'create the food yourself.',
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: Text(
+            'No database results for "$_remoteQuery".',
+            style: t.bodyMedium?.copyWith(color: hud.textMuted),
+          ),
         ),
       if (r.openFoodFacts.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.lg),

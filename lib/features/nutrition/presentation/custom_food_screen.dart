@@ -17,11 +17,20 @@ import 'widgets/nutrition_hud.dart';
 /// Create (or edit) a food by hand. Can be prefilled from an incomplete Open
 /// Food Facts product or with a scanned barcode. Pops with the saved [Food].
 class CustomFoodScreen extends ConsumerStatefulWidget {
-  const CustomFoodScreen({super.key, this.prefill, this.barcode, this.edit});
+  const CustomFoodScreen({
+    super.key,
+    this.prefill,
+    this.barcode,
+    this.edit,
+    this.initialName,
+  });
 
   final FoodCandidate? prefill;
   final String? barcode;
   final Food? edit;
+
+  /// Name to start with (e.g. the search query that found nothing).
+  final String? initialName;
 
   @override
   ConsumerState<CustomFoodScreen> createState() => _CustomFoodScreenState();
@@ -97,8 +106,9 @@ class _CustomFoodScreenState extends ConsumerState<CustomFoodScreen> {
         _fat.text = n(p.fat100g);
         _fiber.text = n(p.fiber100g);
       }
-    } else if (widget.barcode != null) {
-      _barcode.text = widget.barcode!;
+    } else {
+      _name.text = widget.initialName?.trim() ?? '';
+      _barcode.text = widget.barcode ?? '';
     }
   }
 

@@ -7,6 +7,7 @@ import 'dart:math' as math;
 
 import 'food_log_parser.dart';
 import 'food_models.dart';
+import 'indian_food_db.dart';
 import 'nutrients.dart';
 import 'nutrition_calc.dart';
 
@@ -47,6 +48,33 @@ enum ReviewFlag {
   edited,
 }
 
+/// An AI item matched to an Indian Food DB dish: values come from the
+/// table (per 100 g × the AI's grams) unless the user switches back.
+class DbGrounding {
+  const DbGrounding({
+    required this.dish,
+    required this.matchedAlias,
+    required this.aiNutrients,
+    this.useDb = true,
+  });
+
+  final IndianDish dish;
+
+  /// The dish name/alias the item name matched.
+  final String matchedAlias;
+
+  /// The AI's own estimate for the current grams (for "use AI estimate").
+  final Nutrients aiNutrients;
+  final bool useDb;
+
+  DbGrounding copyWith({Nutrients? aiNutrients, bool? useDb}) => DbGrounding(
+    dish: dish,
+    matchedAlias: matchedAlias,
+    aiNutrients: aiNutrients ?? this.aiNutrients,
+    useDb: useDb ?? this.useDb,
+  );
+}
+
 /// One reviewable item. Immutable; edits produce a copy.
 class ReviewItem {
   const ReviewItem({
@@ -59,6 +87,7 @@ class ReviewItem {
     this.confidence,
     this.note,
     this.flags = const {},
+    this.grounding,
   });
 
   final String id;
@@ -71,8 +100,16 @@ class ReviewItem {
   final String? note;
   final Set<ReviewFlag> flags;
 
+  /// Indian Food DB match, if any (see [groundWithIndianDb]).
+  final DbGrounding? grounding;
+
+  /// Values come from the Indian Food DB (not the AI estimate).
+  bool get usesDb => grounding?.useDb ?? false;
+
   bool get isLowConfidence =>
-      confidence != null && confidence! < FoodLogLimits.lowConfidence;
+      !usesDb &&
+      confidence != null &&
+      confidence! < FoodLogLimits.lowConfidence;
 
   ReviewItem copyWith({
     String? name,
@@ -81,6 +118,7 @@ class ReviewItem {
     Nutrients? nutrients,
     MealType? mealType,
     Set<ReviewFlag>? flags,
+    DbGrounding? Function()? grounding,
   }) => ReviewItem(
     id: id,
     name: name ?? this.name,
@@ -91,7 +129,19 @@ class ReviewItem {
     confidence: confidence,
     note: note,
     flags: flags ?? this.flags,
+    grounding: grounding != null ? grounding() : this.grounding,
   );
+
+  /// Switches between the Indian Food DB values and the AI estimate.
+  ReviewItem withDbValues(bool useDb) {
+    final g = grounding;
+    final w = grams;
+    if (g == null || w == null || w <= 0 || g.useDb == useDb) return this;
+    return copyWith(
+      nutrients: useDb ? g.dish.forGrams(w).rounded() : g.aiNutrients,
+      grounding: () => g.copyWith(useDb: useDb),
+    );
+  }
 
   /// Rescales nutrients proportionally to [newGrams]. Without a known
   /// weight the item is returned unchanged.
@@ -101,10 +151,18 @@ class ReviewItem {
       return this;
     }
     final clamped = newGrams.clamp(1.0, FoodLogLimits.grams).toDouble();
+    final db = grounding;
     return copyWith(
       grams: () => clamped,
-      nutrients: nutrients.scale(clamped / g).rounded(),
+      nutrients: db != null && db.useDb
+          ? db.dish.forGrams(clamped).rounded()
+          : nutrients.scale(clamped / g).rounded(),
       flags: {...flags, ReviewFlag.edited},
+      grounding: db == null
+          ? null
+          : () => db.copyWith(
+              aiNutrients: db.aiNutrients.scale(clamped / g).rounded(),
+            ),
     );
   }
 
@@ -135,6 +193,31 @@ class SanitizedFoodLog {
             i.flags.contains(ReviewFlag.clamped),
       )
       .length;
+}
+
+/// Grounds AI items in the Indian Food DB: when an item's name matches a
+/// dish ([IndianFoodIndex.match], conservative) and the AI gave a weight,
+/// its values become `per 100 g × grams / 100` from the table. The AI
+/// estimate is kept so the user can switch back. Items without grams or
+/// without a confident match are returned unchanged.
+List<ReviewItem> groundWithIndianDb(
+  List<ReviewItem> items,
+  IndianFoodIndex index,
+) => [for (final i in items) _ground(i, index)];
+
+ReviewItem _ground(ReviewItem i, IndianFoodIndex index) {
+  final g = i.grams;
+  if (g == null || g <= 0 || i.grounding != null) return i;
+  final m = index.match(i.name);
+  if (m == null) return i;
+  return i.copyWith(
+    nutrients: m.dish.forGrams(g).rounded(),
+    grounding: () => DbGrounding(
+      dish: m.dish,
+      matchedAlias: m.alias,
+      aiNutrients: i.nutrients,
+    ),
+  );
 }
 
 /// kcal from macros with Atwater factors (fiber ignored).

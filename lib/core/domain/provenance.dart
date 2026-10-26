@@ -9,6 +9,7 @@ enum DataOrigin {
   googleCalendar('Google Calendar'),
   openFoodFacts('Open Food Facts'),
   usda('USDA FoodData Central'),
+  indianFoodDb('Indian Food DB'),
   aiEstimate('AI estimate'),
   calculated('Calculated'),
   sample('Sample data');
@@ -24,6 +25,7 @@ enum DataOrigin {
     'google_calendar' => googleCalendar,
     'openfoodfacts' || 'open_food_facts' => openFoodFacts,
     'usda' => usda,
+    'indian_food_db' => indianFoodDb,
     'ai_estimate' || 'ai' => aiEstimate,
     'calculated' => calculated,
     'sample' => sample,

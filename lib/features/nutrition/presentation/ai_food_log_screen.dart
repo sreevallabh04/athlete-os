@@ -14,6 +14,7 @@ import '../../../core/util/redact.dart';
 import '../../../core/widgets/widgets.dart';
 import '../application/ai_food_log.dart';
 import '../application/providers.dart';
+import '../data/indian_food_db.dart';
 import '../data/mappers.dart';
 import '../domain/food_log_parser.dart';
 import '../domain/food_log_review.dart';
@@ -100,6 +101,8 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
             d.compareTo(today) <= 0
         ? d
         : today;
+    // Parse the Indian Food DB while the AI works (used to ground items).
+    ref.read(indianFoodDbProvider).warmUp();
   }
 
   @override
@@ -172,6 +175,8 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
     _ticker?.cancel();
     if (res is FoodLogParseSuccess) {
       final s = sanitizeFoodLog(res.items, now: _now, unparsed: res.unparsed);
+      final db = ref.read(indianFoodDbProvider).readyIndex;
+      final items = db == null ? s.items : groundWithIndianDb(s.items, db);
       if (s.items.isEmpty) {
         setState(() {
           _stage = AiLogStage.failed;
@@ -187,7 +192,7 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
       }
       setState(() {
         _stage = AiLogStage.review;
-        _items = s.items;
+        _items = items;
         _unparsed = s.unparsed;
         _dupes = s.duplicatesRemoved;
         _provider = res is FoodLogParseSuccess ? res.provider : null;
@@ -341,6 +346,15 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
     Haptics.success();
     setState(() {
       _items = [for (final i in _items) i.id == item.id ? res.item! : i];
+    });
+  }
+
+  void _toggleDb(ReviewItem item) {
+    Haptics.selection();
+    setState(() {
+      _items = [
+        for (final i in _items) i.id == item.id ? i.withDbValues(!i.usesDb) : i,
+      ];
     });
   }
 
@@ -967,6 +981,19 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
         action: 'Edit text',
         onAction: _backToInput,
       ),
+      if (_items.any((i) => i.grounding != null))
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: NoticeBanner(
+            key: const Key('ai-db-grounded'),
+            icon: Icons.menu_book_rounded,
+            color: AppColors.success,
+            message:
+                '${_items.where((i) => i.usesDb).length} of ${_items.length} '
+                'items use the Indian Food DB: table values per 100 g × '
+                "JARVIS's grams. Tap \"Use AI estimate\" on any to switch.",
+          ),
+        ),
       if (_items.isEmpty)
         const EmptyState(
           compact: true,
@@ -988,7 +1015,11 @@ class _AiFoodLogScreenState extends ConsumerState<AiFoodLogScreen> {
               direction: DismissDirection.endToStart,
               background: const _SwipeBackground(),
               onDismissed: (_) => _remove(item),
-              child: _ItemRow(item: item, onTap: () => _edit(item)),
+              child: _ItemRow(
+                item: item,
+                onTap: () => _edit(item),
+                onToggleDb: () => _toggleDb(item),
+              ),
             ),
           ),
         const SizedBox(height: AppSpacing.sm),
@@ -1244,22 +1275,31 @@ class _MealHeader extends StatelessWidget {
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.item, required this.onTap});
+  const _ItemRow({
+    required this.item,
+    required this.onTap,
+    required this.onToggleDb,
+  });
   final ReviewItem item;
   final VoidCallback onTap;
+  final VoidCallback onToggleDb;
 
   @override
   Widget build(BuildContext context) {
     final hud = context.hud;
     final t = Theme.of(context).textTheme;
     final n = item.nutrients;
-    final recomputed = item.flags.contains(ReviewFlag.kcalRecomputed);
+    final db = item.grounding;
+    final usesDb = item.usesDb;
+    final recomputed =
+        !usesDb && item.flags.contains(ReviewFlag.kcalRecomputed);
     return AppCard(
       animateEntrance: false,
       onTap: onTap,
       semanticLabel:
           '${item.name}, ${portionLabel(item)}, ${macroSummary(n)}, '
-          'estimate, ${confidenceLabel(item.confidence)}. Tap to adjust.',
+          '${usesDb ? 'from Indian Food DB' : 'estimate, ${confidenceLabel(item.confidence)}'}. '
+          'Tap to adjust.',
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.md,
@@ -1285,9 +1325,11 @@ class _ItemRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: EstimateBadge(label: 'EST'),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: usesDb
+                    ? const _DbBadge()
+                    : const EstimateBadge(label: 'EST'),
               ),
               const SizedBox(width: AppSpacing.sm),
               Text.rich(
@@ -1355,6 +1397,43 @@ class _ItemRow extends StatelessWidget {
               ),
             ),
           ],
+          if (db != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Row(
+                children: [
+                  Icon(
+                    usesDb ? Icons.menu_book_rounded : Icons.auto_awesome,
+                    size: 12,
+                    color: hud.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      usesDb
+                          ? 'matched: ${db.dish.name}'
+                          : 'AI estimate (DB match: ${db.dish.name})',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodySmall?.copyWith(color: hud.textMuted),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  TextButton(
+                    key: ValueKey('ai-db-toggle-${item.id}'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(48, 36),
+                    ),
+                    onPressed: onToggleDb,
+                    child: Text(usesDb ? 'Use AI estimate' : 'Use DB values'),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.only(left: 16),
@@ -1366,6 +1445,28 @@ class _ItemRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small "INDIAN FOOD DB" pill for items grounded in the table.
+class _DbBadge extends StatelessWidget {
+  const _DbBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final hud = context.hud;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.xs),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.55)),
+        color: AppColors.success.withValues(alpha: 0.12),
+      ),
+      child: Text(
+        'INDIAN FOOD DB',
+        style: hud.label(size: 9, color: hud.ink(AppColors.success)),
       ),
     );
   }
