@@ -15,6 +15,11 @@ abstract final class CoachSupabase {
   static bool _ready = false;
   static bool get ready => _ready;
 
+  /// Flips to true when initialisation completes. Providers must depend on
+  /// [supabaseReadyProvider] (not read [ready] directly) so they rebuild if
+  /// the first frame is shown before Supabase finished initialising.
+  static final ValueNotifier<bool> readyNotifier = ValueNotifier(false);
+
   static Future<void> init() async {
     if (_ready || !Env.hasSupabase) return;
     try {
@@ -23,6 +28,7 @@ abstract final class CoachSupabase {
         publishableKey: Env.supabaseAnonKey,
       );
       _ready = true;
+      readyNotifier.value = true;
     } catch (e) {
       debugPrint('Supabase init failed: ${redactSecrets(e.toString())}');
     }
@@ -176,8 +182,16 @@ class SupabaseCoachAuth implements CoachAuth {
   }
 }
 
+/// Reactive Supabase readiness (see [CoachSupabase.readyNotifier]).
+final supabaseReadyProvider = Provider<bool>((ref) {
+  void onChange() => ref.invalidateSelf();
+  CoachSupabase.readyNotifier.addListener(onChange);
+  ref.onDispose(() => CoachSupabase.readyNotifier.removeListener(onChange));
+  return CoachSupabase.readyNotifier.value;
+});
+
 final coachAuthProvider = Provider<CoachAuth>(
-  (ref) => CoachSupabase.ready
+  (ref) => ref.watch(supabaseReadyProvider)
       ? SupabaseCoachAuth(Supabase.instance.client.auth)
       : const UnconfiguredCoachAuth(),
 );

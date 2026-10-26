@@ -318,7 +318,7 @@ AiBackendException mapFunctionError(int status, Object? details) {
 final aiBackendClientProvider = Provider<AiBackendClient>((ref) {
   // Rebuild when the auth state changes so `state` is current.
   ref.watch(coachAuthStateProvider);
-  if (!CoachSupabase.ready) {
+  if (!ref.watch(supabaseReadyProvider)) {
     return const UnconfiguredAiBackend();
   }
   return SupabaseAiBackend(Supabase.instance.client);
