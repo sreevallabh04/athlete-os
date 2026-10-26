@@ -62,6 +62,24 @@ class NativeAssistantConfig {
   });
 }
 
+/// Lock-screen visibility of a notification the assistant posts.
+enum LockScreenVisibility {
+  /// Whole notification visible on a secure lock screen (generic copy only).
+  public,
+
+  /// Only the generic public version is shown until the device is unlocked.
+  private,
+}
+
+/// Generic lock-screen copy for assistant notifications whose real title/body
+/// carry personal content (contact/app names, health numbers, schedule).
+abstract final class AssistantLockScreenCopy {
+  static const briefingTitle = 'JARVIS · Briefing ready';
+  static const reviewTitle = 'JARVIS · Evening review ready';
+  static const approvalTitle = 'JARVIS · New message to review';
+  static const body = 'Unlock to view';
+}
+
 /// Payload from the share sheet / an assistant notification tap.
 class ShareIntent {
   const ShareIntent.text(this.text) : route = null;
@@ -111,7 +129,23 @@ abstract interface class AssistantPlatform {
   Future<bool> startAssistantService();
   Future<bool> stopAssistantService();
   Future<bool> isAssistantServiceRunning();
-  Future<bool> postNotification(int id, String title, String body);
+
+  /// Posts a briefing/approval notification. Private by default: on a secure
+  /// lock screen Android shows only [publicTitle]/[publicBody] (defaults to
+  /// "JARVIS" / [AssistantLockScreenCopy.body]); the real [title]/[body]
+  /// appear once the device is unlocked.
+  Future<bool> postNotification(
+    int id,
+    String title,
+    String body, {
+    LockScreenVisibility visibility = LockScreenVisibility.private,
+    String? publicTitle,
+    String? publicBody,
+  });
+
+  /// True once when the user tapped Stop on the Assistant mode notification
+  /// since the last call (the native side cannot write app settings itself).
+  Future<bool> consumeServiceStopRequest();
   Future<String?> openHealthConnectSettings();
   Future<ShareIntent?> getInitialShare();
   Stream<ShareIntent> get shareEvents;
@@ -258,8 +292,25 @@ class MethodChannelAssistantPlatform implements AssistantPlatform {
       _bool('isAssistantServiceRunning');
 
   @override
-  Future<bool> postNotification(int id, String title, String body) =>
-      _bool('postNotification', {'id': id, 'title': title, 'body': body});
+  Future<bool> postNotification(
+    int id,
+    String title,
+    String body, {
+    LockScreenVisibility visibility = LockScreenVisibility.private,
+    String? publicTitle,
+    String? publicBody,
+  }) => _bool('postNotification', {
+    'id': id,
+    'title': title,
+    'body': body,
+    'visibility': visibility.name,
+    'publicTitle': publicTitle,
+    'publicBody': publicBody,
+  });
+
+  @override
+  Future<bool> consumeServiceStopRequest() =>
+      _bool('consumeServiceStopRequest');
 
   @override
   Future<String?> openHealthConnectSettings() =>

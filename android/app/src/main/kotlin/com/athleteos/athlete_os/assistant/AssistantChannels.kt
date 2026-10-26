@@ -121,8 +121,19 @@ class AssistantChannels(private val activity: Activity) : MethodChannel.MethodCa
                     val id = call.argument<Int>("id") ?: 7200
                     val title = call.argument<String>("title") ?: ""
                     val body = call.argument<String>("body") ?: ""
-                    result.success(AssistantNotifications.post(ctx, id, title, body))
+                    // Private unless Dart explicitly asks for public (fail closed).
+                    val isPublic = call.argument<String>("visibility") == "public"
+                    result.success(
+                        AssistantNotifications.post(
+                            ctx, id, title, body,
+                            isPublic = isPublic,
+                            publicTitle = call.argument<String>("publicTitle"),
+                            publicBody = call.argument<String>("publicBody"),
+                        ),
+                    )
                 }
+                "consumeServiceStopRequest" ->
+                    result.success(AssistantForegroundService.consumeUserStop(ctx))
                 "openHealthConnectSettings" -> result.success(openHealthConnectSettings())
                 else -> result.notImplemented()
             }

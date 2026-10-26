@@ -110,6 +110,7 @@ class ReminderService {
             channel: p.kind.channel,
             payload: p.payload,
             waterActions: p.kind == ReminderKind.water,
+            personal: !p.kind.isGenericCopy(p.title, p.body),
           ),
           p.when,
           exact: exact,

@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1";
-import { checkRateLimit, InMemoryRateLimitStore, rateLimitPerMin } from "./ratelimit.ts";
+import { checkRateLimit, InMemoryRateLimitStore, limitFromEnv, rateLimitPerMin } from "./ratelimit.ts";
 
 Deno.test("rate limit: fixed window per user and bucket", async () => {
   const store = new InMemoryRateLimitStore();
@@ -19,4 +19,13 @@ Deno.test("rate limit: env override", () => {
   assertEquals(rateLimitPerMin(() => undefined), 30);
   assertEquals(rateLimitPerMin((n) => (n === "AI_RATE_LIMIT_PER_MIN" ? "12" : undefined)), 12);
   assertEquals(rateLimitPerMin(() => "-3"), 30);
+});
+
+Deno.test("rate limit: limitFromEnv falls back on missing / invalid values", () => {
+  const env = (v: string | undefined) => (n: string) => (n === "X_PER_MIN" ? v : undefined);
+  assertEquals(limitFromEnv(env(undefined), "X_PER_MIN", 10), 10);
+  assertEquals(limitFromEnv(env("25"), "X_PER_MIN", 10), 25);
+  assertEquals(limitFromEnv(env("0"), "X_PER_MIN", 10), 10);
+  assertEquals(limitFromEnv(env("2.5"), "X_PER_MIN", 10), 10);
+  assertEquals(limitFromEnv(env("abc"), "X_PER_MIN", 10), 10);
 });

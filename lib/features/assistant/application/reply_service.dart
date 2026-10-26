@@ -225,11 +225,15 @@ class ReplyService {
     if (isNew &&
         status == DraftStatus.pendingApproval &&
         settings.approvalNotifications) {
-      // Content-free: never put message text in a notification.
+      // Content-free: never put message text in a notification. Even the
+      // app name stays off the lock screen (private + generic public copy).
       await platform.postNotification(
         7300 + (draft.id.hashCode & 0xff),
         'Reply waiting for your approval',
         '${app.appLabel}: review the draft in Athlete OS',
+        visibility: LockScreenVisibility.private,
+        publicTitle: AssistantLockScreenCopy.approvalTitle,
+        publicBody: AssistantLockScreenCopy.body,
       );
     }
     return repo.draft(draft.id);
@@ -252,8 +256,16 @@ class ReplyService {
     final contact = draft.conversationKey == null
         ? null
         : await repo.contact(draft.packageName, draft.conversationKey!);
-    return _runDrafter(draftId, settings: settings, contact: contact);
+    return _runDrafter(
+      draftId,
+      settings: settings,
+      contact: contact,
+      explicit: true,
+    );
   }
+
+  static const keptUserDraftMessage =
+      'Kept your edited reply — the AI did not replace it.';
 
   Future<DraftRequest?> buildRequest(
     ReplyDraft draft, {
@@ -291,13 +303,28 @@ class ReplyService {
     );
   }
 
+  /// Runs the AI drafter for [draftId]. Automatic runs ([explicit] false,
+  /// a new message arrived) never touch a user-authored draft: the drafter is
+  /// not even called. An explicit "Draft with AI" tap replaces the text the
+  /// user saw, but not text they saved while the drafter was running.
   Future<DraftResult> _runDrafter(
     String draftId, {
     required AssistantSettings settings,
     required MessagingContactRule? contact,
+    bool explicit = false,
   }) async {
     final draft = await repo.draft(draftId);
     if (draft == null) return const DraftResult.unavailable('Draft not found.');
+    if (!explicit && draft.isUserAuthored) {
+      await repo.audit(
+        AuditAction.draft,
+        packageName: draft.packageName,
+        conversationKey: draft.conversationKey,
+        refId: draftId,
+        detail: 'ai_draft_skipped;user_edited',
+      );
+      return const DraftResult.unavailable(keptUserDraftMessage);
+    }
     final request = await buildRequest(
       draft,
       settings: settings,
@@ -316,13 +343,27 @@ class ReplyService {
       result = DraftResult.unavailable('AI drafting failed (${errorCode(e)}).');
     }
     if (result.available) {
-      await repo.updateDraftText(
+      final applied = await repo.updateDraftText(
         draftId,
         result.text!.trim(),
         category: result.category,
         confidence: result.confidence.clamp(0, 1).toDouble(),
         fromAi: true,
+        replacing: explicit ? draft.draftText : null,
       );
+      if (!applied) {
+        // The user edited (or the draft left the open states) while the
+        // drafter ran. Report "unavailable" so restricted auto-reply can never
+        // go on to send the user's unsent text.
+        await repo.audit(
+          AuditAction.draft,
+          packageName: draft.packageName,
+          conversationKey: draft.conversationKey,
+          refId: draftId,
+          detail: 'ai_draft_discarded;user_edited_or_closed',
+        );
+        return const DraftResult.unavailable(keptUserDraftMessage);
+      }
       await repo.audit(
         AuditAction.draft,
         packageName: draft.packageName,
