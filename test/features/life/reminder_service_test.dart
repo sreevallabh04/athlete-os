@@ -15,6 +15,8 @@ import 'package:athlete_os/features/life/data/notification_prefs_repository.dart
 import 'package:athlete_os/features/life/domain/habit_models.dart';
 import 'package:athlete_os/features/life/domain/reminder_kinds.dart';
 import 'package:drift/drift.dart' hide isNull;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show NotificationVisibility;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -125,6 +127,78 @@ void main() {
     await habits.setStatus(id, '2026-10-26', HabitStatus.done);
     await service().rescheduleAll();
     expect(gateway.pending.values.map((v) => v.$2.day).first, 27);
+  });
+
+  group('lock-screen privacy', () {
+    test('habit names and milestone titles are private; generic copy stays '
+        'public', () async {
+      await prefs.save(ReminderKind.habit, enabled: true);
+      await prefs.save(ReminderKind.water, enabled: true);
+      await prefs.save(ReminderKind.competition, enabled: true);
+      await habits.create(
+        const HabitInput(name: 'Insulin check', reminderTimes: [21 * 60]),
+      );
+      await db
+          .into(db.competitions)
+          .insert(
+            CompetitionsCompanion.insert(
+              id: 'c1',
+              name: 'Regional Classic',
+              eventDate: '2027-03-01',
+              tzName: 'UTC',
+            ),
+          );
+      await db
+          .into(db.competitionMilestones)
+          .insert(
+            CompetitionMilestonesCompanion.insert(
+              id: 'm1',
+              competitionId: 'c1',
+              title: 'Book tan',
+              dueDate: const Value('2026-11-10'),
+            ),
+          );
+      await service().rescheduleAll();
+      final requests = [for (final v in gateway.pending.values) v.$1];
+      final habit = requests.firstWhere(
+        (r) => ReminderKind.forId(r.id) == ReminderKind.habit,
+      );
+      final milestone = requests.firstWhere(
+        (r) => ReminderKind.forId(r.id) == ReminderKind.competition,
+      );
+      final water = requests.firstWhere(
+        (r) => ReminderKind.forId(r.id) == ReminderKind.water,
+      );
+      for (final personal in [habit, milestone]) {
+        expect(personal.personal, isTrue);
+        expect(
+          notificationDetailsFor(personal).android!.visibility,
+          NotificationVisibility.private,
+        );
+      }
+      expect(water.personal, isFalse);
+      expect(
+        notificationDetailsFor(water).android!.visibility,
+        NotificationVisibility.public,
+      );
+    });
+
+    test('every generic reminder kind keeps public copy', () {
+      for (final k in ReminderKind.values) {
+        expect(k.isGenericCopy(k.title, k.body), isTrue);
+        expect(k.isGenericCopy('Read', k.body), isFalse);
+      }
+      const test = NotificationRequest(
+        id: SpecialNotificationIds.test,
+        title: 'Test notification',
+        body: 'Notifications from Athlete OS are working.',
+        channel: ReminderChannel.summaries,
+      );
+      expect(
+        notificationDetailsFor(test).android!.visibility,
+        NotificationVisibility.public,
+      );
+    });
   });
 
   test('quiet hours setting suppresses reminders', () async {

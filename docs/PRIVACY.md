@@ -108,6 +108,31 @@ use AI.
   an audit log with idempotency keys.
 * Target and goal changes are never silent: they require confirmation and are
   written to goal history.
+* Notifications with personal content are private on the lock screen (see
+  below).
+
+### Lock screen
+
+Notifications that carry personal content are posted with Android
+`VISIBILITY_PRIVATE`, so their details appear only once the phone is
+unlocked; a secure lock screen shows a generic public version instead:
+
+| Notification | Lock screen shows | Unlocked shows |
+| --- | --- | --- |
+| Morning briefing (assistant) | "JARVIS · Briefing ready" / "Unlock to view" | Steps, calories, calendar, unanswered contacts… |
+| Evening review (assistant) | "JARVIS · Evening review ready" / "Unlock to view" | Same as above |
+| Reply waiting for approval (assistant) | "JARVIS · New message to review" / "Unlock to view" | The app name (never message text) |
+| Habit reminders, competition-milestone reminders | "Athlete OS · Contents hidden" (system redaction) | Your habit name / milestone title |
+| Reminders with fixed, generic copy (water, planning, mood, journal, meals, steps, workout, posing, weekly summary, test) and "Assistant mode is running" | Full text (public) | Full text |
+
+The assistant's briefing/approval channel ("Assistant briefings &
+approvals", id `assistant_briefing_private`) is also created with
+private lock-screen visibility (the pre-privacy `assistant_briefing`
+channel is deleted). Native posting defaults to private when no visibility
+is passed. Reminder privacy is decided per notification: any copy that
+differs from the kind's fixed text is treated as personal
+(`ReminderKind.isGenericCopy`). Android may still hide everything if you
+choose "Don't show notifications" for the lock screen in system settings.
 
 ## 8. What we never do
 

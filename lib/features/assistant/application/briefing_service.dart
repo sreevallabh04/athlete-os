@@ -157,6 +157,7 @@ class BriefingService {
       required int at,
       required String key,
       required String title,
+      required String publicTitle,
       required int id,
     }) async {
       if (!enabled || minute < at || minute > at + 180) return;
@@ -168,6 +169,11 @@ class BriefingService {
         id,
         title,
         body.isEmpty ? 'All caught up.' : body,
+        // Contact names, health numbers and schedule: never on the lock
+        // screen, only the generic public version.
+        visibility: LockScreenVisibility.private,
+        publicTitle: publicTitle,
+        publicBody: AssistantLockScreenCopy.body,
       );
       if (ok) await repo.setSetting(key, today);
     }
@@ -177,6 +183,7 @@ class BriefingService {
       at: b.morningMinutes,
       key: AssistantKeys.lastMorningBriefing,
       title: 'Good morning — your briefing',
+      publicTitle: AssistantLockScreenCopy.briefingTitle,
       id: 7201,
     );
     await check(
@@ -184,6 +191,7 @@ class BriefingService {
       at: b.eveningMinutes,
       key: AssistantKeys.lastEveningReview,
       title: 'Evening review',
+      publicTitle: AssistantLockScreenCopy.reviewTitle,
       id: 7202,
     );
   }

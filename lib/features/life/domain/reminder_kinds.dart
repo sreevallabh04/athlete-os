@@ -198,6 +198,12 @@ enum ReminderKind {
   /// pending alarm limit across all kinds).
   static const int maxPerKind = 120;
 
+  /// Whether [title]/[body] are this kind's fixed, generic copy. Anything
+  /// else (habit names, milestone titles) is the user's own content and is
+  /// hidden on the lock screen.
+  bool isGenericCopy(String title, String body) =>
+      title == this.title && body == this.body;
+
   int get idBase => block * idSpan;
   bool ownsId(int id) => id >= idBase && id < idBase + idSpan;
 

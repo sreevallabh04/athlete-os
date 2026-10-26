@@ -46,6 +46,14 @@ Sunday.
 Copy is neutral and never guilt-based ("Mark it done or skip it — both are
 fine").
 
+### Lock-screen privacy
+
+Reminders whose copy contains your own content — habit reminders (the habit
+name is the title) and competition milestones (milestone title in the body)
+— are posted with `NotificationVisibility.private`, so a secure lock screen
+shows only "Contents hidden". Kinds with fixed, generic copy stay public.
+See docs/PRIVACY.md → Lock screen.
+
 ## Scheduling mechanism
 
 1. `lifeBootstrap` loads timezone data, sets `tz.local` from

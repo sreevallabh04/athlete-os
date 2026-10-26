@@ -63,9 +63,14 @@ class AssistantController {
 
     await step('sync_config', syncNativeConfig);
     if (on) {
+      // Kill switch stops the service but keeps the user's Assistant mode
+      // preference, so turning the kill switch off restores it.
       await step('stop_service', platform.stopAssistantService);
       await step('clear_queue', platform.clearQueue);
     } else {
+      // A Stop tapped on the notification meanwhile wins over the stored
+      // preference: never resurrect a service the user stopped.
+      await step('reconcile_stop', reconcileServiceStop);
       final s = await repo.settings();
       if (s.serviceEnabled) {
         await step('start_service', platform.startAssistantService);
@@ -107,6 +112,30 @@ class AssistantController {
 
   Future<void> setDefaultRetention(int days) =>
       repo.setSetting(AssistantKeys.defaultRetentionDays, days.clamp(1, 90));
+
+  /// Persists "Assistant mode off" when the user tapped Stop on the service
+  /// notification (the native side cannot write app settings). Returns
+  /// whether such a stop was found.
+  Future<bool> reconcileServiceStop() async {
+    if (!await platform.consumeServiceStopRequest()) return false;
+    await repo.setSetting(AssistantKeys.serviceEnabled, false);
+    await repo.audit(
+      AuditAction.settings,
+      detail: 'assistant_service=false;source=notification_stop',
+    );
+    safeLog('service_stopped_by_user');
+    return true;
+  }
+
+  /// Start-up: applies a pending notification Stop first, then restarts
+  /// Assistant mode only if it is still enabled and the kill switch is off.
+  /// Returns whether the service was started.
+  Future<bool> restoreService() async {
+    await reconcileServiceStop();
+    final s = await repo.settings();
+    if (!s.serviceEnabled || s.killSwitch) return false;
+    return platform.startAssistantService();
+  }
 
   /// Opt-in Assistant mode foreground service.
   Future<bool> setServiceEnabled(bool on) async {

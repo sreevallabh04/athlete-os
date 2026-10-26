@@ -28,7 +28,20 @@ class FakeAssistantPlatform implements AssistantPlatform {
   final List<({String key, String text, String idempotencyKey})> sendCalls = [];
   final List<NativeAssistantConfig> configs = [];
   final List<String> openedApps = [];
-  final List<({int id, String title, String body})> posted = [];
+  final List<
+    ({
+      int id,
+      String title,
+      String body,
+      LockScreenVisibility visibility,
+      String? publicTitle,
+      String? publicBody,
+    })
+  >
+  posted = [];
+
+  /// Simulates the user tapping Stop on the Assistant mode notification.
+  bool serviceStopRequested = false;
   final List<CapturedEvent> queue = [];
   int openListenerSettingsCalls = 0;
   int requestBatteryCalls = 0;
@@ -160,9 +173,36 @@ class FakeAssistantPlatform implements AssistantPlatform {
   Future<bool> isAssistantServiceRunning() async => serviceRunning;
 
   @override
-  Future<bool> postNotification(int id, String title, String body) async {
-    posted.add((id: id, title: title, body: body));
+  Future<bool> postNotification(
+    int id,
+    String title,
+    String body, {
+    LockScreenVisibility visibility = LockScreenVisibility.private,
+    String? publicTitle,
+    String? publicBody,
+  }) async {
+    posted.add((
+      id: id,
+      title: title,
+      body: body,
+      visibility: visibility,
+      publicTitle: publicTitle,
+      publicBody: publicBody,
+    ));
     return true;
+  }
+
+  /// Taps Stop on the (fake) Assistant mode notification.
+  void tapServiceStop() {
+    serviceRunning = false;
+    serviceStopRequested = true;
+  }
+
+  @override
+  Future<bool> consumeServiceStopRequest() async {
+    final r = serviceStopRequested;
+    serviceStopRequested = false;
+    return r;
   }
 
   @override

@@ -19,6 +19,7 @@ class NotificationRequest {
     required this.channel,
     this.payload,
     this.waterActions = false,
+    this.personal = false,
   });
   final int id;
   final String title;
@@ -28,6 +29,15 @@ class NotificationRequest {
 
   /// Adds "Log 250 ml" and "Snooze 30 min" buttons.
   final bool waterActions;
+
+  /// Title/body carry the user's own content (a habit name, a milestone
+  /// title). Shown only when the device is unlocked; generic copy stays
+  /// public. See docs/PRIVACY.md (lock screen).
+  final bool personal;
+
+  /// Android lock-screen visibility for this request.
+  NotificationVisibility get lockScreenVisibility =>
+      personal ? NotificationVisibility.private : NotificationVisibility.public;
 }
 
 /// A tap on a notification or one of its actions.
@@ -74,6 +84,9 @@ NotificationDetails notificationDetailsFor(NotificationRequest r) =>
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         category: AndroidNotificationCategory.reminder,
+        // Private: the lock screen shows only "Athlete OS · Contents hidden"
+        // (flutter_local_notifications has no custom public version).
+        visibility: r.lockScreenVisibility,
         styleInformation: BigTextStyleInformation(r.body),
         actions: r.waterActions
             ? const [

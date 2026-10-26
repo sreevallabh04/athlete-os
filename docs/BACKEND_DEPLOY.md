@@ -43,6 +43,8 @@ New schema changes = a new timestamped file in `supabase/migrations/` (keep
 | `AI_MONTHLY_BUDGET_USD` | `10` (global cap; also the per-user default) |
 | `AI_RATE_LIMIT_PER_MIN` | `30` |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | **not set** — `strava-oauth` answers `500 server_not_configured` with a clear message |
+| `STRAVA_RATE_LIMIT_PER_MIN` | optional, default `10` — per signed-in user (bucket `strava-oauth` in `api_rate_limits`); over the limit → `429 rate_limited` + `Retry-After`. Limiter DB failure → `503 rate_limit_unavailable` (fail closed). |
+| `STRAVA_GLOBAL_RATE_LIMIT_PER_MIN` | optional, default `300` — in-memory sanity cap per function instance across all users, checked before auth (anonymous sign-ups make accounts cheap) |
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` etc. are
 injected by Supabase.

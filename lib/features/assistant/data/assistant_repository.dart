@@ -375,17 +375,34 @@ class AssistantRepository {
           );
 
   /// Edits the text/AI fields of a draft that is still open.
+  ///
+  /// A user edit ([fromAi] false) always applies and clears `confidence`,
+  /// which marks the text as user-authored ([ReplyDraftAuthorship]). An AI
+  /// write ([fromAi] true) is compare-and-set in SQL so it can never clobber
+  /// text the user typed, even if they saved it while the drafter was
+  /// running: it applies only when the stored text is empty, is the AI's own
+  /// earlier output (`confidence` set), or — for an explicit "Draft with AI"
+  /// tap — is still exactly [replacing], the text the user asked to replace.
   Future<bool> updateDraftText(
     String id,
     String text, {
     String? category,
     double? confidence,
     bool fromAi = false,
+    String? replacing,
   }) async {
     final n =
-        await (_db.update(_db.replyDrafts)..where(
-              (d) => d.id.equals(id) & d.status.isIn(DraftStatus.open.toList()),
-            ))
+        await (_db.update(_db.replyDrafts)..where((d) {
+              final open =
+                  d.id.equals(id) & d.status.isIn(DraftStatus.open.toList());
+              if (!fromAi) return open;
+              var replaceable =
+                  d.confidence.isNotNull() | d.draftText.trim().equals('');
+              if (replacing != null) {
+                replaceable = replaceable | d.draftText.equals(replacing);
+              }
+              return open & replaceable;
+            }))
             .write(
               ReplyDraftsCompanion(
                 draftText: Value(text),
@@ -521,4 +538,12 @@ class AssistantRepository {
 
   Future<List<AutomationAuditData>> auditRows() =>
       _db.select(_db.automationAudit).get();
+}
+
+/// Who wrote a draft's current text.
+extension ReplyDraftAuthorship on ReplyDraft {
+  /// Non-empty text with no AI confidence: typed or edited by the user
+  /// (a user edit clears `confidence`; every AI write sets it). The assistant
+  /// never replaces such text automatically.
+  bool get isUserAuthored => draftText.trim().isNotEmpty && confidence == null;
 }

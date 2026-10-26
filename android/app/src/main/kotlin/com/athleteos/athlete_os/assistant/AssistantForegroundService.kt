@@ -24,7 +24,12 @@ class AssistantForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
+        if (intent?.action == ACTION_STOP || intent?.action == ACTION_USER_STOP) {
+            // Stop tapped on the notification: remember it so Flutter persists
+            // "Assistant mode off" and does not restart the service on the next
+            // launch. Programmatic stops (kill switch, in-app toggle) use
+            // ACTION_STOP and leave the user's preference to Dart.
+            if (intent?.action == ACTION_USER_STOP) markUserStop(this)
             running = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -33,7 +38,7 @@ class AssistantForegroundService : Service() {
         AssistantNotifications.ensureChannels(this)
         val stopIntent = PendingIntent.getService(
             this, 7101,
-            Intent(this, AssistantForegroundService::class.java).setAction(ACTION_STOP),
+            Intent(this, AssistantForegroundService::class.java).setAction(ACTION_USER_STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = Notification.Builder(this, AssistantNotifications.CHANNEL_SERVICE)
@@ -87,13 +92,43 @@ class AssistantForegroundService : Service() {
 
     companion object {
         private const val ACTION_STOP = "com.athleteos.athlete_os.assistant.STOP"
+        private const val ACTION_USER_STOP = "com.athleteos.athlete_os.assistant.USER_STOP"
         private const val NOTIFICATION_ID = 7100
+        private const val PREFS = "athlete_os_assistant_service"
+        private const val KEY_USER_STOPPED = "user_stopped"
+
+        private fun prefs(ctx: Context) =
+            ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        private fun markUserStop(ctx: Context) {
+            try {
+                prefs(ctx).edit().putBoolean(KEY_USER_STOPPED, true).commit()
+            } catch (_: Throwable) {
+                // Best effort.
+            }
+        }
+
+        /** True once after the user tapped Stop on the notification; clears the flag. */
+        fun consumeUserStop(ctx: Context): Boolean = try {
+            val p = prefs(ctx)
+            val stopped = p.getBoolean(KEY_USER_STOPPED, false)
+            if (stopped) p.edit().remove(KEY_USER_STOPPED).commit()
+            stopped
+        } catch (_: Throwable) {
+            false
+        }
 
         @Volatile
         var running: Boolean = false
             private set
 
         fun start(ctx: Context): Boolean = try {
+            // An explicit start (in-app toggle / restore) supersedes an older Stop tap.
+            try {
+                prefs(ctx).edit().remove(KEY_USER_STOPPED).apply()
+            } catch (_: Throwable) {
+                // Best effort.
+            }
             ctx.startForegroundService(Intent(ctx, AssistantForegroundService::class.java))
             true
         } catch (t: Throwable) {

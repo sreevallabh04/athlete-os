@@ -56,6 +56,15 @@ Future<void> assistantBootstrap(ProviderContainer container) async {
     _assistantLifecycle?.dispose();
     _assistantLifecycle = AppLifecycleListener(
       onResume: () {
+        // Stop tapped on the Assistant mode notification while backgrounded.
+        unawaited(
+          controller.reconcileServiceStop().then(
+            (_) {},
+            onError: (Object e) {
+              safeLog('service_stop_sync_failed', {'error': errorCode(e)});
+            },
+          ),
+        );
         unawaited(
           ingestion.drainAndIngest().then(
             (_) {},
@@ -124,10 +133,7 @@ bool isOpenableAssistantRoute(String route) => _openableRoutes.contains(route);
 
 Future<void> _restoreService(ProviderContainer container) async {
   try {
-    final s = await container.read(assistantRepositoryProvider).settings();
-    if (s.serviceEnabled && !s.killSwitch) {
-      await container.read(assistantPlatformProvider).startAssistantService();
-    }
+    await container.read(assistantControllerProvider).restoreService();
   } catch (e) {
     safeLog('service_restore_failed', {'error': errorCode(e)});
   }

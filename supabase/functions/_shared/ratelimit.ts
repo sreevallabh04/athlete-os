@@ -25,10 +25,21 @@ export interface RateLimitResult {
 
 export const DEFAULT_RATE_LIMIT_PER_MIN = 30;
 
-export function rateLimitPerMin(env: EnvFn): number {
-  const v = Number(env("AI_RATE_LIMIT_PER_MIN"));
-  return Number.isInteger(v) && v > 0 ? v : DEFAULT_RATE_LIMIT_PER_MIN;
+/** A positive integer limit from [name], else [fallback]. */
+export function limitFromEnv(env: EnvFn, name: string, fallback: number): number {
+  const v = Number(env(name));
+  return Number.isInteger(v) && v > 0 ? v : fallback;
 }
+
+export function rateLimitPerMin(env: EnvFn): number {
+  return limitFromEnv(env, "AI_RATE_LIMIT_PER_MIN", DEFAULT_RATE_LIMIT_PER_MIN);
+}
+
+/**
+ * Pseudo user id for process-wide counters kept in an [InMemoryRateLimitStore]
+ * (never sent to the database: api_rate_limits.user_id references auth.users).
+ */
+export const GLOBAL_RATE_LIMIT_KEY = "*";
 
 export async function checkRateLimit(
   store: RateLimitStore,

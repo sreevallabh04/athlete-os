@@ -69,7 +69,7 @@ lower of the two). All per-app enables default to **off**.
 | Disabled | Nothing captured, drafted or sent. |
 | Observe | Messages captured; summaries only; no drafts. |
 | Draft (default) | Drafts saved. Nothing is sent unless you tap Send. |
-| Approval | Drafts flagged "Needs approval" + a content-free notification. Sent only when you tap Send. |
+| Approval | Drafts flagged "Needs approval" + a content-free notification (private on the lock screen: "JARVIS · New message to review"). Sent only when you tap Send. |
 | Restricted auto-reply | Auto-send **only** if every rule below passes; otherwise downgraded to Approval with the failing reasons. |
 
 ## Safety rules (enforced in `ReplyPolicyEngine`, never in AI prompts)
@@ -110,6 +110,22 @@ override. Content goes to AI only when **both** `assistant.ai_consent`
 (default off, with disclosure) and the app's `allowAi` are on. You can always
 write drafts yourself.
 
+### User edits always win
+
+A draft whose text the user typed or edited is never replaced
+automatically. A user edit clears the draft's `confidence`; every AI write
+sets it, so "non-empty text with no confidence" means user-authored
+(`ReplyDraftAuthorship.isUserAuthored`, no schema change). When a new
+message arrives in that conversation the draft is re-pointed to the latest
+notification but the drafter is **not called** (audit
+`ai_draft_skipped;user_edited`). AI writes are compare-and-set in SQL:
+they apply only to empty text, the AI's own earlier output, or — for an
+explicit **Draft with AI** tap — exactly the text the user saw when tapping.
+An edit saved while the drafter is running therefore wins (audit
+`ai_draft_discarded;user_edited_or_closed`), and the discarded result is
+reported as unavailable so restricted auto-reply can never send the user's
+unsent text.
+
 ## Delivery semantics
 
 `sendReply` fills the notification's RemoteInput (`RemoteInput.addResultsToIntent`)
@@ -147,7 +163,16 @@ approved → sending → handed_off | failed | unsupported`, plus `rejected` and
   text and clears the native queue.
 - Kill switch (Assistant screen, Settings, Capabilities): native listener
   ignores everything and clears its queue, ingestion stores nothing, no
-  drafting, all sends refused, Assistant mode stopped. Audited.
+  drafting, all sends refused, Assistant mode stopped. Audited. The kill
+  switch keeps your Assistant mode preference, so turning it off restarts
+  the service if Assistant mode was on.
+- **Stop** on the Assistant mode notification turns Assistant mode off for
+  good: the service records the tap natively (`USER_STOP`), and Flutter
+  persists `assistant.service_enabled = false` on the next start-up / resume
+  (or when the kill switch is turned off) before deciding whether to restart
+  it (`AssistantController.restoreService`, audited as
+  `source=notification_stop`). Turning Assistant mode on again in the app
+  clears the native flag.
 - The automation log (`AutomationAudit`) is metadata only (actions, reasons,
   flags, codes; conversation keys hashed). All Dart logging goes through
   `safeLog`, which drops unknown keys and redacts non-identifier strings; the
@@ -176,7 +201,9 @@ keep the app in Recents (don't back out / swipe it away). ColorOS may still
 kill the process without the battery steps above; captured events are then
 processed on next launch (queue capped at 500). Morning briefing / evening
 review are posted only if the app is alive at that time (checked every
-minute, within 3 hours of the configured time, once per day).
+minute, within 3 hours of the configured time, once per day). They are
+private on the lock screen ("JARVIS · Briefing ready"); see
+docs/PRIVACY.md → Lock screen.
 
 ## Limitations
 
