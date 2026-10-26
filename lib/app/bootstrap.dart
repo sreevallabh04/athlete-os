@@ -15,6 +15,7 @@ import '../features/planning/bootstrap.dart';
 import '../features/surfaces/bootstrap.dart';
 import '../features/today/bootstrap.dart';
 import '../features/train/bootstrap.dart';
+import 'data_fixes.dart';
 import 'day_change.dart';
 
 /// Start-up hooks registered by features (notifications init, timezone setup,
@@ -34,6 +35,7 @@ final List<BootstrapHook> bootstrapHooks = [
   assistantBootstrap,
   onboardingBootstrap,
   surfacesBootstrap,
+  dataFixesBootstrap,
 ];
 
 /// Longest the first frame waits for the start-up hooks. Hooks run

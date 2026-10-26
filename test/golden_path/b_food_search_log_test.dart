@@ -80,8 +80,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800)); // button expands
     await tester.tap(find.text('Search Open Food Facts for "paneer"'));
     await pumpUntil(tester, find.text('Golden Paneer Tikka'));
-    expect(calls, hasLength(1));
-    expect(calls.single.queryParameters['search_terms'], 'paneer');
+    // Open Food Facts plus USDA (public DEMO_KEY when no personal key).
+    final off = calls.where((u) => u.host == 'world.openfoodfacts.org');
+    expect(off, hasLength(1));
+    expect(off.single.queryParameters['search_terms'], 'paneer');
+    final usda = calls.where((u) => u.host == 'api.nal.usda.gov').toList();
+    expect(usda, hasLength(1));
+    expect(usda.single.queryParameters['api_key'], 'DEMO_KEY');
 
     await tester.tap(find.text('Golden Paneer Tikka').first);
     await pumpUntil(tester, find.text('Save & log'));

@@ -19,6 +19,13 @@ abstract final class Env {
   );
   static const usdaApiKey = String.fromEnvironment('USDA_API_KEY');
 
+  /// USDA's official public demo key (≈30 requests/hour per IP). Used when no
+  /// personal key is configured so food search works out of the box; a free
+  /// personal key from https://api.data.gov/signup lifts the limit.
+  static const usdaDemoKey = 'DEMO_KEY';
+  static bool get usdaIsDemo => usdaApiKey.isEmpty;
+  static String get usdaEffectiveKey => usdaIsDemo ? usdaDemoKey : usdaApiKey;
+
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
   static bool get hasStrava => stravaClientId.isNotEmpty && hasSupabase;

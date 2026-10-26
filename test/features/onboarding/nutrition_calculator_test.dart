@@ -15,14 +15,15 @@ void main() {
     );
 
     test('reproduces the agreed targets within 2 %', () {
-      within(plan.targetKcal, 2250, 2);
+      // Agreed 2026-10-26: 2,000 kcal at 0.9 % BW/week.
+      within(plan.targetKcal, 2000, 2);
       within(plan.proteinG, 170, 2);
       within(plan.fatG, 65, 2);
-      within(plan.carbsG, 245, 2);
-      expect(plan.targetKcal, 2250);
+      within(plan.carbsG, 185, 2);
+      expect(plan.targetKcal, 2000);
       expect(plan.proteinG, 170);
       expect(plan.fatG, 65);
-      expect(plan.carbsG, 245);
+      expect(plan.carbsG, 185);
     });
 
     test('intermediate values are physiologically sensible', () {
@@ -32,16 +33,18 @@ void main() {
       expect(plan.maintenanceHigh, 2850);
       expect(plan.maintenance, inInclusiveRange(2700, 2850));
       expect(plan.activityMultiplier, inInclusiveRange(1.5, 1.7));
-      expect(plan.deficitPct, lessThan(25));
-      expect(plan.weeklyChangeKg, closeTo(-0.468, 0.001));
-      expect(plan.warnings, isEmpty);
+      // 0.9 % BW/week (user's choice): a 27.5 % deficit, so the plan
+      // carries an honest caution rather than silently allowing it.
+      expect(plan.deficitPct, closeTo(27.5, 0.5));
+      expect(plan.weeklyChangeKg, closeTo(-0.702, 0.001));
+      expect(plan.warnings, isNotEmpty);
     });
 
     test('stage weight and prep length estimates', () {
       expect(plan.stageWeightHighKg, closeTo(68.7, 0.1));
       expect(plan.stageWeightLowKg, closeTo(67.2, 0.1));
       expect(plan.prepWeeksMin, lessThanOrEqualTo(20));
-      expect(plan.prepWeeksMax, inInclusiveRange(22, 26));
+      expect(plan.prepWeeksMax, inInclusiveRange(15, 19));
     });
 
     test('macros add up to the calorie target (±1 %)', () {

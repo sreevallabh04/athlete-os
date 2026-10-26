@@ -63,12 +63,13 @@ final openFoodFactsClientProvider = Provider<OpenFoodFactsClient>(
   (ref) => OpenFoodFactsClient(client: ref.watch(nutritionHttpClientProvider)),
 );
 
-/// Null unless `USDA_API_KEY` was supplied at build time.
+/// USDA FoodData Central. Uses the personal `USDA_API_KEY` when supplied at
+/// build time, otherwise USDA's public `DEMO_KEY` with a stricter limiter.
 final usdaClientProvider = Provider<UsdaClient?>((ref) {
-  if (Env.usdaApiKey.isEmpty) return null;
   return UsdaClient(
     client: ref.watch(nutritionHttpClientProvider),
-    apiKey: Env.usdaApiKey,
+    apiKey: Env.usdaEffectiveKey,
+    demoKey: Env.usdaIsDemo,
   );
 });
 

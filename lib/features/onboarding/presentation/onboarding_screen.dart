@@ -635,7 +635,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case 'rate':
         final preview = calculateNutrition(a.nutritionInputs);
         return _staggered([
-          for (final r in const [0.5, 0.6, 0.75, 1.0])
+          for (final r in const [0.5, 0.6, 0.75, 0.9, 1.0])
             OptionCard(
               title:
                   '${r.toString().replaceAll(RegExp(r'\.?0+$'), '')} % '

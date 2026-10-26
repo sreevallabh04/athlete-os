@@ -165,7 +165,8 @@ class CalibrationAnswers {
     experience: Experience.intermediate,
     weightKg: 78,
     bodyFatPct: 19,
-    weeklyRatePct: 0.6,
+    // 0.9 % BW/week → 2,000 kcal (user's choice, 2026-10-26).
+    weeklyRatePct: 0.9,
     officeStart: 630,
     officeEnd: 1110,
     officeDaysMask: 0x1F,

@@ -105,7 +105,7 @@ void main() {
     await tester.tap(find.text('Skip'));
     await pumpUntil(tester, find.text('Engage'));
     await tester.pump(const Duration(seconds: 2));
-    expect(find.text('2,250 kcal'), findsOneWidget);
+    expect(find.text('2,000 kcal'), findsOneWidget);
     expect(find.text('170'), findsWidgets);
 
     await tester.tap(find.text('Engage'));
@@ -116,10 +116,10 @@ void main() {
 
     final p = await ProfileRepository(db).get();
     expect(p.displayName, 'Sreevallabh');
-    expect(p.calorieTarget, 2250);
+    expect(p.calorieTarget, 2000);
     expect(p.proteinTargetG, 170);
     expect(p.fatTargetG, 65);
-    expect(p.carbsTargetG, 245);
+    expect(p.carbsTargetG, 185);
     expect(p.stepGoal, 12000);
     expect(p.waterGoalMl, 3500);
     expect(p.wakeMinutes, 360);
@@ -130,7 +130,9 @@ void main() {
     expect(history, isNotEmpty);
     expect(history.every((h) => h.reason == 'JARVIS calibration'), isTrue);
     expect(history.every((h) => h.changedBy == 'user'), isTrue);
-    expect(history.map((h) => h.metric), contains('calorieTarget'));
+    // 2,000 kcal equals the schema default, so carbs is the target that
+    // visibly changes on Engage.
+    expect(history.map((h) => h.metric), contains('carbsTargetG'));
 
     expect(
       await SettingsRepository(db).get<bool>(SettingKeys.onboardingDone),
@@ -291,11 +293,11 @@ void main() {
       final pending = await svc.watchPending().first;
       expect(pending, hasLength(1));
       expect(pending.single.kind, 'nutrition');
-      expect((await ProfileRepository(db).get()).calorieTarget, 2250);
+      expect((await ProfileRepository(db).get()).calorieTarget, 2000);
 
       await svc.accept(pending.single.id);
       final p = await ProfileRepository(db).get();
-      expect(p.calorieTarget, 2100);
+      expect(p.calorieTarget, 1850);
       expect(p.proteinTargetG, 170);
       final approved = (await ProfileRepository(
         db,

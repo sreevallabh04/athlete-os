@@ -68,7 +68,7 @@ void main() {
 
       // The profile was computed by the calibration (not the seed defaults).
       final p = await ProfileRepository(db).get();
-      expect(p.calorieTarget, 2250);
+      expect(p.calorieTarget, 2000);
       expect(p.proteinTargetG, 170);
       expect(p.waterGoalMl, 3500);
       expect(p.stepGoal, 12000);
@@ -82,7 +82,7 @@ void main() {
       expect(
         find.text('Target ${Fmt.integer(p.calorieTarget)}'),
         findsOneWidget,
-      ); // "Target 2,250"
+      ); // "Target 2,000"
       expect(
         find.text('Target ${p.proteinTargetG.round()} g'),
         findsOneWidget,
@@ -91,7 +91,6 @@ void main() {
         find.text('Target ${Fmt.ml(p.waterGoalMl)}'),
         findsOneWidget,
       ); // "Target 3.5 L"
-      expect(find.text('Target 2,000'), findsNothing, reason: 'seed default');
       // Nothing logged yet: honest empty states, no invented intake.
       expect(find.text('NOT LOGGED'), findsNWidgets(3));
 

@@ -108,17 +108,17 @@ class IntegrationsScreen extends ConsumerWidget {
               glyph: 'US',
               title: 'USDA FoodData Central',
               color: AppColors.carbs,
-              status: Env.usdaApiKey.isEmpty
-                  ? IntegrationDisplayStatus.awaitingCredentials
-                  : displayStatus(row(Providers.usda)),
+              status: displayStatus(row(Providers.usda)),
               row: row(Providers.usda),
               now: now,
               capabilities: const [
                 'Generic food nutrient data (public domain)',
               ],
-              note:
-                  'Optional. Provide a free api.data.gov key via build '
-                  'config.',
+              note: Env.usdaIsDemo
+                  ? "Works out of the box with USDA's public DEMO_KEY "
+                        '(about 30 searches an hour). A free personal key '
+                        'lifts the limit.'
+                  : 'Using your personal api.data.gov key.',
               setupSteps: const [
                 HudStep(
                   'Get a key',

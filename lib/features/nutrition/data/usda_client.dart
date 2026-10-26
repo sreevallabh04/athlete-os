@@ -8,11 +8,12 @@ import '../domain/rate_limiter.dart';
 import 'food_api.dart';
 
 /// USDA FoodData Central search (Foundation + SR Legacy), values per 100 g.
-/// Only constructed when `USDA_API_KEY` is configured.
+/// Uses the personal `USDA_API_KEY`, or USDA's public `DEMO_KEY` when none is set.
 class UsdaClient {
   UsdaClient({
     required http.Client client,
     required this.apiKey,
+    bool demoKey = false,
     DateTime Function()? now,
     Future<void> Function(Duration)? sleep,
     Uri? baseUri,
@@ -22,12 +23,19 @@ class UsdaClient {
          sleep: sleep,
        ),
        _base = baseUri ?? Uri.parse('https://api.nal.usda.gov'),
-       // data.gov keys allow 1,000 req/hour; stay well below.
-       limiter = RateLimiter(
-         maxCalls: 20,
-         window: const Duration(minutes: 1),
-         now: now,
-       );
+       // Personal data.gov keys allow 1,000 req/hour; DEMO_KEY ~30/hour per
+       // IP. Stay well below either.
+       limiter = demoKey
+           ? RateLimiter(
+               maxCalls: 25,
+               window: const Duration(hours: 1),
+               now: now,
+             )
+           : RateLimiter(
+               maxCalls: 20,
+               window: const Duration(minutes: 1),
+               now: now,
+             );
 
   final String apiKey;
   final ResilientGetter _getter;

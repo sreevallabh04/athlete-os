@@ -17,16 +17,16 @@ Future<void> nutritionBootstrap(ProviderContainer container) async {
     // Fallback to the platform abbreviation (see DeviceTz.name).
   }
   try {
-    // USDA is optional and needs a build-time key. Record that honestly
-    // (without overwriting a real status set by an earlier successful call).
-    if (Env.usdaApiKey.isEmpty) {
+    // USDA works with the public DEMO_KEY when no personal key is set, so it
+    // is never "awaiting credentials"; clear a stale status from older builds.
+    if (Env.usdaIsDemo) {
       final status = container.read(integrationStatusRepositoryProvider);
       final existing = await status.get(Providers.usda);
-      if (existing == null ||
-          existing.status != ConnectionStates.awaitingCredentials) {
+      if (existing != null &&
+          existing.status == ConnectionStates.awaitingCredentials) {
         await status.setStatus(
           Providers.usda,
-          ConnectionStates.awaitingCredentials,
+          ConnectionStates.needsSetup,
           clearError: true,
         );
       }

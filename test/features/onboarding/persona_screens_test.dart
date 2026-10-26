@@ -124,7 +124,7 @@ void main() {
     );
     await pumpUntil(tester, find.text('Office'));
     expect(find.text('Wake · 500 ml water'), findsOneWidget);
-    expect(find.text('2250'), findsOneWidget); // kcal target tile
+    expect(find.text('2000'), findsOneWidget); // kcal target tile
     await settle(tester);
   });
 
