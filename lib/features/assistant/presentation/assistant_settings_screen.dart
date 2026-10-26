@@ -133,7 +133,7 @@ class _ModeOption extends StatelessWidget {
         ? AppColors.warning
         : mode == AssistantMode.disabled
         ? hud.textMuted
-        : hud.accent;
+        : hud.jarvis;
     return Semantics(
       button: true,
       selected: selected,

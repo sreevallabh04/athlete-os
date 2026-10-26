@@ -563,10 +563,10 @@ class _PlannerTaskRow extends StatelessWidget {
                   height: 22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: task.done ? hud.accent : Colors.transparent,
+                    color: task.done ? AppColors.gold : Colors.transparent,
                     border: Border.all(
                       color: task.done
-                          ? hud.accent
+                          ? AppColors.gold
                           : hud.textMuted.withValues(alpha: 0.6),
                       width: 1.5,
                     ),
@@ -575,7 +575,7 @@ class _PlannerTaskRow extends StatelessWidget {
                       ? const Icon(
                           Icons.check,
                           size: 14,
-                          color: Color(0xFF02141C),
+                          color: Color(0xFF1F1400),
                         )
                       : null,
                 ),

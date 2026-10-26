@@ -276,7 +276,7 @@ class MoodOrbPainter extends CustomPainter {
     // Face.
     final ink = standby
         ? hud.textMuted.withValues(alpha: 0.8)
-        : const Color(0xFF0B1220).withValues(alpha: 0.82);
+        : AppColors.darkBg.withValues(alpha: 0.82);
     final stroke = math.max(1.4, r * 0.085);
     final eyeY = c.dy - r * 0.16;
     final eyeDx = r * 0.32;
@@ -531,9 +531,9 @@ class MiniLevel extends StatelessWidget {
 
 /// Mood colour of the five-step scale used by charts (Very low → Great).
 const moodScaleColors = [
-  Color(0xFF94A3B8),
-  Color(0xFF7DD3FC),
-  Color(0xFFA5B4FC),
-  Color(0xFF86EFAC),
+  Color(0xFF7D7770),
+  Color(0xFFA39C92),
+  Color(0xFFC9BBA8),
+  Color(0xFFE9B04A),
   AppColors.mood,
 ];

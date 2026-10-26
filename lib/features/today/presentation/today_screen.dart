@@ -248,13 +248,17 @@ class SystemStatusRow extends StatelessWidget {
     if (statuses == null) return (hud.textMuted, 'checking');
     final s = statuses!.where((r) => r.provider == id).firstOrNull?.status;
     return switch (s) {
-      ConnectionStates.connected => (AppColors.success, 'online'),
+      // AI status is JARVIS cyan; everything else "online" is gold.
+      ConnectionStates.connected => (
+        id == Providers.aiBackend ? hud.jarvis : AppColors.success,
+        'online',
+      ),
       ConnectionStates.needsSetup => (AppColors.warning, 'needs setup'),
       ConnectionStates.awaitingCredentials => (
         AppColors.warning,
         'awaiting keys',
       ),
-      ConnectionStates.error => (AppColors.red, 'error'),
+      ConnectionStates.error => (AppColors.danger, 'error'),
       _ => (hud.textMuted.withValues(alpha: 0.55), 'offline'),
     };
   }

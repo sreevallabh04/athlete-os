@@ -11,13 +11,14 @@ import '../../domain/food_models.dart';
 import '../../domain/nutrition_calc.dart';
 import 'common.dart';
 
-/// Categorical meal hues for the AI log charts (dawn → dusk). Used only to
+/// Categorical meal hues for the AI log charts (dawn → dusk, one warm
+/// family with alternating luminance). Used only to
 /// tell meals apart inside these charts, always with a legend.
 Color mealColor(MealType m) => switch (m) {
-  MealType.breakfast => const Color(0xFFFFB86B),
-  MealType.lunch => const Color(0xFF4FD8E8),
-  MealType.dinner => const Color(0xFF9C8CFF),
-  MealType.snack => const Color(0xFFFF8FB1),
+  MealType.breakfast => AppColors.goldLight,
+  MealType.lunch => AppColors.carbs,
+  MealType.dinner => AppColors.fat,
+  MealType.snack => AppColors.titanium,
 };
 
 /// Confidence → colour: success ≥ 0.75, warning ≥ 0.5, red below.
@@ -25,7 +26,7 @@ Color confidenceColor(double? c) {
   if (c == null) return AppColors.warning;
   if (c >= 0.75) return AppColors.success;
   if (c >= FoodLogLimits.lowConfidence) return AppColors.warning;
-  return AppColors.red;
+  return AppColors.danger;
 }
 
 String confidenceLabel(double? c) {
@@ -379,7 +380,9 @@ class ImpactBar extends StatelessWidget {
         : after.isOver
         ? 'Over by ${fmt(after.overBy)} $unit'
         : '${fmt(after.value!)} $unit left';
-    final statusColor = after.isOver ? hud.ink(AppColors.red) : hud.textMuted;
+    final statusColor = after.isOver
+        ? hud.ink(AppColors.danger)
+        : hud.textMuted;
     final statusStyle = t.bodySmall?.copyWith(
       color: statusColor,
       fontWeight: after.isOver ? FontWeight.w600 : null,
@@ -447,7 +450,7 @@ class ImpactBar extends StatelessWidget {
                   after: a,
                   target: targetF,
                   color: color,
-                  over: hud.ink(AppColors.red),
+                  over: hud.ink(AppColors.danger),
                   track: hud.text.withValues(alpha: hud.isDark ? 0.06 : 0.07),
                   tick: hud.text,
                   glow: hud.glowStrength,

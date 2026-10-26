@@ -29,7 +29,7 @@ class UserLine extends StatelessWidget {
         painter: GlassPainter(
           hud: hud,
           radius: 18,
-          accent: hud.accent,
+          accent: hud.jarvis,
           borderStrength: 0.9,
         ),
         child: Padding(
@@ -152,7 +152,7 @@ class _JarvisReplyState extends State<JarvisReply>
         child: Padding(
           padding: const EdgeInsets.only(top: AppSpacing.md, bottom: 4),
           child: CustomPaint(
-            painter: _RulePainter(hud.accent, hud.glowStrength),
+            painter: _RulePainter(hud.jarvis, hud.glowStrength),
             child: Padding(
               padding: const EdgeInsets.only(left: 16),
               child: AnimatedBuilder(
@@ -172,10 +172,10 @@ class _JarvisReplyState extends State<JarvisReply>
                         widget.text,
                         style: body,
                         reveal: reveal,
-                        accent: hud.accent,
+                        accent: hud.jarvis,
                         boldColor: hud.isDark
-                            ? Color.lerp(hud.accent, Colors.white, 0.35)
-                            : hud.accentInk,
+                            ? Color.lerp(hud.jarvis, Colors.white, 0.35)
+                            : hud.jarvisInk,
                       ),
                       AnimatedOpacity(
                         opacity: _c.value >= 1 ? 1 : 0,
@@ -268,7 +268,7 @@ class _ReplyHeader extends StatelessWidget {
       height: 22,
       child: Row(
         children: [
-          Text(label, style: hud.label(size: 12.5, color: hud.accentInk)),
+          Text(label, style: hud.label(size: 12.5, color: hud.jarvisInk)),
           if (live) ...[
             const SizedBox(width: 8),
             Text('TRANSMITTING', style: hud.mono(size: 9.5)),
@@ -412,7 +412,7 @@ class SubsystemLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
     final (Color color, String tag) = switch (status) {
-      ToolChipStatus.running => (hud.accent, 'LIVE'),
+      ToolChipStatus.running => (hud.jarvis, 'LIVE'),
       ToolChipStatus.ok => (
         isWrite ? AppColors.success : hud.textMuted,
         isWrite ? 'DONE' : 'OK',
@@ -424,7 +424,7 @@ class SubsystemLine extends StatelessWidget {
     };
     final running = status == ToolChipStatus.running;
     final glyph = running
-        ? HudSpinner(size: 12, color: hud.accent)
+        ? HudSpinner(size: 12, color: hud.jarvis)
         : Icon(
             switch (status) {
               ToolChipStatus.ok => Icons.check_rounded,

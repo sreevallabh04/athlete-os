@@ -363,7 +363,7 @@ class AmountStepper extends StatelessWidget {
                     ],
                     style: hud.number(
                       size: 44,
-                      color: valid ? hud.text : AppColors.red,
+                      color: valid ? hud.text : AppColors.danger,
                     ),
                     decoration: const InputDecoration(
                       isDense: true,
@@ -379,7 +379,7 @@ class AmountStepper extends StatelessWidget {
                     valid ? unitLabel.toUpperCase() : 'ENTER AN AMOUNT ABOVE 0',
                     style: hud.label(
                       size: 11,
-                      color: valid ? hud.textMuted : AppColors.red,
+                      color: valid ? hud.textMuted : AppColors.danger,
                     ),
                   ),
                 ],

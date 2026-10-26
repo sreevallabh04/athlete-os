@@ -50,10 +50,11 @@ widget re-renders on `onAppWidgetOptionsChanged`.
 * The widget-picker preview uses the layout's static text: dashes only.
 * Goal reached → value and bar turn gold (gold is earned, per DESIGN.md).
 
-**Styling.** Dark glass slab (`#0B1220 → #04060B`, 95 % opaque) with a cyan
-hairline and HUD corner brackets, cyan gradient progress bars, metric-family
-dots (steps violet, protein green, kcal orange, water blue), mono timestamps,
-and a luminous cyan primary button. Everything is vector/shape drawables, so it
+**Styling.** Warm charcoal glass slab (`#141316 → #0A0A0C`, 95 % opaque) with a
+champagne hairline and Stark-red corner brackets, red gradient progress bars,
+metric-family dots (steps platinum, protein gold, kcal red, water steel), mono
+timestamps and a Stark-red primary button. Only the "JARVIS Today" label and
+icon are arc cyan (cyan is reserved for the AI). Everything is vector/shape drawables, so it
 is crisp at any density and costs no bitmap memory. Rendering a Flutter widget
 to a bitmap (`home_widget.renderFlutterWidget`) was rejected: it needs the
 engine running for every refresh, bitmaps blur when the launcher rescales them
@@ -127,8 +128,8 @@ Long-press the Athlete OS icon (or drag a shortcut to the home screen):
 | Today's session | `athleteos://open/session` | Program screen with today's session and **Start session** |
 
 Static (`res/xml/shortcuts.xml`), with explicit `targetClass` so they always
-reach `MainActivity`. Icons are adaptive (navy + faint reactor ring + cyan
-glyph) with a monochrome layer for themed icons.
+reach `MainActivity`. Icons are adaptive (charcoal + faint red reactor ring +
+red glyph; "Ask JARVIS" keeps its cyan glyph) with a monochrome layer for themed icons.
 
 ## 3. Deep links
 

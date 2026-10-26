@@ -188,7 +188,9 @@ class _EditEntrySheetState extends ConsumerState<EditEntrySheet> {
                 child: SizedBox(
                   height: 52,
                   child: TextButton.icon(
-                    style: TextButton.styleFrom(foregroundColor: AppColors.red),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                    ),
                     onPressed: _delete,
                     icon: const Icon(Icons.delete_outline, size: 18),
                     label: const Text('Delete'),

@@ -674,7 +674,7 @@ class _UsageSection extends ConsumerWidget {
         ? AppColors.danger
         : frac >= 0.8
         ? AppColors.warning
-        : hud.accent;
+        : hud.jarvis;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

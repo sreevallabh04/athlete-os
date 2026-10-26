@@ -82,15 +82,15 @@ IconData routineIcon(RoutineKind k) => switch (k) {
 };
 
 /// Slate for neutral blocks (commute, personal time).
-const _slate = Color(0xFF8EA3B8);
+const _slate = AppColors.darkTextMuted;
 
 Color routineColor(RoutineKind k) => switch (k) {
   RoutineKind.training => AppColors.strength,
   RoutineKind.meal => AppColors.protein,
   RoutineKind.walk => AppColors.steps,
-  RoutineKind.focus => AppColors.cyan,
-  RoutineKind.office => AppColors.cyanDeep,
-  RoutineKind.ritual => AppColors.mood,
+  RoutineKind.focus => AppColors.carbs,
+  RoutineKind.office => AppColors.titanium,
+  RoutineKind.ritual => AppColors.heart,
   RoutineKind.sleep || RoutineKind.windDown => AppColors.sleep,
   RoutineKind.wake => AppColors.water,
   RoutineKind.commute || RoutineKind.personal => _slate,
@@ -138,7 +138,7 @@ class _DayStats extends StatelessWidget {
               label: 'Focus',
               value: '$focus',
               sub: focus == 1 ? 'block' : 'blocks',
-              color: AppColors.cyan,
+              color: AppColors.carbs,
             ),
           ),
           Expanded(

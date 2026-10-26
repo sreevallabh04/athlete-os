@@ -78,7 +78,7 @@ class IntegrationsScreen extends ConsumerWidget {
             _StaticTile(
               glyph: 'AI',
               title: 'AI providers',
-              color: AppColors.cyan,
+              color: AppColors.jarvis,
               status: displayStatus(row(Providers.aiBackend)),
               row: row(Providers.aiBackend),
               now: now,

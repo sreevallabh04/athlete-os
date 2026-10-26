@@ -108,7 +108,7 @@ class _JarvisCoreState extends State<JarvisCore>
   @override
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
-    final color = widget.color ?? hud.accent;
+    final color = widget.color ?? hud.jarvis;
     final outer = widget.size * 1.42;
     return SizedBox.square(
       dimension: outer,

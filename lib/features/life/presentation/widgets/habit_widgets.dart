@@ -244,7 +244,7 @@ class _NodePainter extends CustomPainter {
         ).createShader(fillRect),
     );
 
-    final ink = const Color(0xFF04131A);
+    const ink = Color(0xFF1F1400);
     if (auto) {
       // Bolt glyph.
       final b = r * 0.55;
@@ -538,11 +538,11 @@ class HabitChip extends ConsumerWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               color: lit
-                  ? c.withValues(alpha: hud.isDark ? 0.13 : 0.16)
+                  ? c.withValues(alpha: hud.isDark ? 0.10 : 0.14)
                   : hud.glassFill,
               border: Border.all(
                 color: lit
-                    ? c.withValues(alpha: 0.65)
+                    ? c.withValues(alpha: 0.5)
                     : hud.hairline.withValues(alpha: skipped ? 0.12 : 0.22),
               ),
               boxShadow: lit
@@ -737,7 +737,7 @@ class HabitMonthHeatmap extends StatelessWidget {
                 child: Text(
                   '$d',
                   style: t.labelMedium?.copyWith(
-                    color: const Color(0xFF04131A),
+                    color: const Color(0xFF1F1400),
                     fontWeight: FontWeight.w700,
                   ),
                 ),

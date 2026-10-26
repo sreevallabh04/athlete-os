@@ -26,7 +26,7 @@ class PendingActionCard extends StatelessWidget {
     final hud = HudTheme.of(context);
     final t = Theme.of(context).textTheme;
     final consent = pending.isConsent;
-    final accent = consent ? AppColors.warning : hud.accent;
+    final accent = consent ? AppColors.warning : hud.jarvis;
     return Semantics(
       container: true,
       label: pending.title,

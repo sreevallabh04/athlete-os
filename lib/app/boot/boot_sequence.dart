@@ -355,7 +355,7 @@ class _CheckLine extends StatelessWidget {
     final color = switch (check.tone) {
       _Tone.ok => AppColors.success,
       _Tone.warn => AppColors.warning,
-      _Tone.bad => AppColors.red,
+      _Tone.bad => AppColors.danger,
       _Tone.muted => hud.textMuted,
     };
     final style = hud.mono(size: 11.5);

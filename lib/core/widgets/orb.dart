@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../motion/motion_tokens.dart';
 import '../theme/hud_theme.dart';
+import '../theme/tokens.dart';
 import 'hud_background.dart';
 
 /// What the assistant is doing. Drives [JarvisOrb]'s animation.
@@ -117,7 +118,8 @@ class _JarvisOrbState extends State<JarvisOrb>
   @override
   Widget build(BuildContext context) {
     final hud = HudTheme.of(context);
-    final color = widget.color ?? hud.accent;
+    final color =
+        widget.color ?? (hud.isDark ? AppColors.jarvis : AppColors.jarvisDeep);
     final label =
         widget.semanticLabel ??
         switch (widget.state) {

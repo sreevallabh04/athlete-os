@@ -30,7 +30,7 @@ Color summaryColor(SummaryTopic t) => switch (t) {
   SummaryTopic.protein => AppColors.protein,
   SummaryTopic.calories => AppColors.calories,
   SummaryTopic.water => AppColors.water,
-  SummaryTopic.calendar => AppColors.cyan,
+  SummaryTopic.calendar => AppColors.titanium,
   SummaryTopic.workout => AppColors.strength,
   SummaryTopic.sleep => AppColors.sleep,
 };
@@ -110,7 +110,7 @@ class BriefingStrip extends StatelessWidget {
         onTap: () => showBriefingSheet(context, summary: summary, now: now),
         pressedScale: 0.98,
         child: GlassPanel(
-          accent: hud.accent,
+          accent: hud.jarvis,
           radius: AppRadii.lg,
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
@@ -134,7 +134,7 @@ class BriefingStrip extends StatelessWidget {
                       children: [
                         Text(
                           'JARVIS · BRIEFING',
-                          style: hud.mono(size: 9.5, color: hud.accentInk),
+                          style: hud.mono(size: 9.5, color: hud.jarvisInk),
                         ),
                         const Spacer(),
                         if (more > 0)
@@ -150,7 +150,7 @@ class BriefingStrip extends StatelessWidget {
                       text,
                       key: ValueKey(text),
                       style: t.bodyMedium?.copyWith(height: 1.4),
-                      caret: hud.accent,
+                      caret: hud.jarvis,
                     ),
                   ],
                 ),
@@ -246,7 +246,7 @@ class _TypewriterState extends State<Typewriter>
                       TextSpan(
                         text: '▍',
                         style: TextStyle(
-                          color: widget.caret ?? context.hud.accent,
+                          color: widget.caret ?? context.hud.jarvis,
                         ),
                       ),
                     ],
@@ -281,7 +281,7 @@ Future<void> showBriefingSheet(
           Text(
             '${DateFormat('EEE d MMM').format(now).toUpperCase()} · '
             '${DateFormat('HH:mm').format(now)} · ON-DEVICE',
-            style: hud.mono(size: 10, color: hud.accentInk),
+            style: hud.mono(size: 10, color: hud.jarvisInk),
           ),
           const SizedBox(height: AppSpacing.md),
           if (summary.lines.isEmpty)

@@ -1,5 +1,5 @@
 // Athlete OS — holographic HUD background.
-// Slow domain-warped nebula + faint hex grid + sparse twinkles + scanlines,
+// Warm charcoal canvas: slow domain-warped ember haze + faint hex grid + sparse twinkles + scanlines,
 // vignette and film grain. Deliberately low intensity: it should be felt,
 // not seen. Cost: 4-octave value-noise fbm x3, ~120 ALU ops per pixel.
 #version 460 core
@@ -69,20 +69,21 @@ void main() {
   vec2 q = vec2(fbm(p + vec2(0.0, t)), fbm(p + vec2(5.2, 1.3) - t));
   float n = fbm(p + 1.6 * q + vec2(t * 0.6, -t * 0.4));
   float neb = smoothstep(0.38, 0.95, n);
-  vec3 deep = vec3(0.10, 0.20, 0.55);
-  col += accent * neb * 0.075 * uIntensity;
-  col += deep * smoothstep(0.45, 1.0, q.x) * 0.07 * uIntensity;
+  // Warm ember haze: a faint accent (red) nebula with a gold undertone.
+  vec3 deep = vec3(0.55, 0.36, 0.10);
+  col += accent * neb * 0.05 * uIntensity;
+  col += deep * smoothstep(0.45, 1.0, q.x) * 0.035 * uIntensity;
 
   // Reactor light spilling from above the top edge.
   float top = smoothstep(1.05, 0.0, length((uv - vec2(0.5, -0.08)) * vec2(1.0, 1.5)));
-  col += accent * top * 0.09 * uIntensity;
+  col += accent * top * 0.06 * uIntensity;
 
   // Hex grid, fading out towards the bottom, cells breathing out of phase.
   vec4 hc = hexCoords(frag / 44.0);
   float edge = smoothstep(0.46, 0.5, hexDist(hc.xy));
   float mask = smoothstep(1.0, 0.0, uv.y) * 0.6 + 0.12;
   float breathe = 0.55 + 0.45 * sin(uTime * 0.5 + hash(hc.zw) * 6.2831);
-  col += accent * edge * 0.032 * mask * breathe * uIntensity;
+  col += mix(accent, deep, 0.35) * edge * 0.03 * mask * breathe * uIntensity;
 
   // Sparse twinkles.
   vec2 cell = floor(frag / 26.0);
@@ -91,7 +92,7 @@ void main() {
     vec2 c = (cell + vec2(hash(cell + 1.3), hash(cell + 7.1))) * 26.0;
     float d = length(frag - c);
     float tw = 0.5 + 0.5 * sin(uTime * (0.7 + h * 1.8) + h * 40.0);
-    col += accent * smoothstep(1.6, 0.0, d) * 0.4 * tw * uIntensity;
+    col += mix(accent, vec3(1.0, 0.85, 0.55), 0.6) * smoothstep(1.6, 0.0, d) * 0.3 * tw * uIntensity;
   }
 
   // Scanlines + vignette + grain.

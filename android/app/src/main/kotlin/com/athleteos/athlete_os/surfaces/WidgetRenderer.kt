@@ -32,9 +32,9 @@ object WidgetRenderer {
     private val KCAL = Ids(R.id.surf_cell_kcal, R.id.surf_val_kcal, R.id.surf_tgt_kcal, R.id.surf_bar_kcal, R.id.surf_barg_kcal)
     private val WATER = Ids(R.id.surf_cell_water, R.id.surf_val_water, R.id.surf_tgt_water, R.id.surf_bar_water, R.id.surf_barg_water)
 
-    private const val COLOR_TEXT = 0xFFE8F1FA.toInt()
-    private const val COLOR_MUTED = 0xFF8EA3B8.toInt()
-    private const val COLOR_GOLD = 0xFFFFC24B.toInt()
+    private const val COLOR_TEXT = 0xFFF4F1EC.toInt()
+    private const val COLOR_MUTED = 0xFFA8A299.toInt()
+    private const val COLOR_GOLD = 0xFFF2B544.toInt()
 
     fun build(ctx: Context, model: Model, wide: Boolean): RemoteViews {
         val layout = if (wide) R.layout.surf_widget_wide else R.layout.surf_widget_compact

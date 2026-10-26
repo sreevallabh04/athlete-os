@@ -857,7 +857,7 @@ class _MoodMonthGrid extends ConsumerWidget {
                 child: Text(
                   '$d',
                   style: t.labelMedium?.copyWith(
-                    color: const Color(0xFF0B1220),
+                    color: AppColors.darkBg,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

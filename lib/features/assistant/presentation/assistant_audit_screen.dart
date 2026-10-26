@@ -30,7 +30,7 @@ class AssistantAuditScreen extends ConsumerWidget {
     AuditAction.send || AuditAction.approve => AppColors.success,
     AuditAction.sendFailed || AuditAction.killSwitch => AppColors.danger,
     AuditAction.reject => AppColors.warning,
-    AuditAction.draft => hud.accent,
+    AuditAction.draft => hud.jarvis,
     _ => hud.textMuted,
   };
 

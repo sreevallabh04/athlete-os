@@ -194,7 +194,7 @@ class _DevGalleryScreenState extends State<DevGalleryScreen>
                 children: [
                   ProgressRing(
                     progress: _ring,
-                    color: AppColors.cyan,
+                    color: AppColors.steps,
                     size: 140,
                     stroke: 11,
                     semanticLabel: 'Steps',
@@ -639,7 +639,7 @@ class _DevGalleryScreenState extends State<DevGalleryScreen>
           const NoticeBanner(
             message: 'AI budget reached for today.',
             icon: Icons.block,
-            color: AppColors.red,
+            color: AppColors.danger,
           ),
         ]),
         const SizedBox(height: AppSpacing.md),
@@ -729,9 +729,11 @@ class _DevGalleryScreenState extends State<DevGalleryScreen>
   }
 
   static const _palette = <(String, Color)>[
-    ('cyan', AppColors.cyan),
+    ('jarvis', AppColors.jarvis),
     ('gold', AppColors.gold),
     ('red', AppColors.red),
+    ('danger', AppColors.danger),
+    ('titanium', AppColors.titanium),
     ('calories', AppColors.calories),
     ('protein', AppColors.protein),
     ('carbs', AppColors.carbs),

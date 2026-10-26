@@ -615,13 +615,13 @@ class _CalibrateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppCard(
-    accent: AppColors.cyan,
+    accent: AppColors.jarvis,
     brackets: true,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const HudRow(
-          leading: HudBadge(icon: Icons.auto_awesome, color: AppColors.cyan),
+          leading: HudBadge(icon: Icons.auto_awesome, color: AppColors.jarvis),
           title: 'Generate your program',
           subtitle:
               'Calibration builds your 5 lift + 2 run week, pace zones '
@@ -1057,7 +1057,7 @@ class _QuickGrid extends ConsumerWidget {
               label: 'Log',
               value: 'Workout',
               sub: 'manual · rest timer',
-              color: AppColors.cyan,
+              color: AppColors.titanium,
               onTap: () => LogWorkoutScreen.open(context),
             ),
           ],

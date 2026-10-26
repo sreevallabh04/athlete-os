@@ -32,7 +32,7 @@ class HudTheme extends ThemeExtension<HudTheme> {
   final Color canvasTop;
   final Color canvasBottom;
 
-  /// Primary accent (arc-reactor cyan) for strokes, glows and fills.
+  /// Primary accent (Stark red) for strokes, glows and fills.
   final Color accent;
 
   /// Accent variant guaranteed legible as text on the canvas.
@@ -75,44 +75,57 @@ class HudTheme extends ThemeExtension<HudTheme> {
   /// filled pill) and colours already dark enough (`accentInk`, `text`) pass
   /// through unchanged.
   Color ink(Color c) {
-    if (isDark ||
-        c.computeLuminance() < 0.22 ||
-        HSLColor.fromColor(c).saturation < 0.3) {
+    if (isDark) return c;
+    // Brand hues have hand-tuned light-theme inks.
+    if (c == AppColors.red || c == AppColors.redInk) {
+      return AppColors.redInkLight;
+    }
+    if (c == AppColors.gold || c == AppColors.goldLight) {
+      return AppColors.goldInk;
+    }
+    if (c == AppColors.jarvis) return AppColors.jarvisInk;
+    if (c.computeLuminance() < 0.18 || HSLColor.fromColor(c).saturation < 0.3) {
       return c;
     }
     return Color.lerp(c, Colors.black, 0.48)!;
   }
 
+  /// JARVIS (AI) cyan for strokes, fills and glows. AI surfaces only.
+  Color get jarvis => isDark ? AppColors.jarvis : AppColors.jarvisDeep;
+
+  /// JARVIS cyan legible as text/icons on the canvas.
+  Color get jarvisInk => isDark ? AppColors.jarvis : AppColors.jarvisInk;
+
   static const dark = HudTheme(
     isDark: true,
     canvasTop: AppColors.darkBgAlt,
     canvasBottom: AppColors.darkBg,
-    accent: AppColors.cyan,
-    accentInk: AppColors.cyan,
-    glassFill: Color(0x0FFFFFFF),
-    glassFillStrong: Color(0xB80A111D),
-    hairline: Color(0xFF9FE9FF),
+    accent: AppColors.red,
+    accentInk: AppColors.redInk,
+    glassFill: Color(0x0DFFF1E2),
+    glassFillStrong: Color(0xC7141316),
+    hairline: Color(0xFFF2DCC2),
     text: AppColors.darkText,
     textMuted: AppColors.darkTextMuted,
-    gridColor: Color(0x1436E2FF),
-    nebulaIntensity: 1,
-    glowStrength: 1,
+    gridColor: Color(0x12DD3439),
+    nebulaIntensity: 0.8,
+    glowStrength: 0.75,
   );
 
   static const light = HudTheme(
     isDark: false,
-    canvasTop: Color(0xFFF7F9FB),
+    canvasTop: Color(0xFFFBF9F6),
     canvasBottom: AppColors.lightBg,
-    accent: AppColors.cyanDeep,
-    accentInk: AppColors.cyanInk,
-    glassFill: Color(0xC7FFFFFF),
-    glassFillStrong: Color(0xE6FFFFFF),
-    hairline: Color(0xFF5C7A94),
+    accent: Color(0xFFD02A30),
+    accentInk: AppColors.redInkLight,
+    glassFill: Color(0xCCFFFFFF),
+    glassFillStrong: Color(0xEBFFFFFF),
+    hairline: Color(0xFF8C7F72),
     text: AppColors.lightText,
     textMuted: AppColors.lightTextMuted,
-    gridColor: Color(0x1A007A99),
-    nebulaIntensity: 0.35,
-    glowStrength: 0.45,
+    gridColor: Color(0x14B4232A),
+    nebulaIntensity: 0.3,
+    glowStrength: 0.4,
   );
 
   static HudTheme of(BuildContext context) =>

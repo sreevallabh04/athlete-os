@@ -84,7 +84,12 @@ class EstimateBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_outlined, size: 10, color: ink),
+            // AI glyph in JARVIS cyan: estimates come from the assistant.
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 10,
+              color: context.hud.ink(AppColors.jarvis),
+            ),
             const SizedBox(width: 3),
             Text(label, style: AppTypography.hudLabel(ink, size: 10.5)),
           ],

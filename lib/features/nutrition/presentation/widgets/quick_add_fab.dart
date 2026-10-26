@@ -19,7 +19,7 @@ class QuickAction {
   final String label;
   final VoidCallback onSelected;
 
-  /// Marks AI-assisted actions with a small amber "AI" tag.
+  /// Marks AI-assisted actions with a small JARVIS-cyan "AI" tag.
   final bool ai;
 }
 
@@ -87,17 +87,16 @@ class _FabCore extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color.lerp(hud.accent, Colors.white, 0.25)!, hud.accent],
+          colors: [
+            Color.lerp(hud.accent, Colors.white, 0.06)!,
+            Color.lerp(hud.accent, Colors.black, 0.14)!,
+          ],
         ),
         boxShadow: AppGlows.strong(hud.accent, strength: hud.glowStrength),
       ),
       child: Transform.rotate(
         angle: turns * math.pi / 4,
-        child: const Icon(
-          Icons.add_rounded,
-          size: 32,
-          color: Color(0xFF02141C),
-        ),
+        child: const Icon(Icons.add_rounded, size: 32, color: Colors.white),
       ),
     );
   }
@@ -173,7 +172,7 @@ class _SpeedDial extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 8 * a, sigmaY: 8 * a),
                   child: ColoredBox(
-                    color: (hud.isDark ? Colors.black : const Color(0xFF0B1220))
+                    color: (hud.isDark ? Colors.black : AppColors.lightText)
                         .withValues(alpha: 0.55 * a),
                   ),
                 ),
@@ -281,13 +280,13 @@ class _SpeedDial extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: AppColors.warning.withValues(alpha: 0.6),
+                                color: hud.jarvis.withValues(alpha: 0.6),
                               ),
                             ),
                             child: Text(
                               'AI',
                               style: AppTypography.hudLabel(
-                                AppColors.warning,
+                                hud.jarvisInk,
                                 size: 9.5,
                               ),
                             ),

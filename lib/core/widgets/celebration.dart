@@ -32,7 +32,7 @@ class CelebrationBurst extends StatefulWidget {
     super.key,
     required this.child,
     required this.controller,
-    this.color = AppColors.cyan,
+    this.color = AppColors.gold,
     this.particles = 26,
     this.haptic = false,
     this.spread = 1.0,
@@ -182,7 +182,7 @@ class _BurstPainter extends CustomPainter {
       final col = white
           ? Colors.white
           : gold
-          ? AppColors.gold
+          ? AppColors.goldLight
           : color;
       final dir = Offset(math.cos(a), math.sin(a));
       final r0 = base * 0.78;

@@ -91,7 +91,7 @@
                     android:indeterminate="false"
                     android:max="1000"
                     android:progress="0"
-                    android:progressDrawable="@drawable/surf_bar_cyan" />
+                    android:progressDrawable="@drawable/surf_bar_accent" />
 
                 <ProgressBar
                     android:id="@+id/surf_barg_steps"
@@ -176,7 +176,7 @@
                     android:indeterminate="false"
                     android:max="1000"
                     android:progress="0"
-                    android:progressDrawable="@drawable/surf_bar_cyan" />
+                    android:progressDrawable="@drawable/surf_bar_accent" />
 
                 <ProgressBar
                     android:id="@+id/surf_barg_protein"
@@ -271,7 +271,7 @@
                     android:indeterminate="false"
                     android:max="1000"
                     android:progress="0"
-                    android:progressDrawable="@drawable/surf_bar_cyan" />
+                    android:progressDrawable="@drawable/surf_bar_accent" />
 
                 <ProgressBar
                     android:id="@+id/surf_barg_kcal"
@@ -356,7 +356,7 @@
                     android:indeterminate="false"
                     android:max="1000"
                     android:progress="0"
-                    android:progressDrawable="@drawable/surf_bar_cyan" />
+                    android:progressDrawable="@drawable/surf_bar_accent" />
 
                 <ProgressBar
                     android:id="@+id/surf_barg_water"
@@ -417,14 +417,14 @@
             android:contentDescription="@string/surf_water_button_cd"
             android:drawableStart="@drawable/ic_surf_water"
             android:drawablePadding="4dp"
-            android:drawableTint="@color/surf_navy"
+            android:drawableTint="@color/surf_on_accent"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:paddingStart="8dp"
             android:paddingEnd="10dp"
             android:singleLine="true"
             android:text="@string/surf_water_button"
-            android:textColor="@color/surf_navy"
+            android:textColor="@color/surf_on_accent"
             android:textSize="11.5sp"
             android:textStyle="bold" />
     </LinearLayout>

@@ -416,7 +416,7 @@ class _BriefingCard extends ConsumerWidget {
     BriefingKind.calories => AppColors.calories,
     BriefingKind.protein => AppColors.protein,
     BriefingKind.water => AppColors.water,
-    BriefingKind.calendar => AppColors.cyan,
+    BriefingKind.calendar => AppColors.titanium,
     BriefingKind.drafts => AppColors.gold,
     BriefingKind.unanswered => AppColors.warning,
     BriefingKind.habits => AppColors.habit,
@@ -625,7 +625,7 @@ class _ConversationCardState extends ConsumerState<_ConversationCard> {
               margin: const EdgeInsets.only(top: AppSpacing.xs),
               padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: hud.accent.withValues(alpha: 0.06),
+                color: hud.jarvis.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
               child: Text(

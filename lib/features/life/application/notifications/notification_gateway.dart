@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -84,6 +86,8 @@ NotificationDetails notificationDetailsFor(NotificationRequest r) =>
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         category: AndroidNotificationCategory.reminder,
+        // Small-icon / action accent: Stark red (AppColors.red).
+        color: const Color(0xFFDD3439),
         // Private: the lock screen shows only "Athlete OS · Contents hidden"
         // (flutter_local_notifications has no custom public version).
         visibility: r.lockScreenVisibility,

@@ -88,11 +88,11 @@ abstract final class DraftActions {
           children: [
             Text(
               'TO ${title.toUpperCase()} · ${appLabel.toUpperCase()}',
-              style: hud.label(size: 11, color: hud.accentInk),
+              style: hud.label(size: 11, color: hud.jarvisInk),
             ),
             const SizedBox(height: AppSpacing.sm),
             GlassPanel(
-              accent: hud.accent,
+              accent: hud.jarvis,
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Text(d.draftText, style: t.bodyLarge),
             ),
@@ -329,11 +329,11 @@ class _DraftInboxTileState extends ConsumerState<DraftInboxTile> {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
             decoration: BoxDecoration(
-              color: hud.accent.withValues(alpha: 0.06),
+              color: hud.jarvis.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(AppRadii.sm),
               border: Border(
                 left: BorderSide(
-                  color: hud.accent.withValues(alpha: 0.8),
+                  color: hud.jarvis.withValues(alpha: 0.8),
                   width: 2,
                 ),
               ),
@@ -345,7 +345,7 @@ class _DraftInboxTileState extends ConsumerState<DraftInboxTile> {
                   d.confidence != null
                       ? 'DRAFT · ${(d.confidence! * 100).round()}% CONFIDENT'
                       : 'YOUR REPLY',
-                  style: hud.label(size: 10, color: hud.accentInk),
+                  style: hud.label(size: 10, color: hud.jarvisInk),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -428,7 +428,7 @@ class _DraftInboxTileState extends ConsumerState<DraftInboxTile> {
         DismissDirection.endToStart: 0.35,
       },
       background: _SwipeBg(
-        color: hud.accent,
+        color: hud.jarvis,
         icon: Icons.send_rounded,
         label: 'APPROVE & SEND',
         alignLeft: true,

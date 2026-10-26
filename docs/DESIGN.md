@@ -1,4 +1,4 @@
-# Athlete OS: Design System ("JARVIS HUD")
+# Athlete OS: Design System ("Stark HUD")
 
 This document is for the engineers who rebuild every screen on top of the HUD system.
 Read §1–§3 before you start, keep §6 open while you work, and run the screenshot tool (§9) before you open a PR.
@@ -13,42 +13,50 @@ import '../../../core/theme/tokens.dart';    // AppColors, AppSpacing, AppRadii,
 ## 1. Principles
 
 1. **Stark-tech HUD, Apple-level restraint.** Think of a heads-up display seen through good glass. Luminous lines, thin brackets and glows are used to *frame information*, not to decorate it. If an element doesn't help someone read a number faster, delete it.
-2. **One accent.** Arc-reactor **cyan** marks focus, selection, progress and primary actions. **Gold** is earned (PRs, streaks, goals hit). **Red** is for alerts and destructive actions only. Metric hues identify *data families*; they are not decoration.
-3. **Dark space is the canvas.** Pages are transparent over the app-wide `HudBackground` (a slow nebula, a faint hex grid and twinkles). Don't paint opaque page backgrounds.
+2. **One accent, one earned colour, one AI colour.** **Stark red** marks focus, selection, progress and primary actions; it *accents* and must never flood a screen. **Gold** is earned (PRs, streaks, goals hit, "done"). **Arc cyan belongs to JARVIS only** (see §2). Errors and "over target" use a hotter **coral** plus an icon and a label. Metric hues identify *data families* inside one warm family; they are not decoration.
+3. **Warm charcoal is the canvas.** Pages are transparent over the app-wide `HudBackground` (a faint ember haze, a red/gold hex grid and twinkles). Don't paint opaque page backgrounds.
 4. **Physical motion.** Anything you touch moves on a spring and answers with a haptic. Anything that arrives decelerates in. Everything respects reduced motion.
 5. **Honesty is part of the look.** Show `SourceBadge`s, stale states and "not connected" without apology. The boot sequence never fakes "online", and screens shouldn't either.
 6. **Numbers are the hero.** Use tabular figures, tickers for values that change, and big HUD numerals in rings and gauges.
 
-## 2. Palette (`AppColors`)
+## 2. Palette (`AppColors`): "Stark" red & gold
 
 | Token | Hex | Use |
 |---|---|---|
-| `cyan` (= `brand`, `info`) | `#36E2FF` | Primary accent: selection, progress, primary CTA, focus |
-| `cyanDeep` | `#00A9D4` | Fills behind light text; light-theme accent strokes |
-| `cyanInk` | `#007A99` | Cyan **text** on light backgrounds (AA) |
-| `gold` (= `brandAlt`) | `#FFC24B` | Achievements, PRs, streaks, "goal reached" |
-| `red` (= `danger`) | `#FF4D3D` | Alerts, destructive actions, errors |
-| `success` | `#3EE68B` | Connected / completed states |
-| `warning` | `#FFB547` | Stale, estimate, needs attention |
-| `darkBg` / `darkBgAlt` | `#04060B` / `#070B14` | Canvas gradient (bottom / top) |
-| `darkSurface` / `darkSurfaceHigh` | `#0A101B` / `#111A28` | Opaque surfaces (dialogs, sheets) |
-| `darkOutline` | `#1D2B3D` | Dividers on opaque surfaces |
-| `darkText` / `darkTextMuted` | `#E8F1FA` / `#8EA3B8` | Body / secondary text (≥ 7:1 and ≥ 4.5:1) |
-| `lightBg` / `lightSurface` | `#F3F5F8` / `#FFFFFF` | "Stark lab" porcelain |
-| `lightText` / `lightTextMuted` | `#11161D` / `#55606E` | Graphite text |
+| `red` (= `brand`) | `#DD3439` | Primary accent: selection, progress, primary CTA (white label 4.5:1), focus, title rule |
+| `redDeep` | `#B8262B` | Pressed states, deep fills, gradient stop |
+| `redInk` / `redInkLight` | `#F04A4F` / `#B4232A` | Red **text** on charcoal / on porcelain (AA) |
+| `gold` (= `brandAlt`, `success`, `habit`) | `#F2B544` | Achievements, PRs, streaks, "done" checks, connected |
+| `goldLight` (= `mood`) | `#FFD27A` | Gold text/highlights on dark, celebration sparks |
+| `goldInk` | `#8A5A00` | Gold text on porcelain (AA) |
+| **`jarvis`** (`cyan` is a legacy alias) | `#3FD0FF` | **AI only**: orb, AI status, coach chat/composer, briefing strip, AI badges and estimate glyphs, AI food-log analysing state |
+| `jarvisDeep` / `jarvisInk` | `#0E9FCC` / `#006F92` | AI fills on light / AI text on porcelain |
+| `titanium` (= `info`) | `#B7B0A6` | Neutral information: tags, "auto", calendar, empty states |
+| `warning` | `#FF9A3D` | Stale, estimate, needs attention (always with a label) |
+| `danger` (= `over`) | `#FF6A4D` | Errors, destructive, **over target**: hotter and brighter than `red`, always paired with an icon and a label (`KCAL OVER` + warning glyph, `SYSTEM FAULT`) |
+| `darkBg` / `darkBgAlt` | `#0A0A0C` / `#131215` | Charcoal canvas (bottom / top): warm-neutral, never navy |
+| `darkSurface` / `darkSurfaceHigh` | `#151417` / `#1D1B1F` | Opaque surfaces (dialogs, sheets, dock) |
+| `darkOutline` | `#2E2A2B` | Dividers on opaque surfaces |
+| `darkText` / `darkTextMuted` / `darkTextFaint` | `#F4F1EC` / `#A8A299` / `#6A655F` | Body / secondary / decorative-only text |
+| `lightBg` / `lightSurface` / `lightSurfaceHigh` | `#F6F3EE` / `#FFFFFF` / `#ECE6DE` | "Stark lab" porcelain |
+| `lightText` / `lightTextMuted` | `#1A1719` / `#5E5850` | Charcoal text |
 
-**Metric families** (luminous, slightly desaturated, similar perceived brightness):
+**The cyan rule.** Cyan means "JARVIS is involved" and nothing else. Use `AppColors.jarvis`, or the theme-aware `context.hud.jarvis` / `hud.jarvisInk`, on AI surfaces, and never for ordinary progress, selection or data. Everything that used to be cyan is now red (accent), titanium (neutral info) or a metric colour.
 
-| calories `#FF8F4D` | protein `#3EE6A0` | carbs `#6E9BFF` | fat `#FFCF5C` | fiber `#B4EC5A` |
+**Metric families** collapse into one red → amber → gold family plus titanium/steel, with luminance spaced so adjacent series stay apart:
+
+| calories `#DD3439` (red) | protein `#FFD06E` (pale gold) | carbs `#E8822A` (amber) | fat `#C9466A` (rose) | fiber `#DCC48A` (wheat) |
 |---|---|---|---|---|
-| **water** `#45C4FF` | **steps** `#B07CFF` | **heart** `#FF5A76` | **sleep** `#8F94FF` | **strength** `#FF72B6` |
-| **running** `#FF6A2B` | **mood** `#FFD84D` | **habit** `#3DE0C8` | **competition** `#E47BFF` | |
+| **water** `#5F7A90` (steel) | **steps** `#DCCDB8` (platinum) | **heart** `#E85A78` (rose-red) | **sleep** `#B9AE9F` (champagne silver) | **strength** `#DD3439` (red) |
+| **running** `#F2782F` (ember) | **mood** `#FFD27A` | **habit** `#F2B544` | **competition** `#FF8A3D` | |
 
-Contrast is enforced by `test/core/theme_test.dart` (body ≥ 7:1, muted, cyan and gold ≥ 4.5:1 on every dark surface). On the light theme, never set body text in a metric colour: use it for strokes, fills and icons, and `cyanInk` for accent text.
+Today's concentric rings (steps → calories → protein → water) alternate light and dark: steps/calories 2.9:1, calories/protein 3.1:1, protein/water 3.1:1. In the macro orbit, protein/fat is 3.2:1, while protein/carbs and carbs/fat differ by hue (ΔE2000 ≥ 22) as well as lightness (1.9:1 and 1.7:1), and every sector carries its P/C/F letter. Every metric stroke is ≥ 3:1 against the canvas and cards (WCAG 1.4.11). Mood runs ash `#7D7770` → pewter → champagne → amber → gold, so luminance rises with mood and low moods are never red.
 
-Gradients (`AppGradients`): `brand` (cyan → blue), `gold`, `competition`, `canvas`, `subtle(c)` (accent wash) and `hairline(c)` (luminous border). Glows (`AppGlows`): `soft(c)`, `strong(c)` (outer-only box shadows, so they never show through glass) and `text(c)` (for `Icon.shadows` / `TextStyle.shadows`).
+Contrast is enforced by `test/core/theme_test.dart` (body ≥ 7:1; muted, red ink, gold, jarvis and danger ≥ 4.5:1 on every dark surface; metric strokes ≥ 3:1; the adjacent-series pairs above). On the light theme, never set body text in a metric colour: use it for strokes, fills and icons, and `hud.accentInk` (`redInkLight`) for accent text.
 
-Theme-dependent values live in **`HudTheme`** (`context.hud`): `accent`, `accentInk`, `glassFill(Strong)`, `hairline`, `text(Muted)`, `gridColor`, `glowStrength` (1.0 dark / 0.45 light) and `nebulaIntensity`. Prefer these over raw constants whenever the value should change with the theme. `hud.label/mono/number(color: …)` pass the colour through `hud.ink(c)`, which darkens luminous metric hues on the light theme so coloured HUD text stays AA (dark theme and neutrals are untouched); use `hud.ink` yourself for any other coloured text.
+Gradients (`AppGradients`): `brand` (red → deep red), `gold`, `competition` (red → gold), `jarvis` (AI only), `canvas`, `subtle(c)` (accent wash) and `hairline(c)` (luminous border). Glows (`AppGlows`): `soft(c)`, `strong(c)` (outer-only box shadows, so they never show through glass) and `text(c)` (for `Icon.shadows` / `TextStyle.shadows`).
+
+Theme-dependent values live in **`HudTheme`** (`context.hud`): `accent` (red), `accentInk`, `jarvis`/`jarvisInk` (AI cyan), `glassFill(Strong)`, `hairline` (warm champagne), `text(Muted)`, `gridColor`, `glowStrength` (0.75 dark / 0.4 light) and `nebulaIntensity`. Prefer these over raw constants whenever the value should change with the theme. `hud.label/mono/number(color: …)` pass the colour through `hud.ink(c)`, which maps red/gold/jarvis to their hand-tuned inks and darkens other luminous hues on the light theme so coloured HUD text stays AA (dark theme and neutrals are untouched); use `hud.ink` yourself for any other coloured text.
 
 ## 3. Typography (`AppTypography`, `AppFonts`)
 
@@ -140,18 +148,18 @@ All components are exported from `core/widgets/widgets.dart`, and every one is s
 * **`showHudBottomSheet(context, title:, builder:)`**: frosted sheet on a gentle spring. **`HudSheet`** is the chrome on its own.
 
 ### States & feedback
-* **`EmptyState`** (existing API, plus `eyebrow`, `color`): icon in a slowly scanning reticle. Copy voice: calm, specific, helpful ("No meals logged yet. Snap a photo or search a food to start today's tally.").
-* **`ErrorState`** (existing API, plus `title`, `eyebrow`): red reticle, `SYSTEM FAULT` eyebrow, human headline.
+* **`EmptyState`** (existing API, plus `eyebrow`, `color`): icon in a slowly scanning reticle (titanium by default, so it never reads as an error). Copy voice: calm, specific, helpful ("No meals logged yet. Snap a photo or search a food to start today's tally.").
+* **`ErrorState`** (existing API, plus `title`, `eyebrow`): coral (`danger`) reticle, `SYSTEM FAULT` eyebrow, human headline.
 * **`LoadingState`** (existing API, plus `label`, `compact`): `HudSpinner`. For content-shaped placeholders use **`ScanlineLoader(lines: 3)`** or `ScanlineLoader(height: 140, lines: 0)`.
 * **`NoticeBanner`** (existing API): tinted glass with a glowing edge bar.
 * **`CelebrationBurst(controller:, child:)`** + `CelebrationController.fire()`: shockwave and sparks painted over any widget.
 
 ### Assistant
-* **`JarvisOrb(state: OrbState.idle|listening|thinking|speaking, level: micLevelStream, size: 180)`**: animated reactor orb. States cross-fade. `level` is a `Stream<double>` 0..1 used while listening. Use `fps: 30` for small decorative orbs.
+* **`JarvisOrb(state: OrbState.idle|listening|thinking|speaking, level: micLevelStream, size: 180)`**: animated reactor orb, always JARVIS cyan. States cross-fade. `level` is a `Stream<double>` 0..1 used while listening. Use `fps: 30` for small decorative orbs.
 
 ### Chrome
 * **`HudDock`** / **`HudDockItem`**: floating glass dock (used by `AppShell`). It has a spring indicator, icon morph, an orb slot and a selection haptic. A bottom scrim dissolves content as it slides under the dock.
-* **`HudBackground`**: shader nebula with a painter fallback, capped at 30 fps and paused when the app is inactive or reduced motion is on. The app root already paints one, so don't add another.
+* **`HudBackground`**: warm charcoal shader (faint red ember haze with a gold undertone, red/gold hex grid) with a painter fallback, capped at 30 fps and paused when the app is inactive or reduced motion is on. The app root already paints one, so don't add another.
 * **`AthleteEmblem`** / `EmblemPainter`: the brand mark.
 
 ## 7. Do / Don't
@@ -159,7 +167,8 @@ All components are exported from `core/widgets/widgets.dart`, and every one is s
 | Do | Don't |
 |---|---|
 | Use `AppCard`/`GlassPanel` for surfaces and leave the canvas visible | Paint opaque page or Scaffold backgrounds |
-| Keep cyan for the one thing that matters on the screen | Use cyan, gold and red together on one card |
+| Keep red for the one thing that matters on the screen | Flood a screen with red, or use red for errors (that's `danger` + icon) |
+| Keep cyan for JARVIS/AI surfaces | Use cyan for progress, selection or data |
 | Use metric colours only for their data family | Use `AppColors.protein` because "green looks nice" |
 | Use `AnimatedTicker`/`StatTile` for changing numbers | Animate numbers with ad-hoc `setState` loops |
 | Wrap custom tappables in `PressableScale` | Use bare `GestureDetector`s (no feedback) or ink ripples on glass |
@@ -174,7 +183,7 @@ All components are exported from `core/widgets/widgets.dart`, and every one is s
 
 * **Shell** (`lib/app/shell.dart`): phones get the floating `HudDock` (Today · Train · Nutrition · **AI Coach orb** · Life). At ≥ 840 dp you get a frosted `NavigationRail`. `StatefulNavigationShell` behaviour is unchanged.
 * **Boot sequence** (`lib/app/boot/`): plays once per process on a cold start, takes about 1.6 s and is skippable by tap. The emblem ignites from the exact native-splash position (108 dp), then HUD lines draw in, a time-aware greeting types out (profile `displayName`, if set), and four honest system checks run from `integrationStatusesProvider` (LOCAL DATA, HEALTH CONNECT, AI CORE, CALENDAR). It then zoom-reveals the app. It is disabled with reduced motion and under `flutter test`; override `bootSequenceEnabledProvider` to test it.
-* **App icon**: an original mark. A segmented hexagon "reactor housing" (gaps and nodes at the vertices, like HUD brackets) encloses a faceted Λ monogram (an A for Athlete, and an upward chevron for progress). Its crossbar is a white-hot energy cell. Cyan → blue on a deep-navy field with a faint hex lattice. It reads clearly at 48 px (`assets/icon/preview_48.png`) and contains no third-party marks. It is rendered by the same `EmblemPainter` the app uses:
+* **App icon**: an original mark. A segmented hexagon "reactor housing" (gaps and nodes at the vertices, like HUD brackets) encloses a faceted Λ monogram (an A for Athlete, and an upward chevron for progress). Its crossbar is a white-hot energy cell. A Stark-red segmented housing with gold vertex nodes and a faceted gold monogram (light → bronze) sit on a warm charcoal field with a faint red hex lattice and a gold top light. It reads clearly at 48 px (`assets/icon/preview_48.png`) and contains no third-party marks. It is rendered by the same `EmblemPainter` the app uses:
   `flutter test tool/render_icon_test.dart && dart run flutter_launcher_icons && dart run flutter_native_splash:create`.
   This produces the master (`assets/icon/icon.png`), adaptive foreground/background, the Android 13 themed monochrome icon, the splash and the Android 12 splash. The notification small icon is `res/drawable/ic_stat_jarvis.xml`.
 
@@ -193,7 +202,7 @@ In your own test, call `shotRoute(tester, '/route', 'name', scrolls: 2, light: t
 ## 10. API changes for screen engineers
 
 * **No breaking changes** to `AppColors.*`, `AppSpacing.*`, `AppRadii.*`, `AppDurations.*`, `AppGradients.*`, `AppTheme.dark()/light()`, `AppPage`, `AppCard`, `SectionHeader`, `ProgressRing`, `MetricBar`, `StatTile`, `SourceBadge`, `EmptyState`, `ErrorState`, `LoadingState`, `NoticeBanner` or `spaced()`. Only optional parameters were added.
-* `AppColors.brand` is now **cyan** and `brandAlt` is **gold**, so existing call sites re-skin automatically.
+* `AppColors.brand` is now **Stark red** and `brandAlt` is **gold**, so existing call sites re-skin automatically. `AppColors.red` is the brand red: use `AppColors.danger` for errors and destructive actions, and `AppColors.jarvis` for AI (`cyan` remains as an alias).
 * `scaffoldBackgroundColor` is **transparent**. Raw `Scaffold`s show the HUD background, which is intended.
 * The bottom `NavigationBar` is gone. Tests should look for `HudDock` (see `test/app_smoke_test.dart`).
 * `FilledButton` no longer has elevation. Use `HudButton` when you want bloom.

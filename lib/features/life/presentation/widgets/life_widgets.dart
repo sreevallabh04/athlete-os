@@ -14,7 +14,7 @@ import '../../domain/habit_models.dart';
 class SupportCard extends StatelessWidget {
   const SupportCard({super.key});
 
-  static const calm = Color(0xFF8FB8FF);
+  static const calm = Color(0xFF9FB3C4);
 
   @override
   Widget build(BuildContext context) {
@@ -164,12 +164,13 @@ IconData moodIcon(int mood) => switch (mood) {
   _ => Icons.sentiment_very_satisfied,
 };
 
-/// Neutral-to-warm scale; low moods are not shown in alarming red.
+/// Ash → champagne → gold: luminance rises with mood, and low moods are
+/// never shown in alarming red.
 Color moodColor(int mood) => switch (mood) {
-  1 => const Color(0xFF94A3B8),
-  2 => const Color(0xFF7DD3FC),
-  3 => const Color(0xFFA5B4FC),
-  4 => const Color(0xFF86EFAC),
+  1 => const Color(0xFF7D7770),
+  2 => const Color(0xFFA39C92),
+  3 => const Color(0xFFC9BBA8),
+  4 => const Color(0xFFE9B04A),
   _ => AppColors.mood,
 };
 
@@ -207,7 +208,7 @@ class PrivacyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hud = context.hud;
-    final c = hud.isDark ? AppColors.habit : AppColors.cyanInk;
+    final c = hud.isDark ? AppColors.habit : AppColors.goldInk;
     return Semantics(
       label: 'Private, stored only on this device',
       excludeSemantics: true,

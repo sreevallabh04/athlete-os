@@ -38,14 +38,15 @@ class EmptyState extends StatelessWidget {
   final bool compact;
   final String? eyebrow;
 
-  /// Reticle/icon tint (defaults to the theme accent).
+  /// Reticle/icon tint. Defaults to neutral titanium: an empty screen is
+  /// calm, and a red reticle would read as an error (see [ErrorState]).
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final hud = HudTheme.of(context);
-    final c = color ?? hud.accent;
+    final c = color ?? (hud.isDark ? AppColors.titanium : hud.textMuted);
     final iconSize = compact ? 22.0 : 30.0;
     return Padding(
       padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.xxl),
@@ -231,7 +232,7 @@ class ErrorState extends StatelessWidget {
     title: title,
     message: message,
     eyebrow: eyebrow,
-    color: AppColors.red,
+    color: AppColors.danger,
     actionLabel: onRetry == null ? null : 'Retry',
     onAction: onRetry,
   );
@@ -312,7 +313,14 @@ class SourceBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isEstimate || origin == DataOrigin.sample)
-              Icon(Icons.auto_awesome_outlined, size: 11, color: color)
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 11,
+                // The AI glyph keeps JARVIS cyan; the label stays amber.
+                color: origin == DataOrigin.aiEstimate
+                    ? hud.ink(AppColors.jarvis)
+                    : color,
+              )
             else if (stale)
               Icon(Icons.schedule, size: 11, color: color)
             else

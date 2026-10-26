@@ -9,7 +9,7 @@ import '../../../../data/repositories/settings_repository.dart';
 
 /// Warm red used for "over target" states (calories, macros). Softer than
 /// the alert red so going over reads as information, not an error.
-const Color overColor = Color(0xFFFF6A4D);
+const Color overColor = AppColors.over;
 
 // ---------------------------------------------------------------------------
 // Once-per-day goal celebrations

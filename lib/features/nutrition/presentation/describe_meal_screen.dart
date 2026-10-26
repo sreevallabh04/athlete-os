@@ -633,7 +633,7 @@ class _CommitBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: hud.glassFillStrong,
         border: Border(
-          top: BorderSide(color: hud.accent.withValues(alpha: 0.25)),
+          top: BorderSide(color: hud.jarvis.withValues(alpha: 0.25)),
         ),
       ),
       child: SafeArea(
@@ -693,13 +693,13 @@ class _ExampleChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.sm),
-            color: hud.accent.withValues(alpha: 0.06),
-            border: Border.all(color: hud.accent.withValues(alpha: 0.22)),
+            color: hud.jarvis.withValues(alpha: 0.06),
+            border: Border.all(color: hud.jarvis.withValues(alpha: 0.22)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.north_west_rounded, size: 13, color: hud.accentInk),
+              Icon(Icons.north_west_rounded, size: 13, color: hud.jarvisInk),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(

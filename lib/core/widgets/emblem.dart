@@ -72,9 +72,13 @@ class EmblemPainter extends CustomPainter {
   /// Fraction of the canvas the emblem occupies (used for icon safe zones).
   final double scale;
 
-  static const _cyanHot = Color(0xFFBFF6FF);
-  static const _cyan = AppColors.cyan;
-  static const _blue = Color(0xFF2F7BFF);
+  // Stark palette: red housing, gold monogram, white-hot cell.
+  static const _redHot = Color(0xFFFF8A7E);
+  static const _red = AppColors.red;
+  static const _redDeep = Color(0xFF8E1A1F);
+  static const _goldHot = Color(0xFFFFE7B0);
+  static const _gold = AppColors.gold;
+  static const _bronze = Color(0xFFB8741E);
 
   /// Hexagon vertices (pointy top) on a unit circle of radius [r].
   static List<Offset> hex(double r) => [
@@ -125,7 +129,7 @@ class EmblemPainter extends CustomPainter {
     // ── Outer tick ring (detail only) ──────────────────────────────────────
     if (detail && !mono) {
       final tick = Paint()
-        ..color = _cyan.withValues(alpha: 0.35 * d)
+        ..color = _gold.withValues(alpha: 0.35 * d)
         ..strokeWidth = 0.012
         ..strokeCap = StrokeCap.round;
       const n = 72;
@@ -154,7 +158,7 @@ class EmblemPainter extends CustomPainter {
       edgePaint.shader = ui.Gradient.linear(
         const Offset(0, -0.9),
         const Offset(0, 0.9),
-        [_cyanHot, _cyan, _blue],
+        [_redHot, _red, _redDeep],
         [0, 0.45, 1],
       );
     }
@@ -176,7 +180,7 @@ class EmblemPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 0.075
-          ..color = _cyan.withValues(alpha: 0.55 * math.min(1, g))
+          ..color = _red.withValues(alpha: 0.55 * math.min(1, g))
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.06),
       );
     }
@@ -184,7 +188,7 @@ class EmblemPainter extends CustomPainter {
 
     // Vertex nodes: tiny squares where the edges break.
     if (!mono) {
-      final node = Paint()..color = _cyanHot.withValues(alpha: 0.9 * d);
+      final node = Paint()..color = _goldHot.withValues(alpha: 0.9 * d);
       for (final v in hex(0.84)) {
         canvas.drawCircle(v, 0.018, node);
       }
@@ -198,8 +202,8 @@ class EmblemPainter extends CustomPainter {
         p,
         Paint()
           ..shader = ui.Gradient.radial(const Offset(0, -0.1), 0.8, [
-            const Color(0xFF12304A).withValues(alpha: 0.75 * d),
-            const Color(0xFF07101D).withValues(alpha: 0.35 * d),
+            const Color(0xFF3A1416).withValues(alpha: 0.75 * d),
+            const Color(0xFF120B0C).withValues(alpha: 0.35 * d),
           ]),
       );
       canvas.drawPath(
@@ -207,7 +211,7 @@ class EmblemPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 0.012
-          ..color = _cyan.withValues(alpha: 0.28 * d),
+          ..color = _gold.withValues(alpha: 0.28 * d),
       );
     }
 
@@ -217,7 +221,7 @@ class EmblemPainter extends CustomPainter {
       final (left, right) = monogram();
       if (!mono && g > 0) {
         final bloom = Paint()
-          ..color = _cyan.withValues(alpha: 0.45 * mAlpha * math.min(1, g))
+          ..color = _gold.withValues(alpha: 0.40 * mAlpha * math.min(1, g))
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.08);
         canvas.drawPath(left, bloom);
         canvas.drawPath(right, bloom);
@@ -236,8 +240,8 @@ class EmblemPainter extends CustomPainter {
               const Offset(-0.3, 0.44),
               [
                 Colors.white.withValues(alpha: mAlpha),
-                _cyanHot.withValues(alpha: mAlpha),
-                _cyan.withValues(alpha: mAlpha),
+                _goldHot.withValues(alpha: mAlpha),
+                _gold.withValues(alpha: mAlpha),
               ],
               [0, 0.35, 1],
             ),
@@ -249,9 +253,9 @@ class EmblemPainter extends CustomPainter {
               const Offset(0, -0.56),
               const Offset(0.3, 0.44),
               [
-                _cyan.withValues(alpha: mAlpha),
-                const Color(0xFF1FA8E0).withValues(alpha: mAlpha),
-                _blue.withValues(alpha: mAlpha),
+                _gold.withValues(alpha: mAlpha),
+                const Color(0xFFDD9A34).withValues(alpha: mAlpha),
+                _bronze.withValues(alpha: mAlpha),
               ],
               [0, 0.5, 1],
             ),
@@ -267,7 +271,9 @@ class EmblemPainter extends CustomPainter {
           canvas.drawRRect(
             c.inflate(0.03),
             Paint()
-              ..color = _cyan.withValues(alpha: 0.9 * mAlpha * math.min(1, g))
+              ..color = _goldHot.withValues(
+                alpha: 0.9 * mAlpha * math.min(1, g),
+              )
               ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.07),
           );
           canvas.drawCircle(
@@ -275,8 +281,8 @@ class EmblemPainter extends CustomPainter {
             0.34,
             Paint()
               ..shader = ui.Gradient.radial(const Offset(0, 0.165), 0.34, [
-                _cyan.withValues(alpha: 0.28 * mAlpha * math.min(1.5, g)),
-                _cyan.withValues(alpha: 0),
+                _gold.withValues(alpha: 0.24 * mAlpha * math.min(1.5, g)),
+                _gold.withValues(alpha: 0),
               ]),
           );
         }
@@ -298,7 +304,7 @@ class EmblemPainter extends CustomPainter {
       old.scale != scale;
 }
 
-/// Launcher-icon background: deep navy radial field, faint hex lattice and
+/// Launcher-icon background: warm charcoal radial field, faint hex lattice and
 /// a soft top light. Shared with the icon renderer.
 class IconBackgroundPainter extends CustomPainter {
   const IconBackgroundPainter();
@@ -313,7 +319,7 @@ class IconBackgroundPainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset(c.dx, size.height * 0.42),
           size.width * 0.75,
-          const [Color(0xFF0E2238), Color(0xFF07101D), Color(0xFF04060B)],
+          const [Color(0xFF2A1517), Color(0xFF141214), Color(0xFF0A0A0C)],
           const [0, 0.55, 1],
         ),
     );
@@ -327,8 +333,8 @@ class IconBackgroundPainter extends CustomPainter {
         Offset(c.dx, size.height * 0.45),
         size.width * 0.7,
         [
-          AppColors.cyan.withValues(alpha: 0.10),
-          AppColors.cyan.withValues(alpha: 0.0),
+          AppColors.red.withValues(alpha: 0.12),
+          AppColors.red.withValues(alpha: 0.0),
         ],
       );
     final path = Path();
@@ -349,8 +355,8 @@ class IconBackgroundPainter extends CustomPainter {
           Offset(c.dx, -size.height * 0.1),
           size.width * 0.9,
           [
-            AppColors.cyan.withValues(alpha: 0.10),
-            AppColors.cyan.withValues(alpha: 0.0),
+            AppColors.gold.withValues(alpha: 0.08),
+            AppColors.gold.withValues(alpha: 0.0),
           ],
         ),
     );
