@@ -196,7 +196,11 @@ class _InsightCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(insight.detail, style: t.bodyMedium),
           const SizedBox(height: AppSpacing.xs),
-          Hint(insight.rule),
+          // Rule numbers are for the code and docs; people get the reason.
+          Hint(
+            'Why: '
+            '${insight.rule.replaceFirst(RegExp(r'^(Rule \d+|Rule-based): '), '')}',
+          ),
         ],
       ),
     );

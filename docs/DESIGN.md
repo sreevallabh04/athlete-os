@@ -119,7 +119,7 @@ All components are exported from `core/widgets/widgets.dart`, and every one is s
   `AppCard(accent: AppColors.protein, onTap: …, brackets: true, glow: true, child: …)`. `accent` adds a tinted wash and light spill. `brackets` adds HUD corner brackets (hero/focus cards only, at most one or two per screen). `glow` adds an accent bloom. `gradient` replaces the fill. `onLongPress` and `animateEntrance` are also available. Contains a transparent `Material`, so `ListTile`/`InkWell` ink works inside.
 * **`GlassPanel`**: the same glass without card semantics. Set `blur:` only for chrome floating over moving content.
 * **`HudFrame`**: corner brackets around any child, with optional `ticks` and a mono `tag` (`'SYS·01'`).
-* **`AppPage`** (existing API, plus `eyebrow`): large Inter Display title that blurs in, a HUD rule underneath, and a collapse into a frosted bar. Transparent over the background. Pull-to-refresh, back/close button and actions as before.
+* **`AppPage`** (existing API, plus `eyebrow`): large Inter Display title that blurs in, a HUD rule underneath, and a collapse into a frosted bar. Transparent over the background. Pull-to-refresh, back/close button and actions as before. A pushed screen's primary action goes in `bottomAction:` (a docked frosted bar the list ends above, so it never covers content); keep `floatingActionButton` for tab roots that float over the dock (Nutrition's quick-add).
 * **`SectionHeader`** (existing API, plus `accent`): glowing marker, title, and a tick line that fades out.
 
 ### Data

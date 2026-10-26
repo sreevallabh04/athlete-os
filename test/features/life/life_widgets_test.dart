@@ -171,7 +171,8 @@ void main() {
   ) async {
     await tester.pumpWidget(testHarness(const MoodScreen(), db: db, now: now));
     await pumpUntil(tester, find.text('No check-in yet today'));
-    await pumpUntil(tester, find.text('Not enough check-ins yet'));
+    // The docked "Check in" bar shortens the 600 px test viewport.
+    await tester.scrollUntilVisible(find.text('Not enough check-ins yet'), 200);
     await tester.scrollUntilVisible(find.text('Mood vs sleep quality'), 200);
     expect(find.textContaining('Not enough data yet'), findsWidgets);
     await settle(tester);

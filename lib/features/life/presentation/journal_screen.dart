@@ -67,7 +67,8 @@ class JournalScreen extends ConsumerWidget {
           onPressed: () => _export(context, ref),
         ),
       ],
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Write',
         icon: Icons.edit_outlined,
         onPressed: () => openJournalEditor(context),
@@ -347,7 +348,7 @@ class _JournalEntryCard extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final hud = context.hud;
     final d = LocalDates.parse(entry.localDate);
-    final date = DateFormat('EEE, d MMM yyyy').format(d);
+    final date = DateFormat('EEE d MMM yyyy').format(d);
     final preview = entry.body.trim().isEmpty
         ? (entry.gratitude ?? 'Empty entry')
         : entry.body.trim();

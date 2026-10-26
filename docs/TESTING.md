@@ -11,6 +11,13 @@ npx -y deno@2.9.6 test supabase/functions # edge-function unit tests
 flutter build apk --debug --target-platform android-arm64
 ```
 
+Layout tests that check overflows must load the real fonts first (`test/helpers/real_fonts.dart`,
+`setUpAll(loadRealFonts)`): the default test font is much wider than Inter and reports false overflows.
+
+Visual QA: `flutter test tool/qa_shots_test.dart --dart-define=SHOT_DIR=build/shots/qa` renders the
+first-run journey (all 18 onboarding steps → Engage → Today, then every tab freshly calibrated); the
+per-feature `tool/r_*_shots_test.dart` suites take the same `SHOT_DIR`.
+
 Test helpers live in `test/helpers/test_app.dart`:
 `newTestDb()` (in-memory Drift), `testOverrides(db, now:)` (fixed clock), `testHarness(widget, …)`.
 Widget tests that use Drift streams finish with
@@ -31,6 +38,7 @@ so pending stream timers settle.
 | Planning / Today | Competition countdown across timezones/DST/leap/past dates, deterministic daily summary (only-available-data rule), report builder, task carry-over, profile diff + goal history |
 | AI coach | Tool argument validation, consent gating, write confirmation, idempotent replay, audit log, every read tool against seeded data, **Strava rows never appear in any tool output**, agent loop (tool call → result → answer; rejection; max rounds), prompt contains no bulk history |
 | Assistant | Notification access only after explanation, disabled apps ignored, Draft mode never sends, auto-reply rules enforced in code (WhatsApp block, sensitive flags, caps, quiet hours, confidence, identity, groups), duplicate events → one draft, kill switch stops automation, no content/credentials in logs |
+| App-wide UX (QA pass) | `test/app/route_coverage_test.dart`: every `AppPaths` route (read from `paths.dart`) builds with real fonts in empty, seeded and 1.3× text states without exceptions or overflows, and no enabled button is unreachable by TalkBack. `navigation_links_test.dart`: every literal in-app location in `lib/`, launcher shortcut and deep-link target resolves to a registered route, and every query parameter is read by that route. `accessibility_test.dart`: tab roots meet Android tap-target, labelled-target and text-contrast guidelines. `coach_listen_link_test.dart`: `/coach?listen=1` explains, asks and listens. |
 | Backend (Deno) | Provider adapters (request/response + tool calls), error classification, backoff with Retry-After, circuit breaker, budget thresholds, redaction |
 
 ## Recorded results

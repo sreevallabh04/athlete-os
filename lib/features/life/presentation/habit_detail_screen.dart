@@ -146,7 +146,7 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
     final mark = v.marks[date];
     final choice = await showHudBottomSheet<String>(
       context,
-      title: DateFormat('EEEE, d MMMM').format(LocalDates.parse(date)),
+      title: DateFormat('EEEE d MMMM').format(LocalDates.parse(date)),
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

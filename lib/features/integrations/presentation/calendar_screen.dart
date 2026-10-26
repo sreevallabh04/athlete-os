@@ -127,7 +127,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           },
         ),
       ],
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Plan block',
         icon: Icons.add,
         onPressed: () => _plan(),

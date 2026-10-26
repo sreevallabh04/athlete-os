@@ -803,7 +803,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           OptionCard(
             title: 'Voice responses',
-            subtitle: 'Replies and briefings read aloud in the coach',
+            subtitle: 'Briefings and coach replies, read aloud',
             icon: Icons.graphic_eq,
             multi: true,
             selected: a.voiceEnabled,

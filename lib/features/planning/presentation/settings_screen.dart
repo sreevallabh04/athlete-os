@@ -247,7 +247,7 @@ class _IdentityCard extends ConsumerWidget {
                   p == null
                       ? 'Loading profile…'
                       : '${Fmt.integer(p.calorieTarget)} kcal · '
-                            '${p.proteinTargetG.round()} g protein · '
+                            '${p.proteinTargetG.round()} g P · '
                             '${(p.stepGoal / 1000).toStringAsFixed(p.stepGoal % 1000 == 0 ? 0 : 1)}k steps',
                   style: hud.mono(size: 10.5),
                 ),

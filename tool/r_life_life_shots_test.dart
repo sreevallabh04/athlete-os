@@ -373,6 +373,12 @@ void main() {
       'life_editor_edit',
       seed: true,
       then: (t) async {
+        // "Train" sits below the fold (not built yet): scroll to it first.
+        await t.scrollUntilVisible(
+          find.text('Train'),
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
         await _tap(t, find.text('Train'));
         await _tap(t, find.byTooltip('Edit habit'));
       },

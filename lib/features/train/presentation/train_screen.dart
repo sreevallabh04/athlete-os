@@ -624,8 +624,8 @@ class _CalibrateCard extends StatelessWidget {
           leading: HudBadge(icon: Icons.auto_awesome, color: AppColors.cyan),
           title: 'Generate your program',
           subtitle:
-              'JARVIS calibration builds the 5 lift + 2 run week, pace '
-              'zones and deloads from your goals.',
+              'Calibration builds your 5 lift + 2 run week, pace zones '
+              'and deloads.',
           chevron: false,
         ),
         const SizedBox(height: AppSpacing.md),

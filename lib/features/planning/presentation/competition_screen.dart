@@ -181,7 +181,7 @@ class _WhatYouGet extends StatelessWidget {
           Text('No competition set', style: t.titleSmall),
           const SizedBox(height: 2),
           Text(
-            'No date yet is fine. Once there is one, this becomes your prep '
+            'Once there is a date, this becomes your prep '
             'command centre.',
             style: t.bodySmall?.copyWith(color: hud.textMuted),
           ),

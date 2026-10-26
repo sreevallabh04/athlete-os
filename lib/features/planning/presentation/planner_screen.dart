@@ -49,7 +49,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         ref.invalidate(calendarDayProvider(_date));
         ref.invalidate(tasksForDateProvider(_date));
       },
-      floatingActionButton: HudButton(
+      bottomAction: HudButton(
+        expand: true,
         label: 'Add priority',
         icon: Icons.add_task,
         onPressed: () => _editTask(context),
@@ -1061,7 +1062,7 @@ class DayRibbon extends StatelessWidget {
                 Text('FREE TIME', style: hud.label(size: 10.5)),
                 const Spacer(),
                 Text(
-                  '${freeMin ~/ 60} H ${freeMin % 60} M',
+                  '${freeMin ~/ 60} h ${freeMin % 60} min',
                   style: hud.mono(size: 10.5, color: AppColors.success),
                 ),
               ],
